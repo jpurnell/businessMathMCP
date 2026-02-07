@@ -50,6 +50,13 @@ let package = Package(
 			swiftSettings: [
 				.enableUpcomingFeature("StrictConcurrency")
 			]
+		),
+		.testTarget(
+			name: "BusinessMathMCPTests",
+			dependencies: ["BusinessMathMCP"],
+			swiftSettings: [
+				.enableUpcomingFeature("StrictConcurrency")
+			]
 		)
 	]
 )
