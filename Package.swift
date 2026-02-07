@@ -21,7 +21,7 @@ let package = Package(
 	dependencies: [
 		.package(
 			url: "https://github.com/jpurnell/BusinessMath.git",
-			from: "2.0.0"
+			branch: "main"
 		),
 		.package(
 			url: "https://github.com/apple/swift-numerics",
