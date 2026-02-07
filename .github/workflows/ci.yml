@@ -72,10 +72,20 @@ jobs:
       - name: Verify Server Starts
         run: |
           swift build -c release --product businessmath-mcp-server
-          timeout 5 .build/release/businessmath-mcp-server || code=$?
-          if [ $code -eq 124 ]; then
-            echo "✅ Server started successfully (timed out as expected)"
+
+          # Start server in background
+          .build/release/businessmath-mcp-server &
+          SERVER_PID=$!
+
+          # Give it time to start (or crash)
+          sleep 3
+
+          # Check if process is still running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "✅ Server started successfully (PID: $SERVER_PID)"
+            kill $SERVER_PID
+            exit 0
           else
-            echo "❌ Server failed to start"
+            echo "❌ Server failed to start or crashed immediately"
             exit 1
           fi
