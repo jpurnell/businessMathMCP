@@ -1,5 +1,10 @@
 # BusinessMathMCP
 
+[![CI](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml)
+[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Swift 6 Compliant](https://img.shields.io/badge/Swift%206-Compliant-brightgreen.svg)](https://www.swift.org/blog/announcing-swift-6/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Model Context Protocol (MCP) server for BusinessMath financial calculations.
 
 ## Overview
@@ -43,13 +48,17 @@ import BusinessMathMCP
 ## Requirements
 
 - macOS 13.0+
-- Swift 5.9+
+- Swift 5.9+ (Swift 6.0 compliant)
 
 ## Dependencies
 
 - [BusinessMath](https://github.com/jpurnell/BusinessMath) - Core financial calculation library
 - [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk) - MCP Swift SDK
 - [swift-numerics](https://github.com/apple/swift-numerics) - Advanced numerical types
+
+## Contributing
+
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development guidelines and CI/CD information.
 
 ## License
 
