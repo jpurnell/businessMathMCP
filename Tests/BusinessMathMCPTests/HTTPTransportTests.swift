@@ -1,6 +1,5 @@
 import Testing
 import Foundation
-import Network
 @testable import BusinessMathMCP
 
 /// Test suite for HTTP transport request/response cycle

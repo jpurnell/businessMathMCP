@@ -1,6 +1,5 @@
 import Testing
 import Foundation
-import Network
 @testable import BusinessMathMCP
 
 /// Test suite for Server-Sent Events (SSE) transport
@@ -164,7 +163,7 @@ struct SSETransportTests {
 
 /// URLSession delegate for testing SSE connections
 /// Captures response headers immediately without waiting for completion
-class SSETestDelegate: NSObject, URLSessionDataDelegate {
+final class SSETestDelegate: NSObject, URLSessionDataDelegate {
     private let continuation: CheckedContinuation<(Int, String?, String?), Error>
     private var didResume = false
 
