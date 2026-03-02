@@ -33,8 +33,8 @@ public struct FitLinearTrendTool: MCPToolHandler, Sendable {
         try model.fit(to: ts)
 
         // Project one period to demonstrate the fitted model
-        let sampleProjection = try model.project(periods: 1)
-        let nextValue = sampleProjection.valuesArray.first ?? 0
+		let sampleProjection = try? model.project(periods: 1)
+		let nextValue = sampleProjection?.valuesArray.first ?? 0
         let lastValue = ts.valuesArray.last ?? 0
         let periodChange = nextValue - lastValue
         
@@ -206,12 +206,12 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: ts)
-            forecast = try model.project(periods: periods)
+				forecast = try! model.project(periods: periods)
 
         case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: ts)
-            forecast = try model.project(periods: periods)
+            forecast = try! model.project(periods: periods)
 
         case "logistic":
             guard let capacity = args.getDoubleOptional("capacity") else {
@@ -219,7 +219,7 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
             }
             var model = LogisticTrend<Double>(capacity: capacity)
             try model.fit(to: ts)
-            forecast = try model.project(periods: periods)
+            forecast = try! model.project(periods: periods)
 
         default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType). Must be linear, exponential, or logistic")
@@ -529,11 +529,11 @@ public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: deseasonalized)
-            trendForecast = try model.project(periods: periods)
+            trendForecast = try! model.project(periods: periods)
         case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: deseasonalized)
-            trendForecast = try model.project(periods: periods)
+            trendForecast = try! model.project(periods: periods)
         default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType)")
         }
