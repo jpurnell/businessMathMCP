@@ -206,12 +206,18 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: ts)
-				forecast = try! model.project(periods: periods)
+			guard let result = try? model.project(periods: periods) else {
+				throw ToolError.invalidArguments("Failed to project forecast")
+			}
+			forecast = result
 
         case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: ts)
-            forecast = try! model.project(periods: periods)
+			guard let result = try? model.project(periods: periods) else {
+				throw ToolError.invalidArguments("Failed to project forecast")
+			}
+            forecast = result
 
         case "logistic":
             guard let capacity = args.getDoubleOptional("capacity") else {
@@ -219,7 +225,11 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
             }
             var model = LogisticTrend<Double>(capacity: capacity)
             try model.fit(to: ts)
-            forecast = try! model.project(periods: periods)
+			guard let result = try? model.project(periods: periods) else {
+				throw ToolError.invalidArguments("Failed to project forecast")
+			}
+			forecast = result
+		
 
         default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType). Must be linear, exponential, or logistic")
@@ -529,11 +539,17 @@ public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: deseasonalized)
-            trendForecast = try! model.project(periods: periods)
+			guard let result = try? model.project(periods: periods) else {
+				throw ToolError.invalidArguments("Failed to project forecast")
+			}
+            trendForecast = result
         case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: deseasonalized)
-            trendForecast = try! model.project(periods: periods)
+			guard let result = try? model.project(periods: periods) else {
+				throw ToolError.invalidArguments("Failed to project forecast")
+			}
+            trendForecast = result
         default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType)")
         }
