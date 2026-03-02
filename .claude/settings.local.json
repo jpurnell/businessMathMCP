@@ -9,7 +9,12 @@
       "Bash(swift test:*)",
       "Bash(lsof:*)",
       "Bash(kill:*)",
-      "Bash(timeout 120 swift test:*)"
+      "Bash(timeout 120 swift test:*)",
+      "Bash(git log:*)",
+      "Bash(git merge:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
