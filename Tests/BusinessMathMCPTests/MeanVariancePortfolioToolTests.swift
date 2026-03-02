@@ -333,6 +333,8 @@ extension MCPToolCallResult {
             return string
         case .image, .resource, .audio:
             return ""
+        @unknown default:
+            return ""
         }
     }
 }

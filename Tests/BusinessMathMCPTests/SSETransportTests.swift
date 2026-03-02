@@ -1,5 +1,8 @@
 import Testing
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import BusinessMathMCP
 
 /// Test suite for Server-Sent Events (SSE) transport
