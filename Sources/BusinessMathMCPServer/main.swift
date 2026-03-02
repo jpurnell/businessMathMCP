@@ -3,6 +3,15 @@ import BusinessMathMCP
 import MCP
 import Logging
 
+// MARK: - Concurrency-Safe Stderr Helper
+
+/// Thread-safe stderr writer using FileHandle
+let stderrHandle = FileHandle.standardError
+
+func writeStderr(_ message: String) {
+    stderrHandle.write(Data(message.utf8))
+}
+
 // MARK: - Main Entry Point
 
 /// Determine transport mode from command line arguments
@@ -29,7 +38,7 @@ struct BusinessMathMCPServerMain {
         let promptProvider = PromptProvider()
 
         // Register all tool handlers
-        fputs("Registering tools...\n", stderr)
+        writeStderr("Registering tools...\n")
 
         // TVM Tools (9 tools)
         for handler in getTVMTools() {
@@ -273,8 +282,8 @@ struct BusinessMathMCPServerMain {
         let registeredTools = await toolRegistry.listTools()
         let toolCount = registeredTools.count
 
-        fputs("✓ Registered \(toolCount) tools:\n", stderr)
-		fputs("\t\(registeredTools.map(\.name).sorted().joined(separator: "\n\t"))", stderr)
+        writeStderr("✓ Registered \(toolCount) tools:\n")
+		writeStderr("\t\(registeredTools.map(\.name).sorted().joined(separator: "\n\t"))")
 
         // Create and configure the MCP server using official SDK
         let server = Server(
@@ -394,18 +403,18 @@ struct BusinessMathMCPServerMain {
 
         switch transportMode {
         case .stdio:
-            fputs("\n✓ Starting server with stdio transport\n", stderr)
+            writeStderr("\n✓ Starting server with stdio transport\n")
             try await server.start(transport: StdioTransport())
 
         case .http(let port):
-            fputs("✓ Starting server with HTTP transport on port \(port)\n", stderr)
-            fputs("  Server will be available at http://localhost:\(port)\n", stderr)
-            fputs("  Endpoints:\n", stderr)
-            fputs("    - GET /mcp/sse  : Server-Sent Events stream\n", stderr)
-            fputs("    - POST /mcp     : JSON-RPC requests\n", stderr)
-            fputs("    - GET /mcp      : Server info\n", stderr)
-            fputs("    - GET /health   : Health check\n", stderr)
-            fputs("\n", stderr)
+            writeStderr("✓ Starting server with HTTP transport on port \(port)\n")
+            writeStderr("  Server will be available at http://localhost:\(port)\n")
+            writeStderr("  Endpoints:\n")
+            writeStderr("    - GET /mcp/sse  : Server-Sent Events stream\n")
+            writeStderr("    - POST /mcp     : JSON-RPC requests\n")
+            writeStderr("    - GET /mcp      : Server info\n")
+            writeStderr("    - GET /health   : Health check\n")
+            writeStderr("\n")
 
             // Configure API key authentication from environment
             let authenticator = APIKeyAuthenticator.fromEnvironment()
@@ -414,19 +423,19 @@ struct BusinessMathMCPServerMain {
 
             if authRequired {
                 if keyCount > 0 {
-                    fputs("  Authentication: ENABLED (\(keyCount) API key(s) configured)\n", stderr)
-                    fputs("    Set via MCP_API_KEYS environment variable (comma-separated)\n", stderr)
-                    fputs("    Include 'Authorization: Bearer <key>' header with requests\n", stderr)
+                    writeStderr("  Authentication: ENABLED (\(keyCount) API key(s) configured)\n")
+                    writeStderr("    Set via MCP_API_KEYS environment variable (comma-separated)\n")
+                    writeStderr("    Include 'Authorization: Bearer <key>' header with requests\n")
                 } else {
-                    fputs("  Authentication: ENABLED but NO KEYS configured!\n", stderr)
-                    fputs("    All authenticated requests will be rejected\n", stderr)
-                    fputs("    Set MCP_API_KEYS environment variable with comma-separated keys\n", stderr)
+                    writeStderr("  Authentication: ENABLED but NO KEYS configured!\n")
+                    writeStderr("    All authenticated requests will be rejected\n")
+                    writeStderr("    Set MCP_API_KEYS environment variable with comma-separated keys\n")
                 }
             } else {
-                fputs("  Authentication: DISABLED (development mode)\n", stderr)
-                fputs("    Set MCP_AUTH_REQUIRED=true to enable authentication\n", stderr)
+                writeStderr("  Authentication: DISABLED (development mode)\n")
+                writeStderr("    Set MCP_AUTH_REQUIRED=true to enable authentication\n")
             }
-            fputs("\n", stderr)
+            writeStderr("\n")
 
             let httpTransport = HTTPServerTransport(
                 port: UInt16(port),
@@ -435,7 +444,7 @@ struct BusinessMathMCPServerMain {
             try await server.start(transport: httpTransport)
         }
 
-        fputs("✓ Server started successfully\n", stderr)
+        writeStderr("✓ Server started successfully\n")
 
         // Wait for completion
         await server.waitUntilCompleted()
@@ -447,10 +456,10 @@ Task {
     do {
         try await BusinessMathMCPServerMain.main()
     } catch {
-        fputs("Fatal error: \(error.localizedDescription)\n", stderr)
+        writeStderr("Fatal error: \(error.localizedDescription)\n")
         if let localizedError = error as? LocalizedError,
            let failureReason = localizedError.failureReason {
-            fputs("Reason: \(failureReason)\n", stderr)
+            writeStderr("Reason: \(failureReason)\n")
         }
         exit(1)
     }
