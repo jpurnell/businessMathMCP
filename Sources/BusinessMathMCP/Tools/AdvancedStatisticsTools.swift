@@ -885,16 +885,8 @@ public struct WeightedAverageTool: MCPToolHandler, Sendable {
 private func evaluateCalculation(_ calculation: String, with input: Double) -> Double {
     let formula = calculation.replacingOccurrences(of: "{0}", with: "\(input)")
 
-    // Use NSExpression to evaluate
-    let expression = NSExpression(format: formula)
-    if let result = expression.expressionValue(with: nil, context: nil) as? Double {
-        return result
-    } else if let result = expression.expressionValue(with: nil, context: nil) as? NSNumber {
-        return result.doubleValue
-    }
-
-    // Fallback: return 0 if evaluation fails
-    return 0.0
+    // Use cross-platform expression evaluator
+    return ExpressionEvaluator.evaluate(formula)
 }
 
 public struct GoalSeekTool: MCPToolHandler, Sendable {

@@ -9,14 +9,7 @@ private func evaluateExpression(_ expression: String, withVariable x: Double) ->
     let formula = expression.replacingOccurrences(of: "{0}", with: "\(x)")
                             .replacingOccurrences(of: "x", with: "\(x)")
 
-    let nsExpression = NSExpression(format: formula)
-    if let result = nsExpression.expressionValue(with: nil, context: nil) as? Double {
-        return result
-    } else if let result = nsExpression.expressionValue(with: nil, context: nil) as? NSNumber {
-        return result.doubleValue
-    }
-
-    return 0.0
+    return ExpressionEvaluator.evaluate(formula)
 }
 
 /// Evaluate a calculation string with multiple input values
@@ -26,14 +19,7 @@ private func evaluateMultivariateExpression(_ expression: String, withVariables 
         formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
     }
 
-    let nsExpression = NSExpression(format: formula)
-    if let result = nsExpression.expressionValue(with: nil, context: nil) as? Double {
-        return result
-    } else if let result = nsExpression.expressionValue(with: nil, context: nil) as? NSNumber {
-        return result.doubleValue
-    }
-
-    return 0.0
+    return ExpressionEvaluator.evaluate(formula)
 }
 
 // MARK: - Newton-Raphson Optimizer Tool

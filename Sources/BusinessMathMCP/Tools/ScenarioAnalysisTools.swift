@@ -474,23 +474,13 @@ private func createModelFromExpression(
 }
 
 /// Simple expression evaluator
-/// Note: This is a simplified version. A production implementation
-/// should use a proper expression parser or NSExpression
+/// Uses cross-platform ExpressionEvaluator (NSExpression on macOS, basic parser on Linux)
 private func evaluateExpression(_ expr: String) -> Double {
     // Remove whitespace
     let cleaned = expr.replacingOccurrences(of: " ", with: "")
 
-    // Try to evaluate as NSExpression
-    let expression = NSExpression(format: cleaned)
-    if let result = expression.expressionValue(with: nil, context: nil) as? Double {
-        return result
-    }
-    if let result = expression.expressionValue(with: nil, context: nil) as? NSNumber {
-        return result.doubleValue
-    }
-
-    // Fallback: return 0 if evaluation fails
-    return 0.0
+    // Use cross-platform expression evaluator
+    return ExpressionEvaluator.evaluate(cleaned)
 }
 
 // MARK: - Tool Registration

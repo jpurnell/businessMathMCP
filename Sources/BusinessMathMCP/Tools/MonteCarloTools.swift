@@ -1335,16 +1335,8 @@ private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -
         formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
     }
 
-    // Use NSExpression to evaluate
-    let expression = NSExpression(format: formula)
-    if let result = expression.expressionValue(with: nil, context: nil) as? Double {
-        return result
-    } else if let result = expression.expressionValue(with: nil, context: nil) as? NSNumber {
-        return result.doubleValue
-    }
-
-    // Fallback: return 0 if evaluation fails
-    return 0.0
+    // Use cross-platform expression evaluator
+    return ExpressionEvaluator.evaluate(formula)
 }
 
 // MARK: - 8. Scenario Analysis
