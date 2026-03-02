@@ -222,7 +222,7 @@ public struct GordonGrowthModelTool: MCPToolHandler, Sendable {
             requiredReturn: requiredReturn
         )
 
-        let valuePerShare = model.valuePerShare()
+        let valuePerShare = try model.valuePerShare()
         let nextDividend = dividend * (1 + growthRate)
         let dividendYield = dividend / valuePerShare
 
@@ -325,7 +325,7 @@ public struct TwoStageDDMTool: MCPToolHandler, Sendable {
             requiredReturn: requiredReturn
         )
 
-        let valuePerShare = model.valuePerShare()
+        let valuePerShare = try model.valuePerShare()
 
         let result = """
         Two-Stage DDM Results
@@ -577,7 +577,7 @@ public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
             terminalGrowthRate: terminalGrowthRate
         )
 
-        let equityValue = model.equityValue()
+        let equityValue = try model.equityValue()
         let residualIncomeValue = model.residualIncome().valuesArray.first ?? 0.0
         let pvRI = equityValue - currentBookValue
 
