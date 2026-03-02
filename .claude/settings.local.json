@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(grep:*)",
+      "Bash(swift build:*)",
+      "Bash(swift package resolve:*)",
+      "Bash(swift test:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(timeout 120 swift test:*)"
+    ]
+  }
+}
