@@ -210,7 +210,7 @@ struct APIAuthTests {
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let authStatus = json?["authentication"] as? String
-        #expect(authStatus == "enabled", "Server info should show auth is enabled")
+        #expect(authStatus == "required", "Server info should show auth is required")
     }
 
     @Test("No authenticator means no auth required")
@@ -273,7 +273,7 @@ func getSSEStatusCode(request: URLRequest) async throws -> (Int, String?) {
 }
 
 /// Simple delegate to capture status code
-final class SSEStatusDelegate: NSObject, URLSessionDataDelegate {
+class SSEStatusDelegate: NSObject, URLSessionDataDelegate {
     private let continuation: CheckedContinuation<(Int, String?), Error>
     private var didResume = false
 

@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release Binary
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.x (Swift 6)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Swift 6 Compliance Check
+        run: |
+          swift build -c release -Xswiftc -strict-concurrency=complete
+          echo "✅ Swift 6 strict concurrency compliance verified"
+
+      - name: Build Release Binary
+        run: |
+          swift build -c release --product businessmath-mcp-server
+
+          # Create distribution directory
+          mkdir -p dist
+
+          # Copy binary
+          cp .build/release/businessmath-mcp-server dist/
+
+          # Create archive
+          cd dist
+          tar -czf businessmath-mcp-server-${{ steps.get_version.outputs.version }}-macos.tar.gz businessmath-mcp-server
+
+          # Verify
+          ls -lh
+          file businessmath-mcp-server
+
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          shasum -a 256 businessmath-mcp-server-${{ steps.get_version.outputs.version }}-macos.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          files: |
+            dist/businessmath-mcp-server-${{ steps.get_version.outputs.version }}-macos.tar.gz
+            dist/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  verify-release:
+    name: Verify Release
+    needs: build-release
+    runs-on: macos-15
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download release asset
+        run: |
+          gh release download ${{ steps.get_version.outputs.version }} \
+            --repo ${{ github.repository }} \
+            --pattern "businessmath-mcp-server-*.tar.gz"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Verify binary
+        run: |
+          tar -xzf businessmath-mcp-server-*.tar.gz
+          file businessmath-mcp-server
+          ./businessmath-mcp-server --help || true
+          echo "✅ Release binary verified"

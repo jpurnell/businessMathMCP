@@ -12,7 +12,7 @@ let package = Package(
             targets: ["BusinessMathMCP"]
         ),
         .executable(
-            name: "BusinessMathMCPServer",
+            name: "businessmath-mcp-server",
             targets: ["BusinessMathMCPServer"]
         )
     ],

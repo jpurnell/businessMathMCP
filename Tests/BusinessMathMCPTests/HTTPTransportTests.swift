@@ -9,7 +9,7 @@ import Network
 /// 1. RED: Write failing tests first
 /// 2. GREEN: Make tests pass with minimal code
 /// 3. REFACTOR: Improve implementation
-@Suite("HTTP Transport Tests", .serialized)
+@Suite("HTTP Transport Tests")
 struct HTTPTransportTests {
 
     // MARK: - Phase 1: Request/Response Correlation

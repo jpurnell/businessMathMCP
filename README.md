@@ -1,14 +1,27 @@
-# BusinessMath MCP Server
+# BusinessMathMCP
 
-MCP (Model Context Protocol) server providing access to BusinessMath financial calculations and analytics.
+[![CI](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml)
+[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Swift 6 Compliant](https://img.shields.io/badge/Swift%206-Compliant-brightgreen.svg)](https://www.swift.org/blog/announcing-swift-6/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Model Context Protocol (MCP) server for BusinessMath financial calculations.
 
 ## Overview
 
-This package provides a Model Context Protocol server that exposes BusinessMath's comprehensive financial and statistical analysis capabilities to AI assistants and other MCP-compatible clients.
+This package provides an MCP server that exposes BusinessMath's comprehensive financial analysis capabilities through the Model Context Protocol. It enables AI assistants and other MCP clients to perform sophisticated financial calculations including:
+
+- Time value of money calculations
+- Portfolio optimization
+- Options pricing and analysis
+- Bond valuation
+- Statistical analysis
+- Monte Carlo simulations
+- And many more financial tools
 
 ## Installation
 
-Add to your `Package.swift`:
+Add this package as a dependency in your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -16,53 +29,37 @@ dependencies: [
 ]
 ```
 
-## Features
+## Usage
 
-- **40+ Financial Tools**: Time value of money, equity/bond valuation, portfolio analysis, and more
-- **Statistical Analysis**: Hypothesis testing, Bayesian tools, advanced statistics
-- **Optimization**: Adaptive optimization, parallel processing, integer programming
-- **Risk Analytics**: Portfolio risk, scenario analysis, Monte Carlo simulation
-- **Forecasting**: Time series analysis, trend forecasting, seasonality tools
-- **Derivatives**: Options pricing, real options, credit derivatives
+### Running the Server
+
+```bash
+swift run businessmath-mcp-server
+```
+
+### As a Library
+
+```swift
+import BusinessMathMCP
+
+// Use BusinessMathMCP tools in your own MCP server
+```
 
 ## Requirements
 
-- **Platform**: macOS 14+ (MCP SDK requirement)
-- **Swift**: 6.0+
-- **Dependencies**: BusinessMath 2.0+
+- macOS 13.0+
+- Swift 5.9+ (Swift 6.0 compliant)
 
-## Quick Start
+## Dependencies
 
-See [Examples/QuickStart.swift](Examples/QuickStart.swift) for usage examples.
+- [BusinessMath](https://github.com/jpurnell/BusinessMath) - Core financial calculation library
+- [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk) - MCP Swift SDK
+- [swift-numerics](https://github.com/apple/swift-numerics) - Advanced numerical types
 
-## Documentation
+## Contributing
 
-- [MCP Integration Guide](Documentation/MCP-INTEGRATION.md)
-- [BusinessMath Core Library](https://github.com/justinpurnell/swift-business-math)
-- [Migration Guide](Documentation/MIGRATION.md)
-
-## Architecture
-
-BusinessMathMCP serves as a protocol adapter between the Model Context Protocol and the BusinessMath core library. It provides:
-
-- **Type Marshalling**: Converts between MCP JSON types and BusinessMath native types
-- **Tool Registry**: Automatic registration and discovery of available tools
-- **Transport Layer**: HTTP and Server-Sent Events (SSE) support
-- **Authentication**: API key-based authentication for secure access
-
-## Why Separate from BusinessMath?
-
-The MCP server functionality has been separated into its own repository to:
-- Enable cross-platform use of BusinessMath core library (without macOS-only MCP SDK)
-- Allow independent versioning of MCP server functionality
-- Reduce dependency bloat for users who don't need MCP integration
-- Provide cleaner architectural boundaries
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development guidelines and CI/CD information.
 
 ## License
 
-MIT License - See LICENSE file
-
-## Support
-
-- [Open an Issue](https://github.com/jpurnell/businessMathMCP/issues)
-- [BusinessMath Repository](https://github.com/justinpurnell/swift-business-math)
+See LICENSE file for details.
