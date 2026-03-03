@@ -276,7 +276,7 @@ func getSSEStatusCode(request: URLRequest) async throws -> (Int, String?) {
 }
 
 /// Simple delegate to capture status code
-final class SSEStatusDelegate: NSObject, URLSessionDataDelegate {
+final class SSEStatusDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let continuation: CheckedContinuation<(Int, String?), Error>
     private var didResume = false
 

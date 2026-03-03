@@ -166,7 +166,7 @@ struct SSETransportTests {
 
 /// URLSession delegate for testing SSE connections
 /// Captures response headers immediately without waiting for completion
-final class SSETestDelegate: NSObject, URLSessionDataDelegate {
+final class SSETestDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let continuation: CheckedContinuation<(Int, String?, String?), Error>
     private var didResume = false
 
