@@ -1,0 +1,44 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# SwiftPM - ignore user-specific data but keep shared workspace/schemes for CI
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+.swiftpm/configuration/
+
+# Xcode
+xcuserdata/
+*.xcworkspace
+*.xcodeproj
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Build artifacts
+*.o
+*.a
+*.dylib
+*.so
+*.log
+
+# Test results
+.test-results/
+*.profraw
+
+# Internal Documentation and Planning
+Playgrounds/
+Instruction Set/
+*~
+\#*\#
+
+# Claude Code local settings
+.claude/
+
+# Deployment and development docs (local only)
+DEPLOY_INSTRUCTIONS.md
+development-guidelines/
