@@ -14,7 +14,48 @@ func writeStderr(_ message: String) {
 
 // MARK: - Main Entry Point
 
-/// Determine transport mode from command line arguments
+/// Command to execute
+enum Command {
+    case server(TransportMode)
+    case generateKey(name: String?)
+    case listKeys
+    case revokeKey(prefix: String)
+    case help
+
+    static func parse() -> Command {
+        let args = CommandLine.arguments
+
+        // Check for key management commands first
+        if args.contains("--generate-key") {
+            let nameIndex = args.firstIndex(of: "--name")
+            let name: String?
+            if let idx = nameIndex, idx + 1 < args.count {
+                name = args[idx + 1]
+            } else {
+                name = nil
+            }
+            return .generateKey(name: name)
+        }
+
+        if args.contains("--list-keys") {
+            return .listKeys
+        }
+
+        if let revokeIndex = args.firstIndex(of: "--revoke-key"),
+           revokeIndex + 1 < args.count {
+            return .revokeKey(prefix: args[revokeIndex + 1])
+        }
+
+        if args.contains("--help") || args.contains("-h") {
+            return .help
+        }
+
+        // Default: run server
+        return .server(TransportMode.parse())
+    }
+}
+
+/// Transport mode for server
 enum TransportMode {
     case stdio
     case http(port: Int)
@@ -28,6 +69,113 @@ enum TransportMode {
         }
         return .stdio
     }
+}
+
+// MARK: - Key Management Commands
+
+func handleGenerateKey(name: String?) async {
+    let keyName = name ?? "API Key \(Date().formatted(.dateTime))"
+    let store = APIKeyStore()
+
+    do {
+        let key = try await store.generateKey(name: keyName)
+
+        writeStderr("""
+        Generated API key for "\(keyName)":
+
+          \(key.key)
+
+        Save this key securely - it cannot be retrieved later.
+
+        To use with Claude Code:
+          claude mcp add --transport http \\
+            -H "Authorization: Bearer \(key.key)" \\
+            businessmath http://<server-ip>:8080
+
+        """)
+    } catch {
+        writeStderr("Error generating key: \(error.localizedDescription)\n")
+        exit(1)
+    }
+}
+
+func handleListKeys() async {
+    let store = APIKeyStore()
+    let summaries = await store.listKeySummaries()
+
+    if summaries.isEmpty {
+        writeStderr("No API keys found.\n")
+        writeStderr("Generate one with: businessmath-mcp-server --generate-key --name \"My Key\"\n")
+        return
+    }
+
+    writeStderr("API Keys:\n")
+    writeStderr("---------\n")
+
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = .medium
+    dateFormatter.timeStyle = .short
+
+    for summary in summaries {
+        let lastUsed = summary.lastUsed.map { dateFormatter.string(from: $0) } ?? "never"
+        writeStderr("  \(summary.prefix)  \(summary.name)\n")
+        writeStderr("    Created: \(dateFormatter.string(from: summary.created))\n")
+        writeStderr("    Last used: \(lastUsed)\n")
+        writeStderr("\n")
+    }
+}
+
+func handleRevokeKey(prefix: String) async {
+    let store = APIKeyStore()
+
+    do {
+        let revoked = try await store.revokeKey(prefix: prefix)
+        if revoked {
+            writeStderr("Key revoked successfully.\n")
+        } else {
+            writeStderr("No key found with prefix: \(prefix)\n")
+            exit(1)
+        }
+    } catch {
+        writeStderr("Error revoking key: \(error.localizedDescription)\n")
+        exit(1)
+    }
+}
+
+func printHelp() {
+    writeStderr("""
+    BusinessMath MCP Server
+
+    USAGE:
+      businessmath-mcp-server [OPTIONS]
+
+    SERVER OPTIONS:
+      --http <port>           Run HTTP server on specified port
+      (default)               Run stdio server
+
+    KEY MANAGEMENT:
+      --generate-key          Generate a new API key
+        --name <name>         Optional name for the key
+      --list-keys             List all API keys
+      --revoke-key <prefix>   Revoke a key by its prefix
+
+    ENVIRONMENT:
+      MCP_OAUTH_ENABLED       Set to "true" to enable OAuth 2.0
+      MCP_OAUTH_ISSUER        OAuth issuer URL (default: http://localhost:<port>)
+      MCP_API_KEYS            Comma-separated API keys (legacy)
+      MCP_AUTH_REQUIRED       Set to "false" to disable authentication
+
+    EXAMPLES:
+      # Generate a key for Claude Code
+      businessmath-mcp-server --generate-key --name "Claude Code"
+
+      # Start HTTP server on port 8080
+      businessmath-mcp-server --http 8080
+
+      # List all keys
+      businessmath-mcp-server --list-keys
+
+    """)
 }
 
 struct BusinessMathMCPServerMain {
@@ -416,10 +564,27 @@ struct BusinessMathMCPServerMain {
             writeStderr("    - GET /health   : Health check\n")
             writeStderr("\n")
 
-            // Configure API key authentication from environment
-            let authenticator = APIKeyAuthenticator.fromEnvironment()
-            let keyCount = await authenticator.keyCount()
+            // Load persistent API keys
+            let keyStore = APIKeyStore()
+            let storedKeyCount = await keyStore.keyCount()
+            if storedKeyCount > 0 {
+                writeStderr("  ✓ Loaded \(storedKeyCount) API key(s) from ~/.businessmath-mcp/api-keys.json\n")
+            }
+
+            // Configure API key authentication with persistent store + environment keys
+            let envKeysString = ProcessInfo.processInfo.environment["MCP_API_KEYS"] ?? ""
+            let envKeys = envKeysString
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
             let authRequired = ProcessInfo.processInfo.environment["MCP_AUTH_REQUIRED"] != "false"
+            let authenticator = APIKeyAuthenticator(
+                keyStore: keyStore,
+                environmentKeys: envKeys,
+                authRequired: authRequired
+            )
+            let keyCount = await authenticator.keyCount()
 
             // Configure OAuth 2.0 authentication
             let oauthEnabled = ProcessInfo.processInfo.environment["MCP_OAUTH_ENABLED"] == "true"
@@ -500,7 +665,29 @@ struct BusinessMathMCPServerMain {
 // Top-level code to run the async main function
 Task {
     do {
-        try await BusinessMathMCPServerMain.main()
+        // Parse command and route appropriately
+        let command = Command.parse()
+
+        switch command {
+        case .help:
+            printHelp()
+            exit(0)
+
+        case .generateKey(let name):
+            await handleGenerateKey(name: name)
+            exit(0)
+
+        case .listKeys:
+            await handleListKeys()
+            exit(0)
+
+        case .revokeKey(let prefix):
+            await handleRevokeKey(prefix: prefix)
+            exit(0)
+
+        case .server:
+            try await BusinessMathMCPServerMain.main()
+        }
     } catch {
         writeStderr("Fatal error: \(error.localizedDescription)\n")
         if let localizedError = error as? LocalizedError,

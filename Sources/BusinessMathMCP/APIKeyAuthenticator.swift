@@ -5,15 +5,16 @@ import Logging
 ///
 /// Supports multiple API keys for different clients/environments.
 /// Keys can be provided via:
+/// - Persistent key store (preferred)
 /// - Environment variable: MCP_API_KEYS (comma-separated)
-/// - Configuration file
 /// - Programmatically
 ///
 /// ## Usage
 ///
 /// ```swift
-/// let auth = APIKeyAuthenticator(apiKeys: ["key1", "key2"])
-/// let isValid = await auth.validate(request)
+/// let store = APIKeyStore()
+/// let auth = APIKeyAuthenticator(keyStore: store)
+/// let isValid = await auth.validate(authHeader: "Bearer bm_xxx...")
 /// ```
 ///
 /// ## Security Notes
@@ -25,14 +26,37 @@ import Logging
 public actor APIKeyAuthenticator {
     private let logger: Logger
 
-    /// Set of valid API keys (stored as hashes for security)
+    /// Set of valid API keys from environment (stored as hashes for security)
     private var validKeyHashes: Set<String>
+
+    /// Persistent key store (optional)
+    private let keyStore: APIKeyStore?
 
     /// Whether authentication is required
     /// If false, all requests are allowed (useful for development)
     private let authRequired: Bool
 
-    /// Initialize authenticator
+    /// Initialize authenticator with a key store
+    /// - Parameters:
+    ///   - keyStore: Persistent key store
+    ///   - environmentKeys: Additional keys from environment (will be hashed)
+    ///   - authRequired: Whether to enforce authentication (default: true)
+    ///   - logger: Logger instance
+    public init(
+        keyStore: APIKeyStore?,
+        environmentKeys: [String] = [],
+        authRequired: Bool = true,
+        logger: Logger = Logger(label: "api-key-auth")
+    ) {
+        self.keyStore = keyStore
+        self.authRequired = authRequired
+        self.logger = logger
+
+        // Hash environment keys for storage (don't store plaintext)
+        self.validKeyHashes = Set(environmentKeys.map { Self.hashKey($0) })
+    }
+
+    /// Initialize authenticator with API keys (legacy, no persistent store)
     /// - Parameters:
     ///   - apiKeys: Array of valid API keys (will be hashed)
     ///   - authRequired: Whether to enforce authentication (default: true)
@@ -42,6 +66,7 @@ public actor APIKeyAuthenticator {
         authRequired: Bool = true,
         logger: Logger = Logger(label: "api-key-auth")
     ) {
+        self.keyStore = nil
         self.authRequired = authRequired
         self.logger = logger
 
@@ -60,7 +85,7 @@ public actor APIKeyAuthenticator {
     /// Validate an HTTP request's Authorization header
     /// - Parameter authHeader: The Authorization header value
     /// - Returns: Whether the request is authorized
-    public func validate(authHeader: String?) -> Bool {
+    public func validate(authHeader: String?) async -> Bool {
         // If auth not required, allow all requests
         guard authRequired else {
             return true
@@ -84,7 +109,14 @@ public actor APIKeyAuthenticator {
             return false
         }
 
-        // Hash and check against valid keys
+        // Check persistent key store first (if available)
+        if let store = keyStore {
+            if await store.isValid(key: apiKey) {
+                return true
+            }
+        }
+
+        // Check environment keys (hashed)
         let keyHash = Self.hashKey(apiKey)
         let isValid = validKeyHashes.contains(keyHash)
 
@@ -112,9 +144,13 @@ public actor APIKeyAuthenticator {
         }
     }
 
-    /// Get count of registered keys
-    public func keyCount() -> Int {
-        return validKeyHashes.count
+    /// Get count of registered keys (environment keys + stored keys)
+    public func keyCount() async -> Int {
+        var count = validKeyHashes.count
+        if let store = keyStore {
+            count += await store.keyCount()
+        }
+        return count
     }
 
     // MARK: - Private Helpers
