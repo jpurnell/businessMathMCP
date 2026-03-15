@@ -349,13 +349,23 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         // Use nonisolated(unsafe) to avoid Sendable warning
         nonisolated(unsafe) let unsafeContext = context
 
+        // Prepare the initial endpoint event (MCP SSE protocol requirement)
+        // This tells the client which URL to use for POST requests
+        let endpointEvent = "event: endpoint\ndata: /mcp?sessionId=\(sessionId)\n\n"
+        var buffer = channel.allocator.buffer(capacity: endpointEvent.utf8.count)
+        buffer.writeString(endpointEvent)
+
         eventLoop.execute {
+            // Send headers
             unsafeContext.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
+            // Send initial endpoint event
+            unsafeContext.write(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
             unsafeContext.flush()
         }
 
         // Connection stays open for SSE events
         // The session will be managed by SSESessionManager
+        logger.info("SSE connection established, sent endpoint event for session \(sessionId)")
     }
 
     private func processJSONRPCRequest(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?) async {
