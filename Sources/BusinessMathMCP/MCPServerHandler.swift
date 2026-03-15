@@ -162,7 +162,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
             await processSSEConnection(channel: channel, eventLoop: eventLoop, context: context, headers: head.headers)
 
         case (.POST, "/mcp"):
-            await processJSONRPCRequest(channel: channel, context: context, headers: head.headers, body: body)
+            await processJSONRPCRequest(channel: channel, context: context, headers: head.headers, body: body, uri: fullUri)
 
         case (_, "/health"), (_, "/mcp"), (_, "/mcp/sse"):
             // Path exists but method not allowed
@@ -368,7 +368,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         logger.info("SSE connection established, sent endpoint event for session \(sessionId)")
     }
 
-    private func processJSONRPCRequest(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?) async {
+    private func processJSONRPCRequest(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?, uri: String) async {
         guard let transport = transport else { return }
         guard let bodyBuffer = body else {
             sendResponse(context: context, status: .badRequest, body: "Missing request body")
@@ -377,8 +377,12 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         let bodyData = Data(buffer: bodyBuffer)
 
-        // Extract session ID from headers
-        let sessionId = headers.first(name: "X-Session-ID")
+        // Extract session ID from headers OR URL query parameters
+        // MCP SSE transport sends sessionId in URL: /mcp?sessionId=XXX
+        var sessionId = headers.first(name: "X-Session-ID")
+        if sessionId == nil {
+            sessionId = extractSessionIdFromQuery(uri: uri)
+        }
 
         // Parse JSON-RPC to get request ID
         guard let requestId = extractRequestId(from: bodyData) else {
@@ -532,6 +536,20 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     // MARK: - Utilities
+
+    /// Extract sessionId from URL query parameters (e.g., /mcp?sessionId=XXX)
+    private func extractSessionIdFromQuery(uri: String) -> String? {
+        guard let queryStart = uri.firstIndex(of: "?") else { return nil }
+        let queryString = String(uri[uri.index(after: queryStart)...])
+        let params = queryString.split(separator: "&")
+        for param in params {
+            let parts = param.split(separator: "=", maxSplits: 1)
+            if parts.count == 2 && parts[0] == "sessionId" {
+                return String(parts[1])
+            }
+        }
+        return nil
+    }
 
     private func extractRequestId(from data: Data) -> HTTPResponseManager.JSONRPCId? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
