@@ -199,18 +199,8 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     private func handleNoOAuthMetadata(context: ChannelHandlerContext) {
-        // Return minimal OAuth metadata indicating no authentication is required
-        // This allows MCP clients that check for OAuth to proceed without auth
-        let metadata = """
-        {
-          "issuer": "http://localhost:8080",
-          "response_types_supported": [],
-          "grant_types_supported": [],
-          "token_endpoint_auth_methods_supported": ["none"],
-          "service_documentation": "This server does not require authentication"
-        }
-        """
-        sendResponse(context: context, status: .ok, body: metadata, contentType: "application/json")
+        // OAuth is not configured - return 404 so clients fall back to other auth methods (e.g., Bearer token)
+        sendResponse(context: context, status: .notFound, body: "OAuth not configured. Use Bearer token authentication.")
     }
 
     // MARK: - OAuth Endpoint Handlers
