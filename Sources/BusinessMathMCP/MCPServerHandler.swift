@@ -409,25 +409,25 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         let authHeader = headers.first(name: "Authorization")
 
-        // Try OAuth Bearer token validation first (if OAuth is configured)
+        // Try API key authentication first (if configured)
+        // This allows API keys to work even when OAuth is enabled
+        if let authenticator = authenticator {
+            if await authenticator.validate(authHeader: authHeader) {
+                return true
+            }
+        }
+
+        // Try OAuth Bearer token validation (if OAuth is configured)
         if let handler = oauthHandler, let header = authHeader, header.lowercased().hasPrefix("bearer ") {
             let result = await handler.validateBearerToken(authHeader: header)
             if result.isValid {
                 return true
             }
-            // If Bearer token is invalid and OAuth is configured, fail
-            // Don't fall through to API key auth if they're trying Bearer auth
+        }
+
+        // If we get here and either auth method is configured, deny access
+        if authenticator != nil || oauthServer != nil {
             return false
-        }
-
-        // Try API key authentication (if configured)
-        if let authenticator = authenticator {
-            return await authenticator.validate(authHeader: authHeader)
-        }
-
-        // If OAuth is configured but no valid Bearer token provided
-        if oauthServer != nil {
-            return false  // Require OAuth authentication
         }
 
         return true
