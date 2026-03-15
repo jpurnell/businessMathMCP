@@ -94,7 +94,7 @@ public actor SSESession {
                 try await connection.send(eventData)
                 lastActivityAt = Date()
             } catch {
-                logger.error("Failed to send SSE event: \(error.localizedDescription)")
+                logger.error("Failed to send SSE event to session \(sessionId): \(error.localizedDescription)")
                 await close()
             }
         }

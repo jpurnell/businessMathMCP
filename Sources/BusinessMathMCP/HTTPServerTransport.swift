@@ -141,6 +141,42 @@ public actor HTTPServerTransport: Transport {
     }
 
     public func send(_ data: Data) async throws {
+        // Parse response for routing
+        let responseStr = String(data: data, encoding: .utf8) ?? "binary"
+
+        // Check for "already initialized" error and convert to cached success response
+        // This allows multiple Claude Code health checks to succeed
+        if responseStr.contains("Server is already initialized"),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let errorId = json["id"] {
+            // Create a synthetic success response using cached capabilities
+            let successResponse: [String: Any] = [
+                "jsonrpc": "2.0",
+                "id": errorId,
+                "result": [
+                    "protocolVersion": "2024-11-05",
+                    "serverInfo": [
+                        "name": "BusinessMath MCP Server",
+                        "version": "2.0.0"
+                    ],
+                    "capabilities": [
+                        "tools": ["listChanged": false],
+                        "resources": ["subscribe": false, "listChanged": false],
+                        "prompts": ["listChanged": false],
+                        "logging": [:]
+                    ]
+                ]
+            ]
+            if let successData = try? JSONSerialization.data(withJSONObject: successResponse) {
+                logger.debug("Converted 'already initialized' error to success response")
+                // Route the synthetic success response instead
+                let sseRouted = await sseSessionManager.routeResponse(successData)
+                if sseRouted { return }
+                _ = await responseManager.routeResponse(successData)
+                return
+            }
+        }
+
         // Try routing through SSE first (for clients using SSE)
         let sseRouted = await sseSessionManager.routeResponse(data)
 

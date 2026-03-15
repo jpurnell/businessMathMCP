@@ -83,8 +83,8 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        logger.error("Channel error: \(error.localizedDescription)")
-        context.close(promise: nil)
+        logger.debug("Channel error: \(error.localizedDescription)")
+        // Don't aggressively close - SSE connections should stay open
     }
 
     // MARK: - Request Handling
@@ -112,6 +112,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         let fullUri = head.uri
         let path = fullUri.split(separator: "?").first.map(String.init) ?? fullUri
         let method = head.method
+
 
         // OAuth endpoints are always public (they handle their own auth)
         let oauthEndpoints = ["/.well-known/oauth-authorization-server", "/register", "/authorize", "/token"]
@@ -286,7 +287,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         // Determine if we should close connection (redirects keep-alive, others close)
         let status = HTTPResponseStatus(statusCode: response.statusCode)
         if status == .found || status == .seeOther {
-            headers.add(name: "Connection", value: "keep-alive")
+            headers.add(name: "Connection", value: "close")
         } else {
             headers.add(name: "Connection", value: "close")
         }
@@ -365,7 +366,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         // Connection stays open for SSE events
         // The session will be managed by SSESessionManager
-        logger.info("SSE connection established, sent endpoint event for session \(sessionId)")
+        logger.info("SSE connection established for session \(sessionId)")
     }
 
     private func processJSONRPCRequest(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?, uri: String) async {
@@ -398,7 +399,8 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
             transport.receiveContinuation.yield(bodyData)
 
             // Send immediate acknowledgment (response will come via SSE)
-            sendResponse(context: context, status: .ok, body: "")
+            // Use 202 Accepted to indicate request is being processed asynchronously
+            sendResponse(context: context, status: .accepted, body: "")
         } else {
             // HTTP mode: register with response manager and keep connection open
             // The HTTPResponseManager will send the JSON-RPC response when ready
@@ -489,7 +491,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         context.write(wrapOutboundOut(.head(responseHead)), promise: nil)
         context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
         context.writeAndFlush(wrapOutboundOut(.end(nil)), promise: nil)
-        context.close(promise: nil)
+        // Don't close - allow HTTP keep-alive for connection reuse
     }
 
     private func sendCORSPreflightResponse(context: ChannelHandlerContext) {
@@ -506,6 +508,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         var headers = HTTPHeaders()
         addCORSHeaders(to: &headers)
         headers.add(name: "Access-Control-Max-Age", value: "86400")
+        headers.add(name: "Connection", value: "close")
 
         let responseHead = HTTPResponseHead(
             version: .http1_1,
@@ -515,14 +518,14 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         context.write(wrapOutboundOut(.head(responseHead)), promise: nil)
         context.writeAndFlush(wrapOutboundOut(.end(nil)), promise: nil)
-        context.close(promise: nil)
+        // Don't close - allow HTTP keep-alive for connection reuse
     }
 
     private func createSSEHeaders(sessionId: String) -> HTTPHeaders {
         var headers = HTTPHeaders()
         headers.add(name: "Content-Type", value: "text/event-stream")
         headers.add(name: "Cache-Control", value: "no-cache")
-        headers.add(name: "Connection", value: "keep-alive")
+        headers.add(name: "Connection", value: "keep-alive")  // SSE needs keep-alive
         headers.add(name: "X-Session-ID", value: sessionId)
         addCORSHeaders(to: &headers)
         return headers
