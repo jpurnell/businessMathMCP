@@ -187,6 +187,11 @@ public actor HTTPResponseManager {
             response += "Content-Type: \(contentType)\r\n"
             response += "Content-Length: \(body.count)\r\n"
             response += "Connection: close\r\n"
+            // CORS headers for cross-origin requests
+            response += "Access-Control-Allow-Origin: *\r\n"
+            response += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+            response += "Access-Control-Allow-Headers: Content-Type, Authorization, X-Session-ID\r\n"
+            response += "Access-Control-Expose-Headers: X-Session-ID\r\n"
             response += "\r\n"
 
             // Combine headers and body

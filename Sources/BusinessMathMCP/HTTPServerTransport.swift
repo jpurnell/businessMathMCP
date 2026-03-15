@@ -5,6 +5,10 @@ import Logging
 @preconcurrency import NIOPosix
 @preconcurrency import NIOHTTP1
 
+// OAuth must be imported after Foundation
+// Import OAuth types
+
+
 /// HTTP server transport for MCP using SwiftNIO
 ///
 /// This transport implements MCP over HTTP with Server-Sent Events (SSE):
@@ -40,19 +44,25 @@ public actor HTTPServerTransport: Transport {
 
     private let authenticator: APIKeyAuthenticator?
 
+    /// OAuth server for OAuth 2.0 authentication (optional)
+    internal let oauthServer: OAuthServer?
+
     /// Initialize HTTP server transport
     /// - Parameters:
     ///   - port: Port number to listen on (default: 8080)
     ///   - authenticator: Optional API key authenticator (if nil, no auth required)
+    ///   - oauthServer: Optional OAuth server for OAuth 2.0 authentication
     ///   - logger: Logger instance
     public init(
         port: UInt16 = 8080,
         authenticator: APIKeyAuthenticator? = nil,
+        oauthServer: OAuthServer? = nil,
         logger: Logger = Logger(label: "http-server-transport")
     ) {
         self.port = port
         self.logger = logger
         self.authenticator = authenticator
+        self.oauthServer = oauthServer
         self.responseManager = HTTPResponseManager(logger: logger)
         self.sseSessionManager = SSESessionManager(logger: logger)
 
@@ -84,7 +94,7 @@ public actor HTTPServerTransport: Transport {
                     // (which would close connections after each response, breaking SSE)
                     let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .dropBytes))
                     let encoder = HTTPResponseEncoder()
-                    let handler = MCPServerHandler(transport: self, authenticator: self.authenticator, logger: self.logger)
+                    let handler = MCPServerHandler(transport: self, authenticator: self.authenticator, oauthServer: self.oauthServer, logger: self.logger)
 
                     return channel.pipeline.addHandler(decoder).flatMap {
                         channel.pipeline.addHandler(encoder)

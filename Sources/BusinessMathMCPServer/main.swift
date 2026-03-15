@@ -421,25 +421,71 @@ struct BusinessMathMCPServerMain {
             let keyCount = await authenticator.keyCount()
             let authRequired = ProcessInfo.processInfo.environment["MCP_AUTH_REQUIRED"] != "false"
 
-            if authRequired {
+            // Configure OAuth 2.0 authentication
+            let oauthEnabled = ProcessInfo.processInfo.environment["MCP_OAUTH_ENABLED"] == "true"
+            var oauthServer: OAuthServer? = nil
+
+            if oauthEnabled {
+                do {
+                    // Create OAuth storage directory
+                    let homeDir = FileManager.default.homeDirectoryForCurrentUser
+                    let oauthDir = homeDir.appendingPathComponent(".businessmath-mcp")
+                    try FileManager.default.createDirectory(at: oauthDir, withIntermediateDirectories: true)
+
+                    let oauthDbPath = oauthDir.appendingPathComponent("oauth.db").path
+                    let oauthStorage = try OAuthStorage(path: oauthDbPath)
+
+                    // Get issuer from environment or use default
+                    let issuer = ProcessInfo.processInfo.environment["MCP_OAUTH_ISSUER"]
+                        ?? "http://localhost:\(port)"
+
+                    oauthServer = OAuthServer(storage: oauthStorage, issuer: issuer)
+                    writeStderr("  OAuth 2.0: ENABLED\n")
+                    writeStderr("    Storage: \(oauthDbPath)\n")
+                    writeStderr("    Issuer: \(issuer)\n")
+                    writeStderr("    OAuth Endpoints:\n")
+                    writeStderr("      - GET  /.well-known/oauth-authorization-server : Server metadata\n")
+                    writeStderr("      - POST /register  : Client registration (RFC 7591)\n")
+                    writeStderr("      - GET  /authorize : Authorization endpoint\n")
+                    writeStderr("      - POST /token     : Token endpoint\n")
+                } catch {
+                    writeStderr("  OAuth 2.0: FAILED to initialize\n")
+                    writeStderr("    Error: \(error.localizedDescription)\n")
+                    writeStderr("    Continuing without OAuth...\n")
+                }
+            } else {
+                writeStderr("  OAuth 2.0: DISABLED\n")
+                writeStderr("    Set MCP_OAUTH_ENABLED=true to enable OAuth\n")
+            }
+            writeStderr("\n")
+
+            // Configure API key authentication status
+            if authRequired && oauthServer == nil {
                 if keyCount > 0 {
-                    writeStderr("  Authentication: ENABLED (\(keyCount) API key(s) configured)\n")
+                    writeStderr("  API Key Authentication: ENABLED (\(keyCount) API key(s) configured)\n")
                     writeStderr("    Set via MCP_API_KEYS environment variable (comma-separated)\n")
                     writeStderr("    Include 'Authorization: Bearer <key>' header with requests\n")
                 } else {
-                    writeStderr("  Authentication: ENABLED but NO KEYS configured!\n")
+                    writeStderr("  API Key Authentication: ENABLED but NO KEYS configured!\n")
                     writeStderr("    All authenticated requests will be rejected\n")
                     writeStderr("    Set MCP_API_KEYS environment variable with comma-separated keys\n")
                 }
+            } else if oauthServer != nil {
+                writeStderr("  API Key Authentication: Available as fallback\n")
+                if keyCount > 0 {
+                    writeStderr("    \(keyCount) API key(s) configured via MCP_API_KEYS\n")
+                }
             } else {
                 writeStderr("  Authentication: DISABLED (development mode)\n")
-                writeStderr("    Set MCP_AUTH_REQUIRED=true to enable authentication\n")
+                writeStderr("    Set MCP_AUTH_REQUIRED=true to enable API key authentication\n")
+                writeStderr("    Set MCP_OAUTH_ENABLED=true to enable OAuth 2.0 authentication\n")
             }
             writeStderr("\n")
 
             let httpTransport = HTTPServerTransport(
                 port: UInt16(port),
-                authenticator: authRequired || keyCount > 0 ? authenticator : nil
+                authenticator: authRequired || keyCount > 0 ? authenticator : nil,
+                oauthServer: oauthServer
             )
             try await server.start(transport: httpTransport)
         }

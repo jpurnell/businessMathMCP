@@ -31,6 +31,15 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     /// API key authenticator (optional)
     private let authenticator: APIKeyAuthenticator?
 
+    /// OAuth server for OAuth 2.0 authentication (optional)
+    private let oauthServer: OAuthServer?
+
+    /// OAuth HTTP handler (created lazily from OAuth server)
+    private var oauthHandler: OAuthHTTPHandler? {
+        guard let server = oauthServer else { return nil }
+        return OAuthHTTPHandler(server: server)
+    }
+
     /// Logger
     private let logger: Logger
 
@@ -39,9 +48,10 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     private var requestBody: ByteBuffer?
 
     /// Initialize handler
-    init(transport: HTTPServerTransport, authenticator: APIKeyAuthenticator?, logger: Logger) {
+    init(transport: HTTPServerTransport, authenticator: APIKeyAuthenticator?, oauthServer: OAuthServer?, logger: Logger) {
         self.transport = transport
         self.authenticator = authenticator
+        self.oauthServer = oauthServer
         self.logger = logger
     }
 
@@ -98,11 +108,19 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     private func processRequest(channel: Channel, eventLoop: EventLoop, context: ChannelHandlerContext, head: HTTPRequestHead, body: ByteBuffer?) async {
-        let path = head.uri
+        // Extract path without query string for routing
+        let fullUri = head.uri
+        let path = fullUri.split(separator: "?").first.map(String.init) ?? fullUri
         let method = head.method
 
+        // OAuth endpoints are always public (they handle their own auth)
+        let oauthEndpoints = ["/.well-known/oauth-authorization-server", "/register", "/authorize", "/token"]
+        let isOAuthEndpoint = oauthEndpoints.contains(path)
+
         // Check authentication for protected endpoints
-        let requiresAuth = !["/health", "/mcp"].contains(path) || method == .POST
+        // Exclude health, server info, and OAuth endpoints from auth
+        let isPublicEndpoint = ["/health", "/mcp"].contains(path) || isOAuthEndpoint
+        let requiresAuth = !isPublicEndpoint || (method == .POST && !isOAuthEndpoint)
 
         if requiresAuth {
             let authorized = await checkAuthorization(headers: head.headers)
@@ -126,6 +144,20 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         case (.GET, "/mcp"):
             handleServerInfo(context: context)
 
+        // OAuth 2.0 Endpoints
+        case (.GET, "/.well-known/oauth-authorization-server"):
+            await handleOAuthMetadata(context: context)
+
+        case (.POST, "/register"):
+            await handleOAuthRegistration(context: context, body: body)
+
+        case (.GET, "/authorize"):
+            await handleOAuthAuthorization(context: context, uri: fullUri)
+
+        case (.POST, "/token"):
+            await handleOAuthToken(context: context, body: body, headers: head.headers)
+
+        // MCP Endpoints
         case (.GET, "/mcp/sse"):
             await processSSEConnection(channel: channel, eventLoop: eventLoop, context: context, headers: head.headers)
 
@@ -164,6 +196,144 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         """
 
         sendResponse(context: context, status: .ok, body: info, contentType: "application/json")
+    }
+
+    private func handleNoOAuthMetadata(context: ChannelHandlerContext) {
+        // Return minimal OAuth metadata indicating no authentication is required
+        // This allows MCP clients that check for OAuth to proceed without auth
+        let metadata = """
+        {
+          "issuer": "http://localhost:8080",
+          "response_types_supported": [],
+          "grant_types_supported": [],
+          "token_endpoint_auth_methods_supported": ["none"],
+          "service_documentation": "This server does not require authentication"
+        }
+        """
+        sendResponse(context: context, status: .ok, body: metadata, contentType: "application/json")
+    }
+
+    // MARK: - OAuth Endpoint Handlers
+
+    private func handleOAuthMetadata(context: ChannelHandlerContext) async {
+        if let handler = oauthHandler {
+            let response = await handler.handleMetadataRequest()
+            sendOAuthResponse(context: context, response: response)
+        } else {
+            handleNoOAuthMetadata(context: context)
+        }
+    }
+
+    private func handleOAuthRegistration(context: ChannelHandlerContext, body: ByteBuffer?) async {
+        guard let handler = oauthHandler else {
+            sendResponse(context: context, status: .notFound, body: "OAuth not configured")
+            return
+        }
+
+        guard let bodyBuffer = body else {
+            sendResponse(context: context, status: .badRequest, body: "Missing request body")
+            return
+        }
+
+        let bodyString = String(buffer: bodyBuffer)
+        let response = await handler.handleRegistrationRequest(body: bodyString)
+        sendOAuthResponse(context: context, response: response)
+    }
+
+    private func handleOAuthAuthorization(context: ChannelHandlerContext, uri: String) async {
+        guard let handler = oauthHandler else {
+            sendResponse(context: context, status: .notFound, body: "OAuth not configured")
+            return
+        }
+
+        // Parse query parameters from URI
+        let queryParams = parseQueryParams(from: uri)
+        let response = await handler.handleAuthorizationRequest(queryParams: queryParams)
+        sendOAuthResponse(context: context, response: response)
+    }
+
+    private func handleOAuthToken(context: ChannelHandlerContext, body: ByteBuffer?, headers: HTTPHeaders) async {
+        guard let handler = oauthHandler else {
+            sendResponse(context: context, status: .notFound, body: "OAuth not configured")
+            return
+        }
+
+        guard let bodyBuffer = body else {
+            sendResponse(context: context, status: .badRequest, body: "Missing request body")
+            return
+        }
+
+        let bodyString = String(buffer: bodyBuffer)
+        let authHeader = headers.first(name: "Authorization")
+        let response = await handler.handleTokenRequest(body: bodyString, authHeader: authHeader)
+        sendOAuthResponse(context: context, response: response)
+    }
+
+    private func sendOAuthResponse(context: ChannelHandlerContext, response: OAuthHTTPResponse) {
+        let eventLoop = context.eventLoop
+        nonisolated(unsafe) let unsafeContext = context
+
+        eventLoop.execute {
+            self._sendOAuthResponse(context: unsafeContext, response: response)
+        }
+    }
+
+    private func _sendOAuthResponse(context: ChannelHandlerContext, response: OAuthHTTPResponse) {
+        let bodyData = response.body.data(using: .utf8) ?? Data()
+        var buffer = context.channel.allocator.buffer(capacity: bodyData.count)
+        buffer.writeBytes(bodyData)
+
+        var headers = HTTPHeaders()
+        headers.add(name: "Content-Type", value: response.contentType)
+        headers.add(name: "Content-Length", value: "\(bodyData.count)")
+        addCORSHeaders(to: &headers)
+
+        // Add any custom headers from OAuth response
+        for (name, value) in response.headers {
+            headers.add(name: name, value: value)
+        }
+
+        // Determine if we should close connection (redirects keep-alive, others close)
+        let status = HTTPResponseStatus(statusCode: response.statusCode)
+        if status == .found || status == .seeOther {
+            headers.add(name: "Connection", value: "keep-alive")
+        } else {
+            headers.add(name: "Connection", value: "close")
+        }
+
+        let responseHead = HTTPResponseHead(
+            version: .http1_1,
+            status: status,
+            headers: headers
+        )
+
+        context.write(wrapOutboundOut(.head(responseHead)), promise: nil)
+        context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+        context.writeAndFlush(wrapOutboundOut(.end(nil)), promise: nil)
+
+        if status != .found && status != .seeOther {
+            context.close(promise: nil)
+        }
+    }
+
+    private func parseQueryParams(from uri: String) -> [String: String] {
+        guard let queryStart = uri.firstIndex(of: "?") else {
+            return [:]
+        }
+
+        let queryString = String(uri[uri.index(after: queryStart)...])
+        var params: [String: String] = [:]
+
+        for pair in queryString.split(separator: "&") {
+            let keyValue = pair.split(separator: "=", maxSplits: 1)
+            if keyValue.count == 2 {
+                let key = String(keyValue[0]).removingPercentEncoding ?? String(keyValue[0])
+                let value = String(keyValue[1]).removingPercentEncoding ?? String(keyValue[1])
+                params[key] = value
+            }
+        }
+
+        return params
     }
 
     private func processSSEConnection(channel: Channel, eventLoop: EventLoop, context: ChannelHandlerContext, headers: HTTPHeaders) async {
@@ -219,31 +389,58 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         if let sessionId = sessionId {
             // SSE mode: associate request with session
             await transport.sseSessionManager.associateRequest(requestId: requestId, with: sessionId)
+
+            // Forward request to MCP server via receive stream
+            transport.receiveContinuation.yield(bodyData)
+
+            // Send immediate acknowledgment (response will come via SSE)
+            sendResponse(context: context, status: .ok, body: "")
         } else {
-            // Legacy HTTP mode: register with response manager
-            // Use pre-captured channel instead of accessing context.channel after await
+            // HTTP mode: register with response manager and keep connection open
+            // The HTTPResponseManager will send the JSON-RPC response when ready
             let connection = NIOHTTPConnection(channel: channel)
             await transport.responseManager.registerRequest(requestId: requestId, connection: connection)
+
+            // Forward request to MCP server via receive stream
+            transport.receiveContinuation.yield(bodyData)
+
+            // Do NOT send a response here - HTTPResponseManager.routeResponse() will
+            // send the actual JSON-RPC response with Content-Type: application/json
         }
-
-        // Forward request to MCP server via receive stream
-        transport.receiveContinuation.yield(bodyData)
-
-        // Send immediate acknowledgment (response will come via SSE or HTTP)
-        sendResponse(context: context, status: .ok, body: "")
     }
 
     // MARK: - Authentication
 
     private func checkAuthorization(headers: HTTPHeaders) async -> Bool {
-        guard let authenticator = authenticator else {
-            return true  // No authenticator = no auth required
+        // If no authentication is configured, allow all requests
+        if authenticator == nil && oauthServer == nil {
+            return true
         }
 
-        // Check Authorization header
         let authHeader = headers.first(name: "Authorization")
 
-        return await authenticator.validate(authHeader: authHeader)
+        // Try OAuth Bearer token validation first (if OAuth is configured)
+        if let handler = oauthHandler, let header = authHeader, header.lowercased().hasPrefix("bearer ") {
+            let result = await handler.validateBearerToken(authHeader: header)
+            if result.isValid {
+                return true
+            }
+            // If Bearer token is invalid and OAuth is configured, fail
+            // Don't fall through to API key auth if they're trying Bearer auth
+            return false
+        }
+
+        // Try API key authentication (if configured)
+        if let authenticator = authenticator {
+            return await authenticator.validate(authHeader: authHeader)
+        }
+
+        // If OAuth is configured but no valid Bearer token provided
+        if oauthServer != nil {
+            return false  // Require OAuth authentication
+        }
+
+        return true
     }
 
     // MARK: - Response Helpers
