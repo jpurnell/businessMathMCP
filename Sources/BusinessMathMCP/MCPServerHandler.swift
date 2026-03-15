@@ -351,7 +351,9 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         // Prepare the initial endpoint event (MCP SSE protocol requirement)
         // This tells the client which URL to use for POST requests
-        let endpointEvent = "event: endpoint\ndata: /mcp?sessionId=\(sessionId)\n\n"
+        // Use full URL format as some clients may require it
+        let baseUrl = "http://10.0.1.114:8080"
+        let endpointEvent = "event: endpoint\ndata: \(baseUrl)/mcp?sessionId=\(sessionId)\n\n"
         var buffer = channel.allocator.buffer(capacity: endpointEvent.utf8.count)
         buffer.writeString(endpointEvent)
 
