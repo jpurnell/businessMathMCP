@@ -29,12 +29,40 @@ dependencies: [
 ]
 ```
 
+## Quick Start: Claude Code Integration
+
+```bash
+# 1. Generate an API key
+businessmath-mcp-server --generate-key --name "Claude Code"
+
+# 2. Start the server
+businessmath-mcp-server --http 8080
+
+# 3. Add to Claude Code (on client machine)
+claude mcp add --transport http businessmath http://<server-ip>:8080 \
+  --header "Authorization: Bearer <your-api-key>"
+```
+
+See [ClaudeCodeSetupGuide.md](ClaudeCodeSetupGuide.md) for detailed instructions.
+
 ## Usage
 
 ### Running the Server
 
 ```bash
+# Stdio transport (default)
 swift run businessmath-mcp-server
+
+# HTTP transport with API key authentication
+businessmath-mcp-server --http 8080
+```
+
+### Key Management
+
+```bash
+businessmath-mcp-server --generate-key --name "My Key"
+businessmath-mcp-server --list-keys
+businessmath-mcp-server --revoke-key <prefix>
 ```
 
 ### As a Library
