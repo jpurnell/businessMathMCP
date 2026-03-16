@@ -327,16 +327,7 @@ public actor OAuthStorage {
         expiresIn: TimeInterval = 600 // 10 minutes
     ) throws -> String {
         // Generate cryptographically secure random token
-        var bytes = [UInt8](repeating: 0, count: 32)
-        let result = bytes.withUnsafeMutableBytes { bufferPointer in
-            SecRandomCopyBytes(kSecRandomDefault, 32, bufferPointer.baseAddress!)
-        }
-
-        guard result == errSecSuccess else {
-            throw OAuthStorageError.databaseError("Failed to generate secure random bytes")
-        }
-
-        let token = bytes.map { String(format: "%02x", $0) }.joined()
+        let token = generateSecureToken(length: 32)
         let now = Date()
         let expiresAt = now.addingTimeInterval(expiresIn)
 
@@ -732,6 +723,18 @@ public actor OAuthStorage {
         let data = Data(token.utf8)
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Generates a cryptographically secure random token
+    ///
+    /// Uses Swift Crypto's SymmetricKey for cross-platform random generation
+    /// (works on both macOS and Linux)
+    private func generateSecureToken(length: Int) -> String {
+        // SymmetricKey generates cryptographically secure random bytes
+        let key = SymmetricKey(size: .bits256)
+        return key.withUnsafeBytes { bytes in
+            bytes.prefix(length).map { String(format: "%02x", $0) }.joined()
+        }
     }
 
     private func encodeJSON<T: Encodable>(_ value: T) throws -> String {
