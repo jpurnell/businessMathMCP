@@ -771,7 +771,7 @@ public struct HarmonicMeanTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("All values must be positive for harmonic mean")
         }
 
-        let mean: Double = harmonicMean(values)
+        let mean: Double = try harmonicMean(values)
 
         let result = """
         ## Harmonic Mean Result
@@ -853,7 +853,7 @@ public struct WeightedAverageTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Sum of weights must be positive")
         }
 
-        let mean: Double = weightedAverage(values, weights: weights)
+        let mean: Double = try weightedAverage(values, weights: weights)
 
         // Calculate normalized weights for display
         let normalizedWeights = weights.map { ($0 / totalWeight * 100).formatDecimal(decimals: 2) }

@@ -93,7 +93,7 @@ public struct CalculateCorrelationTool: MCPToolHandler, Sendable {
         }
 
         let population: Population = populationType == "population" ? .population : .sample
-        let correlation = correlationCoefficient(x, y, population)
+        let correlation = try correlationCoefficient(x, y, population)
 
         // Interpret correlation strength
         let absCorr = abs(correlation)
@@ -180,7 +180,7 @@ public struct LinearRegressionTool: MCPToolHandler, Sendable {
         // Calculate regression parameters
         let slope = try slope(x, y)
         let intercept = try intercept(x, y)
-        let rSquared = rSquared(x, y, .sample)
+        let rSquared = try rSquared(x, y, .sample)
 
         var output = """
         Linear Regression Analysis:
@@ -470,10 +470,10 @@ public struct CalculateCovarianceTool: MCPToolHandler, Sendable {
         }
 
         let population: Population = populationType == "population" ? .population : .sample
-        let cov = covariance(x, y, population)
+        let cov = try covariance(x, y, population)
 
         // Calculate correlation for context
-        let corr = correlationCoefficient(x, y, population)
+        let corr = try correlationCoefficient(x, y, population)
 
         let output = """
         Covariance Analysis:

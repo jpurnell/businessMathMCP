@@ -93,7 +93,7 @@ public struct AssetTurnoverTool: MCPToolHandler, Sendable {
         let netSales = try args.getDouble("netSales")
         let averageTotalAssets = try args.getDouble("averageTotalAssets")
 
-        let ratio: Double = assetTurnover(netSales: netSales, averageTotalAssets: averageTotalAssets)
+        let ratio: Double = try assetTurnover(netSales: netSales, averageTotalAssets: averageTotalAssets)
 
         let interpretation: String
         if ratio >= 2.0 {
@@ -175,7 +175,7 @@ public struct CurrentRatioTool: MCPToolHandler, Sendable {
         let currentAssets = try args.getDouble("currentAssets")
         let currentLiabilities = try args.getDouble("currentLiabilities")
 
-        let ratio: Double = currentRatio(currentAssets: currentAssets, currentLiabilities: currentLiabilities)
+        let ratio: Double = try currentRatio(currentAssets: currentAssets, currentLiabilities: currentLiabilities)
 
         let interpretation: String
         if ratio >= 2.0 {
@@ -265,7 +265,7 @@ public struct QuickRatioTool: MCPToolHandler, Sendable {
         let inventory = try args.getDouble("inventory")
         let currentLiabilities = try args.getDouble("currentLiabilities")
 
-        let ratio: Double = quickRatio(currentAssets: currentAssets, inventory: inventory, currentLiabilities: currentLiabilities)
+        let ratio: Double = try quickRatio(currentAssets: currentAssets, inventory: inventory, currentLiabilities: currentLiabilities)
 
         let liquidAssets = currentAssets - inventory
 
@@ -356,7 +356,7 @@ public struct DebtToEquityTool: MCPToolHandler, Sendable {
         let totalLiabilities = try args.getDouble("totalLiabilities")
         let shareholderEquity = try args.getDouble("shareholderEquity")
 
-        let ratio: Double = debtToEquity(totalLiabilities: totalLiabilities, shareholderEquity: shareholderEquity)
+        let ratio: Double = try debtToEquity(totalLiabilities: totalLiabilities, shareholderEquity: shareholderEquity)
 
         let interpretation: String
         if ratio < 0.5 {
@@ -445,7 +445,7 @@ public struct InterestCoverageTool: MCPToolHandler, Sendable {
         let ebit = try args.getDouble("earningsBeforeInterestAndTax")
         let interestExpense = try args.getDouble("interestExpense")
 
-        let ratio: Double = interestCoverage(earningsBeforeInterestAndTax: ebit, interestExpense: interestExpense)
+        let ratio: Double = try interestCoverage(earningsBeforeInterestAndTax: ebit, interestExpense: interestExpense)
 
         let interpretation: String
         if ratio >= 5.0 {
@@ -532,7 +532,7 @@ public struct InventoryTurnoverTool: MCPToolHandler, Sendable {
         let cogs = try args.getDouble("costOfGoodsSold")
         let averageInventory = try args.getDouble("averageInventory")
 
-        let ratio: Double = inventoryTurnover(costOfGoodsSold: cogs, averageInventory: averageInventory)
+        let ratio: Double = try inventoryTurnover(costOfGoodsSold: cogs, averageInventory: averageInventory)
         let daysInventory = ratio > 0 ? 365.0 / ratio : 0
 
         let interpretation: String
@@ -618,7 +618,7 @@ public struct ProfitMarginTool: MCPToolHandler, Sendable {
         let netIncome = try args.getDouble("netIncome")
         let revenue = try args.getDouble("revenue")
 
-        let margin: Double = profitMargin(netIncome: netIncome, revenue: revenue)
+        let margin: Double = try profitMargin(netIncome: netIncome, revenue: revenue)
 
         let interpretation: String
         if margin >= 0.20 {
@@ -706,7 +706,7 @@ public struct ROETool: MCPToolHandler, Sendable {
         let netIncome = try args.getDouble("netIncome")
         let shareholderEquity = try args.getDouble("shareholderEquity")
 
-        let roeValue: Double = roe(netIncome: netIncome, shareholderEquity: shareholderEquity)
+        let roeValue: Double = try roe(netIncome: netIncome, shareholderEquity: shareholderEquity)
 
         let interpretation: String
         if roeValue >= 0.20 {
@@ -795,7 +795,7 @@ public struct ROITool: MCPToolHandler, Sendable {
         let gain = try args.getDouble("gainFromInvestment")
         let cost = try args.getDouble("costOfInvestment")
 
-        let roiValue: Double = roi(gainFromInvestment: gain, costOfInvestment: cost)
+        let roiValue: Double = try roi(gainFromInvestment: gain, costOfInvestment: cost)
         let netReturn = gain - cost
         let percentReturn = roiValue - 1.0
 
