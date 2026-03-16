@@ -424,3 +424,26 @@ public struct AuthorizationCode: Codable, Sendable, Equatable {
         case createdAt = "created_at"
     }
 }
+
+// MARK: - CSRFValidationResult
+
+/// Result of CSRF token validation
+///
+/// Used by the consent page submission handler to verify
+/// that the form submission is legitimate.
+public struct CSRFValidationResult: Sendable, Equatable {
+    /// Whether the CSRF token is valid
+    public let isValid: Bool
+
+    /// Error message if validation failed
+    public let error: String?
+
+    /// Creates a validation result
+    /// - Parameters:
+    ///   - isValid: Whether the token is valid
+    ///   - error: Error message if invalid
+    public init(isValid: Bool, error: String? = nil) {
+        self.isValid = isValid
+        self.error = error
+    }
+}

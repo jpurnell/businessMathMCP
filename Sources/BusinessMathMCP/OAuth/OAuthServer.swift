@@ -182,6 +182,73 @@ public actor OAuthServer {
         )
     }
 
+    /// Validates an authorization request without generating a code
+    ///
+    /// Use this to validate the request before showing the consent page.
+    /// Call `handleAuthorizationRequest` after user approves.
+    ///
+    /// - Parameter request: Authorization request parameters
+    /// - Returns: The validated client for display in consent page
+    /// - Throws: `OAuthError` if request is invalid
+    public func validateAuthorizationRequest(_ request: AuthorizationRequest) async throws -> RegisteredClient {
+        // Validate response type
+        guard request.responseType == "code" else {
+            throw OAuthError.invalidRequest
+        }
+
+        // Validate client
+        guard let client = try await storage.getClient(clientId: request.clientId) else {
+            throw OAuthError.invalidClient
+        }
+
+        // Validate redirect URI
+        guard client.redirectUris.contains(request.redirectUri) else {
+            throw OAuthError.invalidRequest
+        }
+
+        // Validate scope if provided
+        if let scope = request.scope {
+            let validScopes = Set(["mcp:tools", "mcp:resources", "mcp:prompts"])
+            let requestedScopes = Set(scope.split(separator: " ").map(String.init))
+            guard requestedScopes.isSubset(of: validScopes) else {
+                throw OAuthError.invalidScope
+            }
+        }
+
+        return client
+    }
+
+    /// Gets a registered client by ID
+    ///
+    /// - Parameter clientId: The client ID to look up
+    /// - Returns: The client if found, nil otherwise
+    public func getClient(clientId: String) async throws -> RegisteredClient? {
+        return try await storage.getClient(clientId: clientId)
+    }
+
+    // MARK: - CSRF Token Operations
+
+    /// Generates a CSRF token for consent page protection
+    ///
+    /// - Parameters:
+    ///   - clientId: Client requesting authorization
+    ///   - redirectUri: Redirect URI from authorization request
+    /// - Returns: The generated CSRF token
+    public func generateCSRFToken(clientId: String, redirectUri: String) async throws -> String {
+        return try await storage.generateCSRFToken(clientId: clientId, redirectUri: redirectUri)
+    }
+
+    /// Validates and consumes a CSRF token
+    ///
+    /// - Parameters:
+    ///   - token: The CSRF token to validate
+    ///   - clientId: Expected client ID
+    ///   - redirectUri: Expected redirect URI
+    /// - Returns: Validation result
+    public func validateCSRFToken(token: String, clientId: String, redirectUri: String) async throws -> CSRFValidationResult {
+        return try await storage.validateCSRFToken(token: token, clientId: clientId, redirectUri: redirectUri)
+    }
+
     // MARK: - Token Endpoint
 
     /// Handles a token request

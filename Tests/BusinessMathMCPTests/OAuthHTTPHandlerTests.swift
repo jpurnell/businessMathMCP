@@ -126,14 +126,13 @@ struct OAuthHTTPHandlerTests {
                 "state": "test_state_123"
             ]
 
+            // Authorization request now returns consent page
             let response = await handler.handleAuthorizationRequest(queryParams: params)
 
-            #expect(response.statusCode == 302)
-            #expect(response.headers["Location"] != nil)
-
-            let location = response.headers["Location"]!
-            #expect(location.contains("code="))
-            #expect(location.contains("state=test_state_123"))
+            #expect(response.statusCode == 200, "Should return consent page")
+            #expect(response.contentType.contains("text/html"), "Should be HTML")
+            #expect(response.body.contains("Auth Test"), "Should show client name")
+            #expect(response.body.contains("csrf_token"), "Should have CSRF token")
         }
 
         @Test("Returns error for missing parameters")
@@ -150,8 +149,8 @@ struct OAuthHTTPHandlerTests {
             #expect(response.statusCode == 400)
         }
 
-        @Test("Returns redirect with error for unknown client")
-        func returnsRedirectWithErrorForUnknownClient() async throws {
+        @Test("Returns error for unknown client")
+        func returnsErrorForUnknownClient() async throws {
             let handler = try await OAuthHTTPHandlerTests.makeTestHandler()
 
             let params: [String: String] = [
@@ -163,10 +162,8 @@ struct OAuthHTTPHandlerTests {
 
             let response = await handler.handleAuthorizationRequest(queryParams: params)
 
-            // Should redirect with error
-            #expect(response.statusCode == 302)
-            let location = response.headers["Location"] ?? ""
-            #expect(location.contains("error="))
+            // Should return error directly (not redirect to unknown redirect_uri)
+            #expect(response.statusCode == 401 || response.statusCode == 400, "Should return error status")
         }
     }
 
@@ -204,7 +201,21 @@ struct OAuthHTTPHandlerTests {
                 "code_challenge_method": "S256"
             ]
 
-            let authResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            // Get consent page
+            let consentResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            let csrfToken = OAuthHTTPHandlerTests.extractCSRFToken(from: consentResponse.body)!
+
+            // Submit consent
+            let consentParams: [String: String] = [
+                "action": "approve",
+                "client_id": client.clientId,
+                "redirect_uri": "http://localhost/callback",
+                "csrf_token": csrfToken,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256"
+            ]
+
+            let authResponse = await handler.handleConsentSubmission(formParams: consentParams)
             let location = authResponse.headers["Location"]!
             let code = extractCodeFromRedirect(location)!
 
@@ -278,10 +289,22 @@ struct OAuthHTTPHandlerTests {
             let verifier = PKCE.generateCodeVerifier()
             let challenge = try PKCE.generateCodeChallenge(verifier: verifier, method: .s256)
 
-            let authResponse = await handler.handleAuthorizationRequest(queryParams: [
+            // Get consent page
+            let consentResponse = await handler.handleAuthorizationRequest(queryParams: [
                 "response_type": "code",
                 "client_id": client.clientId,
                 "redirect_uri": "http://localhost/callback",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256"
+            ])
+            let csrfToken = OAuthHTTPHandlerTests.extractCSRFToken(from: consentResponse.body)!
+
+            // Submit consent
+            let authResponse = await handler.handleConsentSubmission(formParams: [
+                "action": "approve",
+                "client_id": client.clientId,
+                "redirect_uri": "http://localhost/callback",
+                "csrf_token": csrfToken,
                 "code_challenge": challenge,
                 "code_challenge_method": "S256"
             ])
@@ -339,10 +362,23 @@ struct OAuthHTTPHandlerTests {
             let verifier = PKCE.generateCodeVerifier()
             let challenge = try PKCE.generateCodeChallenge(verifier: verifier, method: .s256)
 
-            let authResponse = await handler.handleAuthorizationRequest(queryParams: [
+            // Get consent page
+            let consentResponse = await handler.handleAuthorizationRequest(queryParams: [
                 "response_type": "code",
                 "client_id": client.clientId,
                 "redirect_uri": "http://localhost/callback",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "scope": "mcp:tools"
+            ])
+            let csrfToken = OAuthHTTPHandlerTests.extractCSRFToken(from: consentResponse.body)!
+
+            // Submit consent
+            let authResponse = await handler.handleConsentSubmission(formParams: [
+                "action": "approve",
+                "client_id": client.clientId,
+                "redirect_uri": "http://localhost/callback",
+                "csrf_token": csrfToken,
                 "code_challenge": challenge,
                 "code_challenge_method": "S256",
                 "scope": "mcp:tools"
@@ -408,6 +444,18 @@ struct OAuthHTTPHandlerTests {
             return nil
         }
         return code
+    }
+
+    static func extractCSRFToken(from html: String) -> String? {
+        // Look for: name="csrf_token" value="..."
+        guard let range = html.range(of: "name=\"csrf_token\" value=\"") else {
+            return nil
+        }
+        let start = range.upperBound
+        guard let endRange = html[start...].range(of: "\"") else {
+            return nil
+        }
+        return String(html[start..<endRange.lowerBound])
     }
 
     static func buildFormBody(_ params: [String: String]) -> String {

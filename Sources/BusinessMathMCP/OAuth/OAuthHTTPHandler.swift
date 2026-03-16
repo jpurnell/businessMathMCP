@@ -80,8 +80,10 @@ public struct OAuthHTTPHandler: Sendable {
 
     /// Handles GET /authorize
     ///
+    /// Shows a consent page for the user to approve or deny access.
+    ///
     /// - Parameter queryParams: Query parameters from the URL
-    /// - Returns: Redirect response with authorization code or error
+    /// - Returns: HTML consent page or error response
     public func handleAuthorizationRequest(queryParams: [String: String]) async -> OAuthHTTPResponse {
         guard let responseType = queryParams["response_type"],
               let clientId = queryParams["client_id"],
@@ -100,13 +102,121 @@ public struct OAuthHTTPHandler: Sendable {
         )
 
         do {
-            let response = try await server.handleAuthorizationRequest(request)
+            // Validate the request and get client info
+            let client = try await server.validateAuthorizationRequest(request)
 
-            // Build redirect URL with code
+            // Generate CSRF token for the consent form
+            let csrfToken = try await server.generateCSRFToken(
+                clientId: clientId,
+                redirectUri: redirectUri
+            )
+
+            // Render consent page
+            let consentPage = ConsentPage(
+                clientName: client.clientName,
+                clientId: clientId,
+                scope: request.scope,
+                redirectUri: redirectUri,
+                state: request.state,
+                csrfToken: csrfToken,
+                codeChallenge: request.codeChallenge,
+                codeChallengeMethod: request.codeChallengeMethod
+            )
+
+            return OAuthHTTPResponse(
+                statusCode: 200,
+                contentType: "text/html; charset=utf-8",
+                body: consentPage.render()
+            )
+        } catch let error as OAuthError {
+            // For invalid redirect_uri, we must NOT redirect to it
+            // Instead, show an error page directly
+            if case .invalidRequest = error {
+                // Check if redirect_uri is invalid (not a registered URI)
+                // We return a direct error response
+                return OAuthHTTPResponse(
+                    statusCode: 400,
+                    contentType: "application/json",
+                    body: "{\"error\": \"invalid_request\", \"error_description\": \"Invalid redirect_uri\"}"
+                )
+            }
+
+            return errorResponse(error)
+        } catch {
+            return errorResponse(.serverError("Unexpected error"))
+        }
+    }
+
+    // MARK: - Consent Submission
+
+    /// Handles POST /authorize/consent
+    ///
+    /// Processes the user's approval or denial of the authorization request.
+    ///
+    /// - Parameter formParams: URL-encoded form parameters
+    /// - Returns: Redirect with authorization code (approve) or error (deny)
+    public func handleConsentSubmission(formParams: [String: String]) async -> OAuthHTTPResponse {
+        // Validate required parameters
+        guard let action = formParams["action"],
+              let clientId = formParams["client_id"],
+              let redirectUri = formParams["redirect_uri"],
+              let csrfToken = formParams["csrf_token"] else {
+            return OAuthHTTPResponse(
+                statusCode: 400,
+                contentType: "application/json",
+                body: "{\"error\": \"invalid_request\", \"error_description\": \"Missing required parameters\"}"
+            )
+        }
+
+        // Validate CSRF token
+        do {
+            let csrfResult = try await server.validateCSRFToken(
+                token: csrfToken,
+                clientId: clientId,
+                redirectUri: redirectUri
+            )
+
+            if !csrfResult.isValid {
+                return OAuthHTTPResponse(
+                    statusCode: 400,
+                    contentType: "application/json",
+                    body: "{\"error\": \"invalid_request\", \"error_description\": \"Invalid or expired csrf token\"}"
+                )
+            }
+        } catch {
+            return OAuthHTTPResponse(
+                statusCode: 400,
+                contentType: "application/json",
+                body: "{\"error\": \"invalid_request\", \"error_description\": \"CSRF validation failed\"}"
+            )
+        }
+
+        // Verify client exists
+        do {
+            guard let _ = try await server.getClient(clientId: clientId) else {
+                return OAuthHTTPResponse(
+                    statusCode: 400,
+                    contentType: "application/json",
+                    body: "{\"error\": \"invalid_client\", \"error_description\": \"Client not found\"}"
+                )
+            }
+        } catch {
+            return OAuthHTTPResponse(
+                statusCode: 400,
+                contentType: "application/json",
+                body: "{\"error\": \"server_error\", \"error_description\": \"Failed to verify client\"}"
+            )
+        }
+
+        let state = formParams["state"]
+
+        // Handle deny action
+        if action == "deny" {
             var redirectComponents = URLComponents(string: redirectUri)
             var queryItems = redirectComponents?.queryItems ?? []
-            queryItems.append(URLQueryItem(name: "code", value: response.code))
-            if let state = response.state {
+            queryItems.append(URLQueryItem(name: "error", value: "access_denied"))
+            queryItems.append(URLQueryItem(name: "error_description", value: "User denied the authorization request"))
+            if let state = state {
                 queryItems.append(URLQueryItem(name: "state", value: state))
             }
             redirectComponents?.queryItems = queryItems
@@ -121,32 +231,76 @@ public struct OAuthHTTPHandler: Sendable {
                 body: "",
                 headers: ["Location": redirectURL]
             )
-        } catch let error as OAuthError {
-            // For authorization errors, redirect with error
-            var redirectComponents = URLComponents(string: redirectUri)
-            var queryItems = redirectComponents?.queryItems ?? []
-            queryItems.append(URLQueryItem(name: "error", value: error.errorCode))
-            if let description = error.errorDescription {
-                queryItems.append(URLQueryItem(name: "error_description", value: description))
-            }
-            if let state = queryParams["state"] {
-                queryItems.append(URLQueryItem(name: "state", value: state))
-            }
-            redirectComponents?.queryItems = queryItems
+        }
 
-            if let redirectURL = redirectComponents?.string {
+        // Handle approve action
+        if action == "approve" {
+            let request = AuthorizationRequest(
+                responseType: "code",
+                clientId: clientId,
+                redirectUri: redirectUri,
+                scope: formParams["scope"],
+                state: state,
+                codeChallenge: formParams["code_challenge"],
+                codeChallengeMethod: formParams["code_challenge_method"]
+            )
+
+            do {
+                let response = try await server.handleAuthorizationRequest(request)
+
+                // Build redirect URL with code
+                var redirectComponents = URLComponents(string: redirectUri)
+                var queryItems = redirectComponents?.queryItems ?? []
+                queryItems.append(URLQueryItem(name: "code", value: response.code))
+                if let state = response.state {
+                    queryItems.append(URLQueryItem(name: "state", value: state))
+                }
+                redirectComponents?.queryItems = queryItems
+
+                guard let redirectURL = redirectComponents?.string else {
+                    return errorResponse(.serverError("Failed to build redirect URL"))
+                }
+
                 return OAuthHTTPResponse(
                     statusCode: 302,
                     contentType: "text/html",
                     body: "",
                     headers: ["Location": redirectURL]
                 )
-            }
+            } catch let error as OAuthError {
+                // Redirect with error
+                var redirectComponents = URLComponents(string: redirectUri)
+                var queryItems = redirectComponents?.queryItems ?? []
+                queryItems.append(URLQueryItem(name: "error", value: error.errorCode))
+                if let description = error.errorDescription {
+                    queryItems.append(URLQueryItem(name: "error_description", value: description))
+                }
+                if let state = state {
+                    queryItems.append(URLQueryItem(name: "state", value: state))
+                }
+                redirectComponents?.queryItems = queryItems
 
-            return errorResponse(error)
-        } catch {
-            return errorResponse(.serverError("Unexpected error"))
+                if let redirectURL = redirectComponents?.string {
+                    return OAuthHTTPResponse(
+                        statusCode: 302,
+                        contentType: "text/html",
+                        body: "",
+                        headers: ["Location": redirectURL]
+                    )
+                }
+
+                return errorResponse(error)
+            } catch {
+                return errorResponse(.serverError("Authorization failed"))
+            }
         }
+
+        // Invalid action
+        return OAuthHTTPResponse(
+            statusCode: 400,
+            contentType: "application/json",
+            body: "{\"error\": \"invalid_request\", \"error_description\": \"Invalid action\"}"
+        )
     }
 
     // MARK: - Token Endpoint

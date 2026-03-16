@@ -85,12 +85,30 @@ struct OAuthIntegrationTests {
                 "scope": "mcp:tools"
             ]
 
-            let authResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            // Get consent page
+            let consentResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            #expect(consentResponse.statusCode == 200, "Should return consent page")
+
+            // Extract CSRF token and submit consent
+            let csrfToken = OAuthIntegrationTests.extractCSRFToken(from: consentResponse.body)
+            #expect(csrfToken != nil, "Should have CSRF token")
+
+            let consentParams: [String: String] = [
+                "action": "approve",
+                "client_id": client.clientId,
+                "redirect_uri": "http://localhost/callback",
+                "csrf_token": csrfToken!,
+                "scope": "mcp:tools",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256"
+            ]
+
+            let authResponse = await handler.handleConsentSubmission(formParams: consentParams)
             #expect(authResponse.statusCode == 302)
 
             // Extract code from redirect
             let location = authResponse.headers["Location"]!
-            let code = extractCode(from: location)
+            let code = OAuthIntegrationTests.extractCode(from: location)
             #expect(code != nil)
 
             // Step 3: Exchange code for tokens
@@ -176,10 +194,26 @@ struct OAuthIntegrationTests {
                 "code_challenge_method": "S256"
             ]
 
-            let authResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            // Get consent page
+            let consentResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+            #expect(consentResponse.statusCode == 200, "Should return consent page")
+
+            // Extract CSRF token and submit consent
+            let csrfToken = OAuthIntegrationTests.extractCSRFToken(from: consentResponse.body)!
+
+            let consentParams: [String: String] = [
+                "action": "approve",
+                "client_id": client.clientId,
+                "redirect_uri": "http://localhost/callback",
+                "csrf_token": csrfToken,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256"
+            ]
+
+            let authResponse = await handler.handleConsentSubmission(formParams: consentParams)
             #expect(authResponse.statusCode == 302)
 
-            let code = extractCode(from: authResponse.headers["Location"]!)!
+            let code = OAuthIntegrationTests.extractCode(from: authResponse.headers["Location"]!)!
 
             // Exchange code for tokens (no client_secret needed)
             let tokenBody = buildFormBody([
@@ -290,6 +324,18 @@ struct OAuthIntegrationTests {
         return code
     }
 
+    static func extractCSRFToken(from html: String) -> String? {
+        // Look for: name="csrf_token" value="..."
+        guard let range = html.range(of: "name=\"csrf_token\" value=\"") else {
+            return nil
+        }
+        let start = range.upperBound
+        guard let endRange = html[start...].range(of: "\"") else {
+            return nil
+        }
+        return String(html[start..<endRange.lowerBound])
+    }
+
     static func buildFormBody(_ params: [String: String]) -> String {
         params.map { key, value in
             let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
@@ -325,8 +371,30 @@ struct OAuthIntegrationTests {
             "scope": scope
         ]
 
-        let authResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
-        let code = extractCode(from: authResponse.headers["Location"]!)!
+        // Step 1: Get consent page
+        let consentResponse = await handler.handleAuthorizationRequest(queryParams: authParams)
+
+        // Extract CSRF token from consent page HTML
+        guard let csrfToken = extractCSRFToken(from: consentResponse.body) else {
+            throw OAuthTestError.missingCSRFToken
+        }
+
+        // Step 2: Submit consent approval
+        let consentParams: [String: String] = [
+            "action": "approve",
+            "client_id": client.clientId,
+            "redirect_uri": "http://localhost/callback",
+            "csrf_token": csrfToken,
+            "scope": scope,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256"
+        ]
+
+        let authResponse = await handler.handleConsentSubmission(formParams: consentParams)
+        guard let location = authResponse.headers["Location"],
+              let code = extractCode(from: location) else {
+            throw OAuthTestError.missingAuthorizationCode
+        }
 
         let tokenBody = buildFormBody([
             "grant_type": "authorization_code",
@@ -341,6 +409,12 @@ struct OAuthIntegrationTests {
         let data = tokenResponse.body.data(using: .utf8)!
         return try JSONDecoder().decode(TokenResponse.self, from: data)
     }
+}
+
+/// Errors that can occur in OAuth tests
+enum OAuthTestError: Error {
+    case missingCSRFToken
+    case missingAuthorizationCode
 }
 
 // Make helpers accessible to nested types

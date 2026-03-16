@@ -71,6 +71,10 @@ enum TransportMode {
     }
 }
 
+/// Global logging configuration (parsed once at startup)
+/// Using nonisolated(unsafe) since this is set once before any async code runs
+nonisolated(unsafe) var globalLoggingConfig = LoggingConfiguration.parse(arguments: CommandLine.arguments)
+
 // MARK: - Key Management Commands
 
 func handleGenerateKey(name: String?) async {
@@ -151,6 +155,7 @@ func printHelp() {
 
     SERVER OPTIONS:
       --http <port>           Run HTTP server on specified port
+      --verbose, -v           Enable verbose debug logging
       (default)               Run stdio server
 
     KEY MANAGEMENT:
@@ -160,6 +165,7 @@ func printHelp() {
       --revoke-key <prefix>   Revoke a key by its prefix
 
     ENVIRONMENT:
+      LOG_LEVEL               Set log level (trace, debug, info, warning, error)
       MCP_OAUTH_ENABLED       Set to "true" to enable OAuth 2.0
       MCP_OAUTH_ISSUER        OAuth issuer URL (default: http://localhost:<port>)
       MCP_API_KEYS            Comma-separated API keys (legacy)
@@ -171,6 +177,9 @@ func printHelp() {
 
       # Start HTTP server on port 8080
       businessmath-mcp-server --http 8080
+
+      # Start with verbose logging for debugging
+      businessmath-mcp-server --http 8080 --verbose
 
       # List all keys
       businessmath-mcp-server --list-keys
@@ -563,6 +572,15 @@ struct BusinessMathMCPServerMain {
             writeStderr("    - GET /mcp      : Server info\n")
             writeStderr("    - GET /health   : Health check\n")
             writeStderr("\n")
+
+            // Log verbose mode status
+            if globalLoggingConfig.isVerbose {
+                writeStderr("  Verbose Logging: ENABLED\n")
+                writeStderr("    Log Level: \(globalLoggingConfig.logLevel)\n")
+                writeStderr("    Channel IDs: \(globalLoggingConfig.includeChannelIds ? "shown" : "hidden")\n")
+                writeStderr("    Response Content: \(globalLoggingConfig.includeResponseContent ? "shown (truncated)" : "hidden")\n")
+                writeStderr("\n")
+            }
 
             // Load persistent API keys
             let keyStore = APIKeyStore()

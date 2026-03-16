@@ -146,12 +146,25 @@ public actor OAuthStorage {
             )
         """)
 
+        // CSRF tokens table
+        try executeStatic(db: db, sql: """
+            CREATE TABLE IF NOT EXISTS csrf_tokens (
+                token TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL,
+                redirect_uri TEXT NOT NULL,
+                expires_at REAL NOT NULL,
+                created_at REAL NOT NULL,
+                consumed INTEGER DEFAULT 0
+            )
+        """)
+
         // Indexes
         try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_access_tokens_expires ON access_tokens(expires_at)")
         try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)")
         try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON authorization_codes(expires_at)")
         try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_access_tokens_client ON access_tokens(client_id)")
         try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_refresh_tokens_client ON refresh_tokens(client_id)")
+        try executeStatic(db: db, sql: "CREATE INDEX IF NOT EXISTS idx_csrf_tokens_expires ON csrf_tokens(expires_at)")
     }
 
     /// Static SQL execution helper for initialization
@@ -296,6 +309,143 @@ public actor OAuthStorage {
         )
 
         return authCode
+    }
+
+    // MARK: - CSRF Token Operations
+
+    /// Generates a CSRF token for consent page protection
+    ///
+    /// - Parameters:
+    ///   - clientId: Client requesting authorization
+    ///   - redirectUri: Redirect URI from authorization request
+    ///   - expiresIn: Token lifetime in seconds (default: 10 minutes)
+    /// - Returns: The generated CSRF token
+    /// - Throws: `OAuthStorageError` if token cannot be stored
+    public func generateCSRFToken(
+        clientId: String,
+        redirectUri: String,
+        expiresIn: TimeInterval = 600 // 10 minutes
+    ) throws -> String {
+        // Generate cryptographically secure random token
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let result = bytes.withUnsafeMutableBytes { bufferPointer in
+            SecRandomCopyBytes(kSecRandomDefault, 32, bufferPointer.baseAddress!)
+        }
+
+        guard result == errSecSuccess else {
+            throw OAuthStorageError.databaseError("Failed to generate secure random bytes")
+        }
+
+        let token = bytes.map { String(format: "%02x", $0) }.joined()
+        let now = Date()
+        let expiresAt = now.addingTimeInterval(expiresIn)
+
+        try execute("""
+            INSERT INTO csrf_tokens (token, client_id, redirect_uri, expires_at, created_at, consumed)
+            VALUES (?, ?, ?, ?, ?, 0)
+        """, parameters: [
+            token,
+            clientId,
+            redirectUri,
+            expiresAt.timeIntervalSince1970,
+            now.timeIntervalSince1970
+        ])
+
+        return token
+    }
+
+    /// Validates and consumes a CSRF token (single-use)
+    ///
+    /// - Parameters:
+    ///   - token: The CSRF token to validate
+    ///   - clientId: Expected client ID
+    ///   - redirectUri: Expected redirect URI
+    /// - Returns: Validation result
+    /// - Throws: `OAuthStorageError` on database errors
+    public func validateCSRFToken(
+        token: String,
+        clientId: String,
+        redirectUri: String
+    ) throws -> CSRFValidationResult {
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+
+        let sql = """
+            SELECT client_id, redirect_uri, expires_at, consumed
+            FROM csrf_tokens
+            WHERE token = ?
+        """
+
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw OAuthStorageError.databaseError("Failed to prepare statement")
+        }
+
+        sqlite3_bind_text(stmt, 1, token, -1, SQLITE_TRANSIENT)
+
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            return CSRFValidationResult(isValid: false, error: "Token not found")
+        }
+
+        let storedClientId = String(cString: sqlite3_column_text(stmt, 0))
+        let storedRedirectUri = String(cString: sqlite3_column_text(stmt, 1))
+        let expiresAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 2))
+        let consumed = sqlite3_column_int(stmt, 3) != 0
+
+        // Check if already consumed
+        if consumed {
+            return CSRFValidationResult(isValid: false, error: "Token already used")
+        }
+
+        // Check expiration
+        if Date() >= expiresAt {
+            return CSRFValidationResult(isValid: false, error: "Token expired")
+        }
+
+        // Check client_id matches
+        if storedClientId != clientId {
+            return CSRFValidationResult(isValid: false, error: "Client ID mismatch")
+        }
+
+        // Check redirect_uri matches
+        if storedRedirectUri != redirectUri {
+            return CSRFValidationResult(isValid: false, error: "Redirect URI mismatch")
+        }
+
+        // Mark token as consumed (single-use)
+        try execute(
+            "UPDATE csrf_tokens SET consumed = 1 WHERE token = ?",
+            parameters: [token]
+        )
+
+        return CSRFValidationResult(isValid: true)
+    }
+
+    /// Removes expired CSRF tokens
+    ///
+    /// - Returns: Number of tokens removed
+    @discardableResult
+    public func cleanupExpiredCSRFTokens() throws -> Int {
+        let now = Date().timeIntervalSince1970
+
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+
+        // Count before deletion
+        let countSql = "SELECT COUNT(*) FROM csrf_tokens WHERE expires_at < ?"
+        guard sqlite3_prepare_v2(db, countSql, -1, &stmt, nil) == SQLITE_OK else {
+            throw OAuthStorageError.databaseError("Failed to prepare statement")
+        }
+        sqlite3_bind_double(stmt, 1, now)
+
+        var count = 0
+        if sqlite3_step(stmt) == SQLITE_ROW {
+            count = Int(sqlite3_column_int(stmt, 0))
+        }
+
+        // Delete expired tokens
+        try execute("DELETE FROM csrf_tokens WHERE expires_at < ?", parameters: [now])
+
+        return count
     }
 
     // MARK: - Access Token Operations
