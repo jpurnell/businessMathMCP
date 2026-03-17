@@ -146,6 +146,19 @@ public struct AnyCodable: @unchecked Sendable {
             self.value = v.mapValues { AnyCodable($0) }
         }
     }
+
+    /// Recursively unwrap to JSON-compatible native types.
+    /// Converts [AnyCodable] → [Any] and [String: AnyCodable] → [String: Any]
+    /// so the result can be passed to JSONSerialization.
+    public var jsonValue: Any {
+        if let arr = value as? [AnyCodable] {
+            return arr.map { $0.jsonValue }
+        } else if let dict = value as? [String: AnyCodable] {
+            return dict.mapValues { $0.jsonValue }
+        } else {
+            return value
+        }
+    }
 }
 
 /// Compatibility result type
@@ -363,16 +376,33 @@ extension Dictionary where Key == String, Value == AnyCodable {
     }
 
     /// Get TimeSeries (BusinessMath-specific)
+    ///
+    /// Accepts either:
+    /// - A wrapped object: `{"data": [{...}], "metadata": {...}}`
+    /// - A flat array of points: `[{"period": {...}, "value": 100}, ...]`
     public func getTimeSeries(_ key: String) throws -> TimeSeries<Double> {
         guard let value = self[key] else {
             throw ToolError.missingRequiredArgument(key)
         }
 
-        // Convert to JSON and decode
-        let jsonData = try JSONSerialization.data(withJSONObject: value.value)
+        // Convert to JSON and decode (use jsonValue to recursively unwrap AnyCodable)
+        let jsonData = try JSONSerialization.data(withJSONObject: value.jsonValue)
         let decoder = JSONDecoder()
-        let timeSeriesJSON = try decoder.decode(TimeSeriesJSON.self, from: jsonData)
-        return try timeSeriesJSON.toTimeSeries()
+
+        // Try wrapped format first: {"data": [...], "metadata": {...}}
+        if let timeSeriesJSON = try? decoder.decode(TimeSeriesJSON.self, from: jsonData) {
+            return try timeSeriesJSON.toTimeSeries()
+        }
+
+        // Fall back to flat array: [{period: {...}, value: 100}, ...]
+        let points = try decoder.decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: jsonData)
+        var periods: [Period] = []
+        var values: [Double] = []
+        for point in points {
+            periods.append(try point.period.toPeriod())
+            values.append(point.value)
+        }
+        return TimeSeries(periods: periods, values: values, metadata: TimeSeriesMetadata(name: "Unnamed"))
     }
 
     /// Check if a key exists

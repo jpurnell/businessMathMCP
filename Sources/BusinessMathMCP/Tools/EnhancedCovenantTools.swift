@@ -107,7 +107,8 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
                     - type: Covenant type (e.g., "current_ratio", "debt_to_equity")
                     - threshold: Required value
                     - direction: "minimum" or "maximum"
-                    """
+                    """,
+                    items: MCPSchemaItems(type: "object")
                 )
             ],
             required: ["entity", "period", "financials", "covenants"]
@@ -124,19 +125,19 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
         let entityName = try args.getString("entity")
         let periodString = try args.getString("period")
 
-        guard let financials = args["financials"]?.value as? [String: Any] else {
+        guard let financials = args["financials"]?.value as? [String: AnyCodable] else {
             throw ToolError.invalidArguments("financials must be an object")
         }
 
-        guard let covenantsArray = args["covenants"]?.value as? [[String: Any]] else {
+        guard let covenantsAnyCodable = args["covenants"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("covenants must be an array")
         }
 
         // Extract financials
         func getFinValue(_ key: String) -> Double? {
-            if let intVal = financials[key] as? Int {
+            if let intVal = financials[key]?.value as? Int {
                 return Double(intVal)
-            } else if let doubleVal = financials[key] as? Double {
+            } else if let doubleVal = financials[key]?.value as? Double {
                 return doubleVal
             }
             return nil
@@ -167,17 +168,21 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
         // Build covenant results
         var results: [(name: String, actual: Double, threshold: Double, direction: String, compliant: Bool, headroom: Double)] = []
 
-        for covenantData in covenantsArray {
-            guard let covenantType = covenantData["type"] as? String,
-                  let direction = covenantData["direction"] as? String else {
+        for covenant in covenantsAnyCodable {
+            guard let covenantData = covenant.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("Each covenant must be an object")
+            }
+
+            guard let covenantType = covenantData["type"]?.value as? String,
+                  let direction = covenantData["direction"]?.value as? String else {
                 throw ToolError.invalidArguments("Each covenant must have type, threshold, and direction")
             }
 
             // Handle threshold as either Double or Int
             let threshold: Double
-            if let thresholdDouble = covenantData["threshold"] as? Double {
+            if let thresholdDouble = covenantData["threshold"]?.value as? Double {
                 threshold = thresholdDouble
-            } else if let thresholdInt = covenantData["threshold"] as? Int {
+            } else if let thresholdInt = covenantData["threshold"]?.value as? Int {
                 threshold = Double(thresholdInt)
             } else {
                 throw ToolError.invalidArguments("threshold must be a number")
@@ -264,7 +269,11 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
         output += "\n\n\(separator())\n\nCOVENANT DETAILS\n\n"
 
         // Table header
-        output += String(format: "%-25s %10s %10s %8s %10s\n", "Covenant", "Actual", "Threshold", "Status", "Headroom")
+        output += "Covenant".padding(toLength: 25, withPad: " ", startingAt: 0)
+            + "Actual".paddingLeft(toLength: 10)
+            + "Threshold".paddingLeft(toLength: 11)
+            + "Status".paddingLeft(toLength: 9)
+            + "Headroom".paddingLeft(toLength: 11) + "\n"
         output += separator() + "\n"
 
         // Covenant rows
@@ -298,12 +307,11 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
                 thresholdStr = result.direction == "minimum" ? "≥\(formatNumber(result.threshold, decimals: 2))" : "≤\(formatNumber(result.threshold, decimals: 2))"
             }
 
-            output += String(format: "%-25s %10s %10s  %5s %10s\n",
-                           result.name,
-                           actualStr,
-                           thresholdStr,
-                           statusIcon,
-                           headroomStr)
+            output += result.name.padding(toLength: 25, withPad: " ", startingAt: 0)
+                + actualStr.paddingLeft(toLength: 10)
+                + thresholdStr.paddingLeft(toLength: 11)
+                + "  " + statusIcon.paddingLeft(toLength: 5)
+                + headroomStr.paddingLeft(toLength: 11) + "\n"
         }
 
         output += "\n\(separator())\n\nWARNINGS & RECOMMENDATIONS\n"

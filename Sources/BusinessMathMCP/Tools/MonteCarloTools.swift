@@ -111,8 +111,15 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
         let type = try args.getString("type")
         let sampleSize = args.getIntOptional("sampleSize") ?? 10
 
-        guard let parametersDict = args["parameters"]?.value as? [String: Any] else {
+        guard let parametersDict = args["parameters"]?.value as? [String: AnyCodable] else {
             throw ToolError.invalidArguments("Missing or invalid parameters")
+        }
+
+        // Helper to extract Double from AnyCodable (handles both Double and Int)
+        func getParam(_ key: String) -> Double? {
+            if let d = parametersDict[key]?.value as? Double { return d }
+            if let i = parametersDict[key]?.value as? Int { return Double(i) }
+            return nil
         }
 
         var samples: [Double] = []
@@ -120,8 +127,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
 
         switch type {
         case "normal":
-            guard let mean = parametersDict["mean"] as? Double,
-                  let stdDev = parametersDict["stdDev"] as? Double else {
+            guard let mean = getParam("mean"),
+                  let stdDev = getParam("stdDev") else {
                 throw ToolError.invalidArguments("Normal distribution requires 'mean' and 'stdDev'")
             }
             distInfo = "Normal(μ=\(formatNumber(mean, decimals: 2)), σ=\(formatNumber(stdDev, decimals: 2)))"
@@ -131,8 +138,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "uniform":
-            guard let min = parametersDict["min"] as? Double,
-                  let max = parametersDict["max"] as? Double else {
+            guard let min = getParam("min"),
+                  let max = getParam("max") else {
                 throw ToolError.invalidArguments("Uniform distribution requires 'min' and 'max'")
             }
             distInfo = "Uniform(min=\(formatNumber(min, decimals: 2)), max=\(formatNumber(max, decimals: 2)))"
@@ -142,9 +149,9 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "triangular":
-            guard let min = parametersDict["min"] as? Double,
-                  let max = parametersDict["max"] as? Double,
-                  let mode = parametersDict["mode"] as? Double else {
+            guard let min = getParam("min"),
+                  let max = getParam("max"),
+                  let mode = getParam("mode") else {
                 throw ToolError.invalidArguments("Triangular distribution requires 'min', 'max', and 'mode'")
             }
             distInfo = "Triangular(min=\(formatNumber(min, decimals: 2)), mode=\(formatNumber(mode, decimals: 2)), max=\(formatNumber(max, decimals: 2)))"
@@ -154,7 +161,7 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "exponential":
-            guard let rate = parametersDict["rate"] as? Double else {
+            guard let rate = getParam("rate") else {
                 throw ToolError.invalidArguments("Exponential distribution requires 'rate'")
             }
             distInfo = "Exponential(λ=\(formatNumber(rate, decimals: 4)))"
@@ -164,8 +171,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "lognormal":
-            guard let mean = parametersDict["mean"] as? Double,
-                  let stdDev = parametersDict["stdDev"] as? Double else {
+            guard let mean = getParam("mean"),
+                  let stdDev = getParam("stdDev") else {
                 throw ToolError.invalidArguments("LogNormal distribution requires 'mean' and 'stdDev'")
             }
             distInfo = "LogNormal(μ=\(formatNumber(mean, decimals: 2)), σ=\(formatNumber(stdDev, decimals: 2)))"
@@ -175,8 +182,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "beta":
-            guard let alpha = parametersDict["alpha"] as? Double,
-                  let beta = parametersDict["beta"] as? Double else {
+            guard let alpha = getParam("alpha"),
+                  let beta = getParam("beta") else {
                 throw ToolError.invalidArguments("Beta distribution requires 'alpha' and 'beta'")
             }
             distInfo = "Beta(α=\(formatNumber(alpha, decimals: 2)), β=\(formatNumber(beta, decimals: 2)))"
@@ -186,8 +193,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "gamma":
-            guard let shape = parametersDict["shape"] as? Double,
-                  let scale = parametersDict["scale"] as? Double else {
+            guard let shape = getParam("shape"),
+                  let scale = getParam("scale") else {
                 throw ToolError.invalidArguments("Gamma distribution requires 'shape' and 'scale'")
             }
             distInfo = "Gamma(k=\(formatNumber(shape, decimals: 2)), θ=\(formatNumber(scale, decimals: 2)))"
@@ -197,8 +204,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "weibull":
-            guard let shape = parametersDict["shape"] as? Double,
-                  let scale = parametersDict["scale"] as? Double else {
+            guard let shape = getParam("shape"),
+                  let scale = getParam("scale") else {
                 throw ToolError.invalidArguments("Weibull distribution requires 'shape' and 'scale'")
             }
             distInfo = "Weibull(k=\(formatNumber(shape, decimals: 2)), λ=\(formatNumber(scale, decimals: 2)))"
@@ -208,7 +215,7 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "chisquared":
-            guard let df = parametersDict["degreesOfFreedom"] as? Double else {
+            guard let df = getParam("degreesOfFreedom") else {
                 throw ToolError.invalidArguments("Chi-Squared distribution requires 'degreesOfFreedom'")
             }
             distInfo = "Chi-Squared(df=\(formatNumber(df, decimals: 0)))"
@@ -218,8 +225,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "f":
-            guard let df1 = parametersDict["df1"] as? Double,
-                  let df2 = parametersDict["df2"] as? Double else {
+            guard let df1 = getParam("df1"),
+                  let df2 = getParam("df2") else {
                 throw ToolError.invalidArguments("F distribution requires 'df1' and 'df2'")
             }
             distInfo = "F(df1=\(formatNumber(df1, decimals: 0)), df2=\(formatNumber(df2, decimals: 0)))"
@@ -229,7 +236,7 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "t":
-            guard let df = parametersDict["degreesOfFreedom"] as? Double else {
+            guard let df = getParam("degreesOfFreedom") else {
                 throw ToolError.invalidArguments("T distribution requires 'degreesOfFreedom'")
             }
             distInfo = "T(df=\(formatNumber(df, decimals: 0)))"
@@ -239,8 +246,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "pareto":
-            guard let scale = parametersDict["scale"] as? Double,
-                  let shape = parametersDict["shape"] as? Double else {
+            guard let scale = getParam("scale"),
+                  let shape = getParam("shape") else {
                 throw ToolError.invalidArguments("Pareto distribution requires 'scale' and 'shape'")
             }
             distInfo = "Pareto(xₘ=\(formatNumber(scale, decimals: 2)), α=\(formatNumber(shape, decimals: 2)))"
@@ -250,8 +257,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "logistic":
-            guard let mean = parametersDict["mean"] as? Double,
-                  let stdDev = parametersDict["stdDev"] as? Double else {
+            guard let mean = getParam("mean"),
+                  let stdDev = getParam("stdDev") else {
                 throw ToolError.invalidArguments("Logistic distribution requires 'mean' and 'stdDev'")
             }
             distInfo = "Logistic(μ=\(formatNumber(mean, decimals: 2)), σ=\(formatNumber(stdDev, decimals: 2)))"
@@ -261,7 +268,7 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "geometric":
-            guard let p = parametersDict["p"] as? Double else {
+            guard let p = getParam("p") else {
                 throw ToolError.invalidArguments("Geometric distribution requires 'p' (probability)")
             }
             distInfo = "Geometric(p=\(formatNumber(p, decimals: 4)))"
@@ -271,7 +278,7 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             }
 
         case "rayleigh":
-            guard let mean = parametersDict["mean"] as? Double else {
+            guard let mean = getParam("mean") else {
                 throw ToolError.invalidArguments("Rayleigh distribution requires 'mean'")
             }
             distInfo = "Rayleigh(μ=\(formatNumber(mean, decimals: 2)))"
@@ -748,7 +755,7 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
 
 public struct CalculateValueAtRiskTool: MCPToolHandler, Sendable {
     public let tool = MCPTool(
-        name: "calculate_value_at_risk",
+        name: "calculate_simulation_var",
         description: """
         Calculate Value at Risk (VaR) from simulation results.
 
@@ -1054,20 +1061,27 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         let steps = args.getIntOptional("steps") ?? 11
         let variableName = args.getStringOptional("variableName") ?? "Variable"
 
-        guard let rangeDict = args["variableRange"]?.value as? [String: Any] else {
+        guard let rangeDict = args["variableRange"]?.value as? [String: AnyCodable] else {
             throw ToolError.invalidArguments("Missing or invalid 'variableRange'")
+        }
+
+        // Helper to extract Double from AnyCodable (handles both Double and Int)
+        func getRangeParam(_ key: String) -> Double? {
+            if let d = rangeDict[key]?.value as? Double { return d }
+            if let i = rangeDict[key]?.value as? Int { return Double(i) }
+            return nil
         }
 
         // Determine range
         let minValue: Double
         let maxValue: Double
 
-        if let percentChange = rangeDict["percentChange"] as? Double {
+        if let percentChange = getRangeParam("percentChange") {
             let delta = baseValue * (percentChange / 100.0)
             minValue = baseValue - delta
             maxValue = baseValue + delta
-        } else if let min = rangeDict["min"] as? Double,
-                  let max = rangeDict["max"] as? Double {
+        } else if let min = getRangeParam("min"),
+                  let max = getRangeParam("max") {
             minValue = min
             maxValue = max
         } else {
@@ -1201,7 +1215,7 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let variablesArray = args["variables"]?.value as? [[String: Any]] else {
+        guard let variablesAnyCodable = args["variables"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Missing or invalid 'variables' array")
         }
 
@@ -1215,12 +1229,22 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
             let highValue: Double
         }
 
+        // Helper to extract Double from AnyCodable (handles both Double and Int)
+        func getVarParam(_ dict: [String: AnyCodable], _ key: String) -> Double? {
+            if let d = dict[key]?.value as? Double { return d }
+            if let i = dict[key]?.value as? Int { return Double(i) }
+            return nil
+        }
+
         var variables: [Variable] = []
-        for varDict in variablesArray {
-            guard let name = varDict["name"] as? String,
-                  let base = varDict["baseValue"] as? Double,
-                  let low = varDict["lowValue"] as? Double,
-                  let high = varDict["highValue"] as? Double else {
+        for varItem in variablesAnyCodable {
+            guard let varDict = varItem.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("Each variable must be an object")
+            }
+            guard let name = varDict["name"]?.value as? String,
+                  let base = getVarParam(varDict, "baseValue"),
+                  let low = getVarParam(varDict, "lowValue"),
+                  let high = getVarParam(varDict, "highValue") else {
                 throw ToolError.invalidArguments("Each variable must have 'name', 'baseValue', 'lowValue', and 'highValue'")
             }
             variables.append(Variable(name: name, baseValue: base, lowValue: low, highValue: high))

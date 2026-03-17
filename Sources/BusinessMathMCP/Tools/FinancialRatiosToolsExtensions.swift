@@ -484,18 +484,14 @@ public struct DebtRatioTool: MCPToolHandler, Sendable {
 
 /// Returns extended financial ratio tools
 public func getExtendedFinancialRatiosTools() -> [any MCPToolHandler] {
+    // Note: DaysInventoryOutstanding, DaysSalesOutstanding, DaysPayableOutstanding,
+    // CashConversionCycle are registered via getWorkingCapitalTools().
+    // DuPont3Way, DuPont5Way, PiotroskiFScore are registered via getAdvancedRatioTools().
     return [
         ROATool(),
         ROICTool(),
         ReceivablesTurnoverTool(),
         CashRatioTool(),
         DebtRatioTool(),
-        DaysInventoryOutstandingTool(),
-        DaysSalesOutstandingTool(),
-        DaysPayableOutstandingTool(),
-        CashConversionCycleTool(),
-        DuPont3WayTool(),
-        DuPont5WayTool(),
-        PiotroskiFScoreTool()
     ]
 }

@@ -40,7 +40,8 @@ public struct RollingSumTool: MCPToolHandler, Sendable {
             properties: [
                 "values": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of numeric values"
+                    description: "Array of numeric values",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "windowSize": MCPSchemaProperty(
                     type: "number",
@@ -58,14 +59,14 @@ public struct RollingSumTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let valuesAnyCodable = args["values"]?.value as? [Any] else {
+        guard let valuesAnyCodable = args["values"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Values must be an array")
         }
 
         let values: [Double] = try valuesAnyCodable.map { val in
-            if let doubleVal = val as? Double {
+            if let doubleVal = val.value as? Double {
                 return doubleVal
-            } else if let intVal = val as? Int {
+            } else if let intVal = val.value as? Int {
                 return Double(intVal)
             } else {
                 throw ToolError.invalidArguments("All values must be numbers")
@@ -127,7 +128,8 @@ public struct RollingMinTool: MCPToolHandler, Sendable {
             properties: [
                 "values": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of numeric values"
+                    description: "Array of numeric values",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "windowSize": MCPSchemaProperty(
                     type: "number",
@@ -145,14 +147,14 @@ public struct RollingMinTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let valuesAnyCodable = args["values"]?.value as? [Any] else {
+        guard let valuesAnyCodable = args["values"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Values must be an array")
         }
 
         let values: [Double] = try valuesAnyCodable.map { val in
-            if let doubleVal = val as? Double {
+            if let doubleVal = val.value as? Double {
                 return doubleVal
-            } else if let intVal = val as? Int {
+            } else if let intVal = val.value as? Int {
                 return Double(intVal)
             } else {
                 throw ToolError.invalidArguments("All values must be numbers")
@@ -215,7 +217,8 @@ public struct RollingMaxTool: MCPToolHandler, Sendable {
             properties: [
                 "values": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of numeric values"
+                    description: "Array of numeric values",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "windowSize": MCPSchemaProperty(
                     type: "number",
@@ -233,14 +236,14 @@ public struct RollingMaxTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let valuesAnyCodable = args["values"]?.value as? [Any] else {
+        guard let valuesAnyCodable = args["values"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Values must be an array")
         }
 
         let values: [Double] = try valuesAnyCodable.map { val in
-            if let doubleVal = val as? Double {
+            if let doubleVal = val.value as? Double {
                 return doubleVal
-            } else if let intVal = val as? Int {
+            } else if let intVal = val.value as? Int {
                 return Double(intVal)
             } else {
                 throw ToolError.invalidArguments("All values must be numbers")
@@ -305,7 +308,8 @@ public struct PercentChangeTool: MCPToolHandler, Sendable {
             properties: [
                 "values": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of numeric values in chronological order"
+                    description: "Array of numeric values in chronological order",
+                    items: MCPSchemaItems(type: "number")
                 )
             ],
             required: ["values"]
@@ -319,14 +323,14 @@ public struct PercentChangeTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let valuesAnyCodable = args["values"]?.value as? [Any] else {
+        guard let valuesAnyCodable = args["values"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Values must be an array")
         }
 
         let values: [Double] = try valuesAnyCodable.map { val in
-            if let doubleVal = val as? Double {
+            if let doubleVal = val.value as? Double {
                 return doubleVal
-            } else if let intVal = val as? Int {
+            } else if let intVal = val.value as? Int {
                 return Double(intVal)
             } else {
                 throw ToolError.invalidArguments("All values must be numbers")
@@ -404,7 +408,8 @@ public struct TTMMetricsTool: MCPToolHandler, Sendable {
             properties: [
                 "monthlyValues": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of monthly values (must have at least 12)"
+                    description: "Array of monthly values (must have at least 12)",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "metricName": MCPSchemaProperty(
                     type: "string",
@@ -422,14 +427,14 @@ public struct TTMMetricsTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        guard let valuesAnyCodable = args["monthlyValues"]?.value as? [Any] else {
+        guard let valuesAnyCodable = args["monthlyValues"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("Monthly values must be an array")
         }
 
         let values: [Double] = try valuesAnyCodable.map { val in
-            if let doubleVal = val as? Double {
+            if let doubleVal = val.value as? Double {
                 return doubleVal
-            } else if let intVal = val as? Int {
+            } else if let intVal = val.value as? Int {
                 return Double(intVal)
             } else {
                 throw ToolError.invalidArguments("All values must be numbers")

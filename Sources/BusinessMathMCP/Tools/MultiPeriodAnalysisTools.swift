@@ -84,7 +84,8 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
                     - ebitda: EBITDA (optional)
                     - assets: Total assets (optional)
                     - equity: Total equity (optional)
-                    """
+                    """,
+                    items: MCPSchemaItems(type: "object")
                 )
             ],
             required: ["entity", "periods"]
@@ -100,27 +101,31 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
 
         let entityName = try args.getString("entity")
 
-        guard let periodsArray = args["periods"]?.value as? [[String: Any]] else {
+        guard let periodsAnyCodable = args["periods"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("periods must be an array")
         }
 
-        guard periodsArray.count >= 2 else {
+        guard periodsAnyCodable.count >= 2 else {
             throw ToolError.invalidArguments("At least 2 periods required for trend analysis")
         }
 
         // Parse periods
         var periods: [(period: String, revenue: Double, netIncome: Double, ebitda: Double?, assets: Double?, equity: Double?)] = []
 
-        for periodData in periodsArray {
-            guard let period = periodData["period"] as? String else {
+        for periodItem in periodsAnyCodable {
+            guard let periodData = periodItem.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("Each period must be an object")
+            }
+
+            guard let period = periodData["period"]?.value as? String else {
                 throw ToolError.invalidArguments("Each period must have 'period' label")
             }
 
-            let revenue = (periodData["revenue"] as? Double) ?? Double((periodData["revenue"] as? Int) ?? 0)
-            let netIncome = (periodData["net_income"] as? Double) ?? Double((periodData["net_income"] as? Int) ?? 0)
-            let ebitda = (periodData["ebitda"] as? Double) ?? (periodData["ebitda"] as? Int).map { Double($0) }
-            let assets = (periodData["assets"] as? Double) ?? (periodData["assets"] as? Int).map { Double($0) }
-            let equity = (periodData["equity"] as? Double) ?? (periodData["equity"] as? Int).map { Double($0) }
+            let revenue = (periodData["revenue"]?.value as? Double) ?? Double((periodData["revenue"]?.value as? Int) ?? 0)
+            let netIncome = (periodData["net_income"]?.value as? Double) ?? Double((periodData["net_income"]?.value as? Int) ?? 0)
+            let ebitda = (periodData["ebitda"]?.value as? Double) ?? (periodData["ebitda"]?.value as? Int).map { Double($0) }
+            let assets = (periodData["assets"]?.value as? Double) ?? (periodData["assets"]?.value as? Int).map { Double($0) }
+            let equity = (periodData["equity"]?.value as? Double) ?? (periodData["equity"]?.value as? Int).map { Double($0) }
 
             periods.append((period, revenue, netIncome, ebitda, assets, equity))
         }

@@ -317,25 +317,5 @@ struct MeanVariancePortfolioToolTests {
     }
 }
 
-// MARK: - Helper Extensions
-
-extension MCPToolCallResult {
-    var isError: Bool {
-        return result.isError ?? false
-    }
-
-    var text: String {
-        guard let firstContent = result.content.first else {
-            return ""
-        }
-        switch firstContent {
-        case .text(let string):
-            return string
-        case .image, .resource, .audio:
-            return ""
-        @unknown default:
-            return ""
-        }
-    }
-}
+// MCPToolCallResult extensions (isError, text) are in Helpers/MCPTestHelpers.swift
 

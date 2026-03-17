@@ -141,8 +141,8 @@ public struct CreateTimeSeriesTool: MCPToolHandler, Sendable {
 
 public struct CalculateGrowthRateTool: MCPToolHandler, Sendable {
     public let tool = MCPTool(
-        name: "calculate_growth_rate",
-        description: "Calculate the growth rate between two values",
+        name: "calculate_simple_growth_rate",
+        description: "Calculate the simple growth rate between two values",
         inputSchema: MCPToolInputSchema(
             properties: [
                 "oldValue": MCPSchemaProperty(

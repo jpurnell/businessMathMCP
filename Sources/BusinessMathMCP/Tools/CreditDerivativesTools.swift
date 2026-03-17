@@ -438,11 +438,13 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
             properties: [
                 "cdsSpreads": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of CDS spreads in basis points [50, 100, 150, ...]"
+                    description: "Array of CDS spreads in basis points [50, 100, 150, ...]",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "tenors": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of maturities in years [1.0, 3.0, 5.0, ...]"
+                    description: "Array of maturities in years [1.0, 3.0, 5.0, ...]",
+                    items: MCPSchemaItems(type: "number")
                 ),
                 "recoveryRate": MCPSchemaProperty(
                     type: "number",

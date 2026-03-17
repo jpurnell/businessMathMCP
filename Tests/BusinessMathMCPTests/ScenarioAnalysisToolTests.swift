@@ -21,30 +21,7 @@ import MCP
 @Suite("Scenario Analysis Tool Tests")
 struct ScenarioAnalysisToolTests {
 
-    // MARK: - Helper Functions
-
-    /// Helper to parse JSON into MCP.Value, then convert to AnyCodable arguments
-    /// This matches how the actual MCP server processes JSON-RPC requests
-    private func decodeArguments(_ json: String) throws -> [String: AnyCodable] {
-        let data = json.data(using: .utf8)!
-
-        // Decode JSON as MCP.Value (which handles nested structures properly)
-        let decoder = JSONDecoder()
-        let mcpValue = try decoder.decode(MCP.Value.self, from: data)
-
-        // Convert MCP.Value to [String: AnyCodable]
-        guard case .object(let dict) = mcpValue else {
-            throw NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "JSON must be an object"])
-        }
-
-        // Convert [String: MCP.Value] to [String: AnyCodable]
-        var result: [String: AnyCodable] = [:]
-        for (key, value) in dict {
-            result[key] = AnyCodable(value)
-        }
-
-        return result
-    }
+    // decodeArguments() helper is in Helpers/MCPTestHelpers.swift
 
     // MARK: - Phase 1: Tool Schema and Basic Execution
 
@@ -661,5 +638,4 @@ struct ScenarioAnalysisToolTests {
     }
 }
 
-// Note: MCPToolCallResult extension is defined in MeanVariancePortfolioToolTests.swift
-// and shared across all MCP tool tests
+// MCPToolCallResult extensions (isError, text) and decodeArguments() are in Helpers/MCPTestHelpers.swift

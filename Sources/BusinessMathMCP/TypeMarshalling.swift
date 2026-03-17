@@ -19,6 +19,33 @@ public struct PeriodJSON: Codable, Sendable {
         self.type = period.type.rawValue
     }
 
+    /// Maps string period type names to PeriodType raw values
+    private static let typeStringMap: [String: Int] = [
+        "millisecond": 0, "second": 1, "minute": 2, "hourly": 3,
+        "daily": 4, "monthly": 5, "quarterly": 6, "annual": 7
+    ]
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.year = try container.decode(Int.self, forKey: .year)
+        self.month = try container.decodeIfPresent(Int.self, forKey: .month)
+        self.day = try container.decodeIfPresent(Int.self, forKey: .day)
+
+        // Accept type as either Int or String (e.g., 5 or "monthly")
+        if let typeInt = try? container.decode(Int.self, forKey: .type) {
+            self.type = typeInt
+        } else if let typeStr = try? container.decode(String.self, forKey: .type),
+                  let typeInt = PeriodJSON.typeStringMap[typeStr.lowercased()] {
+            self.type = typeInt
+        } else {
+            throw MarshallingError.invalidPeriodType("type must be an Int (0-7) or String (e.g., \"monthly\")")
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case year, month, day, type
+    }
+
     public func toPeriod() throws -> Period {
         guard let periodType = PeriodType(rawValue: type) else {
             throw MarshallingError.invalidPeriodType(String(type))
@@ -322,6 +349,10 @@ extension Dictionary where Key == String, Value == MCP.Value {
     }
 
     /// Parse a TimeSeries from arguments
+    ///
+    /// Accepts either:
+    /// - A wrapped object: `{"data": [{...}], "metadata": {...}}`
+    /// - A flat array of points: `[{"period": {...}, "value": 100}, ...]`
     public func getTimeSeries(_ key: String) throws -> TimeSeries<Double> {
         guard let value = self[key] else {
             throw ValueExtractionError.missingRequiredArgument(key)
@@ -331,8 +362,21 @@ extension Dictionary where Key == String, Value == MCP.Value {
         let encoder = JSONEncoder()
         let jsonData = try encoder.encode(value)
         let decoder = JSONDecoder()
-        let timeSeriesJSON = try decoder.decode(TimeSeriesJSON.self, from: jsonData)
-        return try timeSeriesJSON.toTimeSeries()
+
+        // Try wrapped format first: {"data": [...], "metadata": {...}}
+        if let timeSeriesJSON = try? decoder.decode(TimeSeriesJSON.self, from: jsonData) {
+            return try timeSeriesJSON.toTimeSeries()
+        }
+
+        // Fall back to flat array: [{period: {...}, value: 100}, ...]
+        let points = try decoder.decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: jsonData)
+        var periods: [Period] = []
+        var values: [Double] = []
+        for point in points {
+            periods.append(try point.period.toPeriod())
+            values.append(point.value)
+        }
+        return TimeSeries(periods: periods, values: values, metadata: TimeSeriesMetadata(name: "Unnamed"))
     }
 }
 

@@ -660,10 +660,10 @@ public struct RealOptionsAbandonmentTool: MCPToolHandler, Sendable {
 // MARK: - Tool Registration
 
 public func getRealOptionsTools() -> [MCPToolHandler] {
+    // Note: CalculateGreeksTool and BinomialTreeOptionTool share names with
+    // tools in getAdvancedOptionsTools() and are omitted here to avoid duplicates.
     return [
         BlackScholesOptionTool(),
-        CalculateGreeksTool(),
-        BinomialTreeOptionTool(),
         RealOptionsExpansionTool(),
         RealOptionsAbandonmentTool()
     ]

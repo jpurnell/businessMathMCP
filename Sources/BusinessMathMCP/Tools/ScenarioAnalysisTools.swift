@@ -114,7 +114,8 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
                     - normal: {"type": "normal", "mean": μ, "stdDev": σ}
                     - uniform: {"type": "uniform", "min": a, "max": b}
                     - triangular: {"type": "triangular", "min": a, "mode": b, "max": c}
-                    """
+                    """,
+                    items: MCPSchemaItems(type: "object")
                 ),
                 "thresholds": MCPSchemaProperty(
                     type: "array",

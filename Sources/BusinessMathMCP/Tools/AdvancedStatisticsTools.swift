@@ -682,7 +682,7 @@ public struct GeometricMeanTool: MCPToolHandler, Sendable {
         """,
         inputSchema: MCPToolInputSchema(
             properties: [
-                "values": MCPSchemaProperty(type: "array", description: "Array of positive numbers")
+                "values": MCPSchemaProperty(type: "array", description: "Array of positive numbers", items: MCPSchemaItems(type: "number"))
             ],
             required: ["values"]
         )
@@ -751,7 +751,7 @@ public struct HarmonicMeanTool: MCPToolHandler, Sendable {
         """,
         inputSchema: MCPToolInputSchema(
             properties: [
-                "values": MCPSchemaProperty(type: "array", description: "Array of positive numbers")
+                "values": MCPSchemaProperty(type: "array", description: "Array of positive numbers", items: MCPSchemaItems(type: "number"))
             ],
             required: ["values"]
         )
@@ -823,8 +823,8 @@ public struct WeightedAverageTool: MCPToolHandler, Sendable {
         """,
         inputSchema: MCPToolInputSchema(
             properties: [
-                "values": MCPSchemaProperty(type: "array", description: "Array of values to average"),
-                "weights": MCPSchemaProperty(type: "array", description: "Array of weights (same length as values)")
+                "values": MCPSchemaProperty(type: "array", description: "Array of values to average", items: MCPSchemaItems(type: "number")),
+                "weights": MCPSchemaProperty(type: "array", description: "Array of weights (same length as values)", items: MCPSchemaItems(type: "number"))
             ],
             required: ["values", "weights"]
         )
@@ -1131,11 +1131,11 @@ public struct DataTableTool: MCPToolHandler, Sendable {
                 "formula_type": MCPSchemaProperty(type: "string", description: "Type of calculation"),
                 "fixed_params": MCPSchemaProperty(type: "object", description: "Fixed parameters"),
                 "variable_param": MCPSchemaProperty(type: "string", description: "Name of variable parameter"),
-                "variable_values": MCPSchemaProperty(type: "array", description: "Array of values to test"),
+                "variable_values": MCPSchemaProperty(type: "array", description: "Array of values to test", items: MCPSchemaItems(type: "number")),
                 "variable1_param": MCPSchemaProperty(type: "string", description: "Name of first variable (2-var only)"),
-                "variable1_values": MCPSchemaProperty(type: "array", description: "Values for var1 (2-var only)"),
+                "variable1_values": MCPSchemaProperty(type: "array", description: "Values for var1 (2-var only)", items: MCPSchemaItems(type: "number")),
                 "variable2_param": MCPSchemaProperty(type: "string", description: "Name of second variable (2-var only)"),
-                "variable2_values": MCPSchemaProperty(type: "array", description: "Values for var2 (2-var only)")
+                "variable2_values": MCPSchemaProperty(type: "array", description: "Values for var2 (2-var only)", items: MCPSchemaItems(type: "number"))
             ],
             required: ["formula_type", "fixed_params"]
         )

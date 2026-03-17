@@ -121,16 +121,16 @@ public struct ScenarioFinancialStatementsTool: MCPToolHandler, Sendable {
 
         let entityName = try args.getString("entity")
 
-        guard let baseCase = args["base_case"]?.value as? [String: Any] else {
+        guard let baseCase = args["base_case"]?.value as? [String: AnyCodable] else {
             throw ToolError.invalidArguments("base_case required")
         }
 
         // Extract base case
-        let baseRevenue = (baseCase["revenue"] as? Double) ?? Double((baseCase["revenue"] as? Int) ?? 0)
-        let baseGM = (baseCase["gross_margin"] as? Double) ?? 0.0
-        let baseOpex = (baseCase["opex"] as? Double) ?? Double((baseCase["opex"] as? Int) ?? 0)
-        let baseTaxRate = (baseCase["tax_rate"] as? Double) ?? 0.25
-        let equity = (baseCase["equity"] as? Double) ?? Double((baseCase["equity"] as? Int) ?? 0)
+        let baseRevenue = (baseCase["revenue"]?.value as? Double) ?? Double((baseCase["revenue"]?.value as? Int) ?? 0)
+        let baseGM = (baseCase["gross_margin"]?.value as? Double) ?? 0.0
+        let baseOpex = (baseCase["opex"]?.value as? Double) ?? Double((baseCase["opex"]?.value as? Int) ?? 0)
+        let baseTaxRate = (baseCase["tax_rate"]?.value as? Double) ?? 0.25
+        let equity = (baseCase["equity"]?.value as? Double) ?? Double((baseCase["equity"]?.value as? Int) ?? 0)
 
         // Calculate base case
         let baseGrossProfit = baseRevenue * baseGM
@@ -139,10 +139,10 @@ public struct ScenarioFinancialStatementsTool: MCPToolHandler, Sendable {
         let baseROE = equity > 0 ? baseNetIncome / equity : 0.0
 
         // Upside scenario
-        let upsideAdjustments = args["upside_adjustments"]?.value as? [String: Any]
-        let upsideRevGrowth = (upsideAdjustments?["revenue_growth"] as? Double) ?? 0.15
-        let upsideMarginImp = (upsideAdjustments?["margin_improvement"] as? Double) ?? 0.03
-        let upsideOpexLeverage = (upsideAdjustments?["opex_leverage"] as? Double) ?? -0.05
+        let upsideAdjustments = args["upside_adjustments"]?.value as? [String: AnyCodable]
+        let upsideRevGrowth = (upsideAdjustments?["revenue_growth"]?.value as? Double) ?? 0.15
+        let upsideMarginImp = (upsideAdjustments?["margin_improvement"]?.value as? Double) ?? 0.03
+        let upsideOpexLeverage = (upsideAdjustments?["opex_leverage"]?.value as? Double) ?? -0.05
 
         let upsideRevenue = baseRevenue * (1.0 + upsideRevGrowth)
         let upsideGM = baseGM + upsideMarginImp
@@ -153,10 +153,10 @@ public struct ScenarioFinancialStatementsTool: MCPToolHandler, Sendable {
         let upsideROE = equity > 0 ? upsideNetIncome / equity : 0.0
 
         // Downside scenario
-        let downsideAdjustments = args["downside_adjustments"]?.value as? [String: Any]
-        let downsideRevGrowth = (downsideAdjustments?["revenue_growth"] as? Double) ?? -0.10
-        let downsideMarginDet = (downsideAdjustments?["margin_deterioration"] as? Double) ?? -0.03
-        let downsideOpexInc = (downsideAdjustments?["opex_increase"] as? Double) ?? 0.05
+        let downsideAdjustments = args["downside_adjustments"]?.value as? [String: AnyCodable]
+        let downsideRevGrowth = (downsideAdjustments?["revenue_growth"]?.value as? Double) ?? -0.10
+        let downsideMarginDet = (downsideAdjustments?["margin_deterioration"]?.value as? Double) ?? -0.03
+        let downsideOpexInc = (downsideAdjustments?["opex_increase"]?.value as? Double) ?? 0.05
 
         let downsideRevenue = baseRevenue * (1.0 + downsideRevGrowth)
         let downsideGM = baseGM + downsideMarginDet

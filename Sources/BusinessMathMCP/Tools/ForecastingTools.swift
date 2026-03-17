@@ -591,14 +591,15 @@ public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
 
 /// Get all Forecasting tools
 public func getForecastingTools() -> [any MCPToolHandler] {
+    // Note: CalculateSeasonalIndicesTool and SeasonallyAdjustTool are
+    // registered via getSeasonalityTools().
+    // DecomposeTimeSeriesTo shares its name with TimeSeriesDecomposeTool
+    // (registered via getTrendForecastingTools()), so it is omitted here.
     return [
         FitLinearTrendTool(),
         FitExponentialTrendTool(),
         FitLogisticTrendTool(),
         ForecastTrendTool(),
-        CalculateSeasonalIndicesTool(),
-        SeasonallyAdjustTool(),
-        DecomposeTimeSeriesTo(),
         ForecastWithSeasonalityTool()
     ]
 }

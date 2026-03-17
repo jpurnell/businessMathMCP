@@ -207,7 +207,7 @@ struct BusinessMathMCPServerMain {
             try await toolRegistry.register(handler.toToolDefinition())
         }
 
-        // Forecasting Tools (8 tools)
+        // Forecasting Tools (5 tools)
         for handler in getForecastingTools() {
             try await toolRegistry.register(handler.toToolDefinition())
         }
@@ -272,7 +272,7 @@ struct BusinessMathMCPServerMain {
             try await toolRegistry.register(handler.toToolDefinition())
         }
 
-        // Real Options Tools (5 tools)
+        // Real Options Tools (3 tools)
         for handler in getRealOptionsTools() {
             try await toolRegistry.register(handler.toToolDefinition())
         }
@@ -287,7 +287,7 @@ struct BusinessMathMCPServerMain {
             try await toolRegistry.register(handler.toToolDefinition())
         }
 
-        // Extended Financial Ratios Tools (12 tools)
+        // Extended Financial Ratios Tools (5 tools)
         for handler in getExtendedFinancialRatiosTools() {
             try await toolRegistry.register(handler.toToolDefinition())
         }

@@ -98,7 +98,8 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
                     - name: Account name (e.g., "Product Sales")
                     - role: Account role (see supported roles above)
                     - value: Dollar amount (can be negative for contra accounts)
-                    """
+                    """,
+                    items: MCPSchemaItems(type: "object")
                 ),
                 "currency": MCPSchemaProperty(
                     type: "string",
@@ -121,11 +122,11 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
         let currency = try? args.getString("currency")
 
         // Parse accounts array
-        guard let accountsArray = args["accounts"]?.value as? [[String: Any]] else {
+        guard let accountsAnyCodable = args["accounts"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("accounts must be an array of objects")
         }
 
-        guard !accountsArray.isEmpty else {
+        guard !accountsAnyCodable.isEmpty else {
             throw ToolError.invalidArguments("At least one account is required")
         }
 
@@ -143,17 +144,21 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
         // Parse accounts and create Account objects
         var accounts: [Account<Double>] = []
 
-        for accountData in accountsArray {
-            guard let name = accountData["name"] as? String,
-                  let roleString = accountData["role"] as? String else {
+        for account in accountsAnyCodable {
+            guard let accountData = account.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("Each account must be an object")
+            }
+
+            guard let name = accountData["name"]?.value as? String,
+                  let roleString = accountData["role"]?.value as? String else {
                 throw ToolError.invalidArguments("Each account must have 'name' (string), 'role' (string), and 'value' (number)")
             }
 
             // Handle value as either Double or Int
             let value: Double
-            if let valueDouble = accountData["value"] as? Double {
+            if let valueDouble = accountData["value"]?.value as? Double {
                 value = valueDouble
-            } else if let valueInt = accountData["value"] as? Int {
+            } else if let valueInt = accountData["value"]?.value as? Int {
                 value = Double(valueInt)
             } else {
                 throw ToolError.invalidArguments("Account value must be a number")
@@ -479,7 +484,8 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
                 ),
                 "accounts": MCPSchemaProperty(
                     type: "array",
-                    description: "Array of account objects with name, role, and value"
+                    description: "Array of account objects with name, role, and value",
+                    items: MCPSchemaItems(type: "object")
                 ),
                 "currency": MCPSchemaProperty(
                     type: "string",
@@ -502,11 +508,11 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
         let currency = try? args.getString("currency")
 
         // Parse accounts
-        guard let accountsArray = args["accounts"]?.value as? [[String: Any]] else {
+        guard let accountsAnyCodable = args["accounts"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("accounts must be an array")
         }
 
-        guard !accountsArray.isEmpty else {
+        guard !accountsAnyCodable.isEmpty else {
             throw ToolError.invalidArguments("At least one account is required")
         }
 
@@ -522,17 +528,21 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
         // Parse and create accounts
         var accounts: [Account<Double>] = []
 
-        for accountData in accountsArray {
-            guard let name = accountData["name"] as? String,
-                  let roleString = accountData["role"] as? String else {
+        for account in accountsAnyCodable {
+            guard let accountData = account.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("Each account must be an object")
+            }
+
+            guard let name = accountData["name"]?.value as? String,
+                  let roleString = accountData["role"]?.value as? String else {
                 throw ToolError.invalidArguments("Each account must have 'name', 'role', and 'value'")
             }
 
             // Handle value as either Double or Int
             let value: Double
-            if let valueDouble = accountData["value"] as? Double {
+            if let valueDouble = accountData["value"]?.value as? Double {
                 value = valueDouble
-            } else if let valueInt = accountData["value"] as? Int {
+            } else if let valueInt = accountData["value"]?.value as? Int {
                 value = Double(valueInt)
             } else {
                 throw ToolError.invalidArguments("Account value must be a number")
@@ -775,15 +785,15 @@ public struct CreateCashFlowStatementTool: MCPToolHandler, Sendable {
 		}
         let currency = currencyValue
 
-        guard let cashFlows = args["cash_flows"]?.value as? [String: Any] else {
+        guard let cashFlows = args["cash_flows"]?.value as? [String: AnyCodable] else {
             throw ToolError.invalidArguments("cash_flows must be an object")
         }
 
         // Helper to get value
         func getValue(_ key: String) -> Double {
-            if let intVal = cashFlows[key] as? Int {
+            if let intVal = cashFlows[key]?.value as? Int {
                 return Double(intVal)
-            } else if let doubleVal = cashFlows[key] as? Double {
+            } else if let doubleVal = cashFlows[key]?.value as? Double {
                 return doubleVal
             }
             return 0.0
@@ -984,10 +994,10 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
         var checks: [String] = []
 
         // Balance Sheet Validation
-        if let bs = args["balance_sheet"]?.value as? [String: Any] {
-            if let assets = bs["total_assets"] as? Double,
-               let liabilities = bs["total_liabilities"] as? Double,
-               let equity = bs["total_equity"] as? Double {
+        if let bs = args["balance_sheet"]?.value as? [String: AnyCodable] {
+            if let assets = bs["total_assets"]?.value as? Double,
+               let liabilities = bs["total_liabilities"]?.value as? Double,
+               let equity = bs["total_equity"]?.value as? Double {
 
                 let diff = abs(assets - (liabilities + equity))
                 if diff < 0.01 {
@@ -999,9 +1009,9 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
         }
 
         // Income Statement Validation
-        if let is_data = args["income_statement"]?.value as? [String: Any] {
-            if let revenue = is_data["total_revenue"] as? Double,
-               let netIncome = is_data["net_income"] as? Double {
+        if let is_data = args["income_statement"]?.value as? [String: AnyCodable] {
+            if let revenue = is_data["total_revenue"]?.value as? Double,
+               let netIncome = is_data["net_income"]?.value as? Double {
 
                 let netMargin = netIncome / revenue
 				checks.append("✅ Net margin: \(netMargin.percent(1))")
@@ -1015,11 +1025,11 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
         }
 
         // Cross-Statement Validation
-        if let is_data = args["income_statement"]?.value as? [String: Any],
-           let cf_data = args["cash_flow"]?.value as? [String: Any] {
+        if let is_data = args["income_statement"]?.value as? [String: AnyCodable],
+           let cf_data = args["cash_flow"]?.value as? [String: AnyCodable] {
 
-            if let netIncome = is_data["net_income"] as? Double,
-               let operatingCF = cf_data["operating_cf"] as? Double {
+            if let netIncome = is_data["net_income"]?.value as? Double,
+               let operatingCF = cf_data["operating_cf"]?.value as? Double {
 
                 let cashConversion = operatingCF / netIncome
 				checks.append("✅ Cash conversion ratio: \(cashConversion.percent(1))")

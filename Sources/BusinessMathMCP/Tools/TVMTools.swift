@@ -499,7 +499,7 @@ public struct XNPVTool: MCPToolHandler, Sendable {
         let rate = try args.getDouble("rate")
 
         // Parse cash flows array
-        guard let cfArray = args["cashFlows"], let cfData = cfArray.value as? [[String: Any]] else {
+        guard let cfArray = args["cashFlows"], let cfAnyCodable = cfArray.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("cashFlows must be an array of objects")
         }
 
@@ -507,16 +507,19 @@ public struct XNPVTool: MCPToolHandler, Sendable {
         var dates: [Date] = []
         var amounts: [Double] = []
 
-        for (index, cf) in cfData.enumerated() {
-            guard let dateString = cf["date"] as? String,
+        for (index, cfItem) in cfAnyCodable.enumerated() {
+            guard let cf = cfItem.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("cashFlows[\(index)] must be an object")
+            }
+            guard let dateString = cf["date"]?.value as? String,
                   let date = dateFormatter.date(from: dateString) else {
                 throw ToolError.invalidArguments("cashFlows[\(index)] must have valid 'date' (ISO 8601 string)")
             }
 
             let amount: Double
-            if let amountDouble = cf["amount"] as? Double {
+            if let amountDouble = cf["amount"]?.value as? Double {
                 amount = amountDouble
-            } else if let amountInt = cf["amount"] as? Int {
+            } else if let amountInt = cf["amount"]?.value as? Int {
                 amount = Double(amountInt)
             } else {
                 throw ToolError.invalidArguments("cashFlows[\(index)] must have valid 'amount' (number)")
@@ -624,7 +627,7 @@ public struct XIRRTool: MCPToolHandler, Sendable {
         let guess = args.getDoubleOptional("guess") ?? 0.1
 
         // Parse cash flows array
-        guard let cfArray = args["cashFlows"], let cfData = cfArray.value as? [[String: Any]] else {
+        guard let cfArray = args["cashFlows"], let cfAnyCodable = cfArray.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("cashFlows must be an array of objects")
         }
 
@@ -632,16 +635,19 @@ public struct XIRRTool: MCPToolHandler, Sendable {
         var dates: [Date] = []
         var amounts: [Double] = []
 
-        for (index, cf) in cfData.enumerated() {
-            guard let dateString = cf["date"] as? String,
+        for (index, cfItem) in cfAnyCodable.enumerated() {
+            guard let cf = cfItem.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("cashFlows[\(index)] must be an object")
+            }
+            guard let dateString = cf["date"]?.value as? String,
                   let date = dateFormatter.date(from: dateString) else {
                 throw ToolError.invalidArguments("cashFlows[\(index)] must have valid 'date' (ISO 8601 string)")
             }
 
             let amount: Double
-            if let amountDouble = cf["amount"] as? Double {
+            if let amountDouble = cf["amount"]?.value as? Double {
                 amount = amountDouble
-            } else if let amountInt = cf["amount"] as? Int {
+            } else if let amountInt = cf["amount"]?.value as? Int {
                 amount = Double(amountInt)
             } else {
                 throw ToolError.invalidArguments("cashFlows[\(index)] must have valid 'amount' (number)")
