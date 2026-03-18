@@ -115,7 +115,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
 
         // OAuth endpoints are always public (they handle their own auth)
-        let oauthEndpoints = ["/.well-known/oauth-authorization-server", "/register", "/authorize", "/token"]
+        let oauthEndpoints = ["/.well-known/oauth-authorization-server", "/register", "/authorize", "/authorize/consent", "/token"]
         let isOAuthEndpoint = oauthEndpoints.contains(path)
 
         // Check authentication for protected endpoints
@@ -154,6 +154,9 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         case (.GET, "/authorize"):
             await handleOAuthAuthorization(context: context, uri: fullUri)
+
+        case (.POST, "/authorize/consent"):
+            await handleOAuthConsent(context: context, body: body)
 
         case (.POST, "/token"):
             await handleOAuthToken(context: context, body: body, headers: head.headers)
@@ -243,6 +246,23 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         sendOAuthResponse(context: context, response: response)
     }
 
+    private func handleOAuthConsent(context: ChannelHandlerContext, body: ByteBuffer?) async {
+        guard let handler = oauthHandler else {
+            sendResponse(context: context, status: .notFound, body: "OAuth not configured")
+            return
+        }
+
+        guard let bodyBuffer = body else {
+            sendResponse(context: context, status: .badRequest, body: "Missing request body")
+            return
+        }
+
+        let bodyString = String(buffer: bodyBuffer)
+        let formParams = parseFormBody(bodyString)
+        let response = await handler.handleConsentSubmission(formParams: formParams)
+        sendOAuthResponse(context: context, response: response)
+    }
+
     private func handleOAuthToken(context: ChannelHandlerContext, body: ByteBuffer?, headers: HTTPHeaders) async {
         guard let handler = oauthHandler else {
             sendResponse(context: context, status: .notFound, body: "OAuth not configured")
@@ -305,6 +325,21 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         if status != .found && status != .seeOther {
             context.close(promise: nil)
         }
+    }
+
+    private func parseFormBody(_ body: String) -> [String: String] {
+        var params: [String: String] = [:]
+
+        for pair in body.split(separator: "&") {
+            let keyValue = pair.split(separator: "=", maxSplits: 1)
+            if keyValue.count == 2 {
+                let key = String(keyValue[0]).removingPercentEncoding ?? String(keyValue[0])
+                let value = String(keyValue[1]).removingPercentEncoding ?? String(keyValue[1])
+                params[key] = value
+            }
+        }
+
+        return params
     }
 
     private func parseQueryParams(from uri: String) -> [String: String] {
