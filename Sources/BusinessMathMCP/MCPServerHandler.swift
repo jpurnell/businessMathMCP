@@ -160,9 +160,9 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         case (.DELETE, "/mcp"):
             await processSessionDelete(context: context, headers: head.headers)
 
-        // Legacy SSE endpoint - return 410 Gone
+        // Legacy SSE endpoint - maintained for backward compatibility
         case (.GET, "/mcp/sse"):
-            sendResponse(context: context, status: .gone, body: "Legacy SSE endpoint removed. Use GET /mcp with Accept: text/event-stream")
+            await processLegacySSE(channel: channel, eventLoop: eventLoop, context: context)
 
         // OAuth 2.0 Endpoints
         case (.GET, "/.well-known/oauth-authorization-server"):
@@ -497,6 +497,45 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         }
 
         logger.info("Streamable HTTP SSE stream opened for session \(sessionId)")
+    }
+
+    /// Handle GET /mcp/sse — Legacy SSE endpoint for backward compatibility
+    ///
+    /// This endpoint supports the original MCP SSE transport protocol:
+    /// 1. Client GETs /mcp/sse to establish SSE stream
+    /// 2. Server sends "endpoint" event with POST URL containing session ID
+    /// 3. Client POSTs JSON-RPC requests to the endpoint URL
+    /// 4. Server sends responses back via the SSE stream
+    private func processLegacySSE(channel: Channel, eventLoop: EventLoop, context: ChannelHandlerContext) async {
+        guard let transport = transport else { return }
+
+        let sessionId = UUID().uuidString
+        let connection = NIOHTTPConnection(channel: channel)
+        let session = SSESession(sessionId: sessionId, connection: connection, logger: logger)
+
+        // Register with legacy SSE session manager
+        await transport.sseSessionManager.registerSession(session)
+
+        // Send SSE response headers
+        var sseHeaders = HTTPHeaders()
+        sseHeaders.add(name: "Content-Type", value: "text/event-stream")
+        sseHeaders.add(name: "Cache-Control", value: "no-cache")
+        sseHeaders.add(name: "Connection", value: "keep-alive")
+        sseHeaders.add(name: "X-Session-ID", value: sessionId)
+        addCORSHeaders(to: &sseHeaders)
+
+        let responseHead = HTTPResponseHead(version: .http1_1, status: .ok, headers: sseHeaders)
+
+        nonisolated(unsafe) let unsafeContext = context
+        eventLoop.execute {
+            unsafeContext.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
+            unsafeContext.flush()
+        }
+
+        // Send endpoint event with POST URL
+        await session.sendEvent(event: "endpoint", data: "/mcp?sessionId=\(sessionId)")
+
+        logger.info("Legacy SSE connection opened with session \(sessionId)")
     }
 
     /// Handle DELETE /mcp — Terminate session

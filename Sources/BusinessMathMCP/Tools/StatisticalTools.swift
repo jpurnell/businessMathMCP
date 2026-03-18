@@ -17,6 +17,7 @@ public func getStatisticalTools() -> [any MCPToolHandler] {
     return [
         CalculateCorrelationTool(),
         LinearRegressionTool(),
+        MultipleLinearRegressionTool(),
         SpearmansCorrelationTool(),
         CalculateConfidenceIntervalTool(),
         CalculateCovarianceTool(),
@@ -209,6 +210,192 @@ public struct LinearRegressionTool: MCPToolHandler, Sendable {
         }
 
         return .success(text: output)
+    }
+}
+
+// MARK: - 2b. Multiple Linear Regression
+
+public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "multiple_linear_regression",
+        description: """
+        Perform multiple linear regression with two or more predictor variables.
+
+        Fits: y = b0 + b1*x1 + b2*x2 + ... + bp*xp
+
+        Returns comprehensive diagnostics:
+        - Coefficients with standard errors, t-statistics, p-values, confidence intervals
+        - R-squared and adjusted R-squared
+        - F-statistic for overall model significance
+        - Variance Inflation Factors (VIF) for multicollinearity detection
+        - Residuals and fitted values
+        - Predictions for new data points (optional)
+
+        Input format: X is a matrix where each row is an observation and each column is a predictor.
+        Example with 3 observations and 2 predictors: [[x1_1, x2_1], [x1_2, x2_2], [x1_3, x2_3]]
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "X": MCPSchemaProperty(
+                    type: "array",
+                    description: "Predictor matrix: array of rows, each row is [x1, x2, ...] for one observation. Example: [[230.1, 37.8], [44.5, 39.3], [17.2, 45.9]]",
+                    items: MCPSchemaItems(type: "array")
+                ),
+                "y": MCPSchemaProperty(
+                    type: "array",
+                    description: "Response variable (one value per observation)",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "confidenceLevel": MCPSchemaProperty(
+                    type: "number",
+                    description: "Confidence level for intervals (default: 0.95)"
+                ),
+                "predictorNames": MCPSchemaProperty(
+                    type: "array",
+                    description: "Optional names for predictor variables (e.g. [\"TV\", \"Radio\"])",
+                    items: MCPSchemaItems(type: "string")
+                ),
+                "predictFor": MCPSchemaProperty(
+                    type: "array",
+                    description: "Optional: new X rows to predict y for. Same format as X rows.",
+                    items: MCPSchemaItems(type: "array")
+                )
+            ],
+            required: ["X", "y"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let X = try args.getDoubleMatrix("X")
+        let y = try args.getDoubleArray("y")
+        let confidenceLevel = args.getDoubleOptional("confidenceLevel") ?? 0.95
+        let predictorNames = try? args.getStringArray("predictorNames")
+
+        guard !X.isEmpty else {
+            throw ToolError.invalidArguments("X must not be empty")
+        }
+
+        let p = X[0].count
+        guard p >= 1 else {
+            throw ToolError.invalidArguments("Each observation must have at least 1 predictor")
+        }
+
+        guard X.count == y.count else {
+            throw ToolError.invalidArguments("X rows (\(X.count)) must match y length (\(y.count))")
+        }
+
+        for (i, row) in X.enumerated() {
+            guard row.count == p else {
+                throw ToolError.invalidArguments("X[\(i)] has \(row.count) predictors, expected \(p)")
+            }
+        }
+
+        let names: [String]
+        if let provided = predictorNames {
+            guard provided.count == p else {
+                throw ToolError.invalidArguments("predictorNames length (\(provided.count)) must match number of predictors (\(p))")
+            }
+            names = provided
+        } else {
+            names = (1...p).map { "X\($0)" }
+        }
+
+        // Run regression
+        let result = try multipleLinearRegression(X: X, y: y, confidenceLevel: confidenceLevel)
+
+        // Build equation string
+        var equation = "y = \(formatNumber(result.intercept, decimals: 4))"
+        for (i, coef) in result.coefficients.enumerated() {
+            let sign = coef >= 0 ? " + " : " - "
+            equation += "\(sign)\(formatNumber(abs(coef), decimals: 4))*\(names[i])"
+        }
+
+        // Build coefficients table using string interpolation (no C-string formatting)
+        var table = "Variable         Coefficient    Std Error      t-stat     p-value   CI"
+        table += "\n" + String(repeating: "-", count: 90)
+
+        // Intercept row
+        let intCI = result.confidenceIntervals[0]
+        let intSig = significanceStars(result.pValues[0])
+        table += "\n(Intercept)      \(formatNumber(result.intercept, decimals: 4))  \(formatNumber(result.standardErrors[0], decimals: 4))  \(formatNumber(result.tStatistics[0], decimals: 3))  \(formatPValue(result.pValues[0]))   [\(formatNumber(intCI.lower, decimals: 4)), \(formatNumber(intCI.upper, decimals: 4))] \(intSig)"
+
+        // Coefficient rows
+        for i in 0..<p {
+            let ci = result.confidenceIntervals[i + 1]
+            let sig = significanceStars(result.pValues[i + 1])
+            table += "\n\(names[i])  \(formatNumber(result.coefficients[i], decimals: 4))  \(formatNumber(result.standardErrors[i + 1], decimals: 4))  \(formatNumber(result.tStatistics[i + 1], decimals: 3))  \(formatPValue(result.pValues[i + 1]))   [\(formatNumber(ci.lower, decimals: 4)), \(formatNumber(ci.upper, decimals: 4))] \(sig)"
+        }
+
+        table += "\n" + String(repeating: "-", count: 90)
+        table += "\nSignif: *** p<0.001, ** p<0.01, * p<0.05, . p<0.1"
+
+        // VIF section
+        var vifSection = "\nVariance Inflation Factors (VIF):"
+        for i in 0..<p {
+            let flag: String
+            if result.vif[i] >= 10 { flag = " *** HIGH" }
+            else if result.vif[i] >= 5 { flag = " * moderate" }
+            else { flag = "" }
+            vifSection += "\n  \(names[i]): \(formatNumber(result.vif[i], decimals: 2))\(flag)"
+        }
+
+        var output = """
+        Multiple Linear Regression Analysis
+        ====================================
+
+        Equation: \(equation)
+
+        Coefficients (\(formatNumber(confidenceLevel * 100, decimals: 0))% CI):
+        \(table)
+
+        Model Summary:
+          R-squared:          \(formatNumber(result.rSquared, decimals: 4)) (\(formatNumber(result.rSquared * 100, decimals: 1))% of variance explained)
+          Adjusted R-squared: \(formatNumber(result.adjustedRSquared, decimals: 4))
+          F-statistic:        \(formatNumber(result.fStatistic, decimals: 2)) (p-value: \(formatPValue(result.fStatisticPValue)))
+          Residual Std Error: \(formatNumber(result.residualStandardError, decimals: 4))
+          Observations:       \(result.n)
+          Predictors:         \(result.p)
+        \(vifSection)
+        """
+
+        // Predictions
+        if let predictFor = try? args.getDoubleMatrix("predictFor") {
+            output += "\n\nPredictions:"
+            for (i, row) in predictFor.enumerated() {
+                guard row.count == p else {
+                    output += "\n  Row \(i+1): ERROR - expected \(p) predictors, got \(row.count)"
+                    continue
+                }
+                var yHat = result.intercept
+                for j in 0..<p {
+                    yHat += result.coefficients[j] * row[j]
+                }
+                let xDesc = row.enumerated().map { "\(names[$0.0])=\(formatNumber($0.1, decimals: 1))" }.joined(separator: ", ")
+                output += "\n  [\(xDesc)] -> y = \(formatNumber(yHat, decimals: 4))"
+            }
+        }
+
+        return .success(text: output)
+    }
+
+    private func formatPValue(_ p: Double) -> String {
+        if p < 0.0001 { return "<0.0001" }
+        if p < 0.001 { return formatNumber(p, decimals: 4) }
+        return formatNumber(p, decimals: 4)
+    }
+
+    private func significanceStars(_ p: Double) -> String {
+        if p < 0.001 { return "***" }
+        if p < 0.01 { return "**" }
+        if p < 0.05 { return "*" }
+        if p < 0.1 { return "." }
+        return ""
     }
 }
 

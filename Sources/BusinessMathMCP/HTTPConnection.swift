@@ -43,13 +43,47 @@ public protocol HTTPConnection: Sendable {
     /// Whether the connection is currently active
     var isActive: Bool { get async }
 
-    /// Send data to the client
+    /// Send data to the client (used for SSE streaming where .head was already sent)
     /// - Parameter data: Data to send
     /// - Throws: If the send operation fails
     func send(_ data: Data) async throws
 
+    /// Send a complete HTTP response with proper framing (.head, .body, .end)
+    /// - Parameters:
+    ///   - statusCode: HTTP status code
+    ///   - headers: Response headers as (name, value) pairs
+    ///   - body: Response body data
+    /// - Throws: If the send operation fails
+    func sendHTTPResponse(statusCode: Int, headers: [(String, String)], body: Data) async throws
+
     /// Close the connection
     func close() async
+}
+
+// MARK: - Default Implementations
+
+extension HTTPConnection {
+    /// Default implementation: builds raw HTTP response text and sends via send()
+    public func sendHTTPResponse(statusCode: Int, headers: [(String, String)], body: Data) async throws {
+        let statusText: String
+        switch statusCode {
+        case 200: statusText = "OK"
+        case 202: statusText = "Accepted"
+        case 400: statusText = "Bad Request"
+        case 404: statusText = "Not Found"
+        case 504: statusText = "Gateway Timeout"
+        default: statusText = "Response"
+        }
+
+        var response = "HTTP/1.1 \(statusCode) \(statusText)\r\n"
+        for (name, value) in headers {
+            response += "\(name): \(value)\r\n"
+        }
+        response += "\r\n"
+        var responseData = response.data(using: .utf8) ?? Data()
+        responseData.append(body)
+        try await send(responseData)
+    }
 }
 
 /// Errors that can occur during HTTP connection operations

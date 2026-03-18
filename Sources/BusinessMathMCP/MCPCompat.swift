@@ -405,6 +405,35 @@ extension Dictionary where Key == String, Value == AnyCodable {
         return TimeSeries(periods: periods, values: values, metadata: TimeSeriesMetadata(name: "Unnamed"))
     }
 
+    /// Get 2D double array (matrix)
+    public func getDoubleMatrix(_ key: String) throws -> [[Double]] {
+        guard let value = self[key] else {
+            throw ToolError.missingRequiredArgument(key)
+        }
+        guard let outerArray = value.value as? [AnyCodable] else {
+            throw ToolError.invalidArguments("\(key) must be an array of arrays")
+        }
+
+        var result: [[Double]] = []
+        for (rowIndex, row) in outerArray.enumerated() {
+            guard let innerArray = row.value as? [AnyCodable] else {
+                throw ToolError.invalidArguments("\(key)[\(rowIndex)] must be an array of numbers")
+            }
+            var rowValues: [Double] = []
+            for (colIndex, item) in innerArray.enumerated() {
+                if let doubleValue = item.value as? Double {
+                    rowValues.append(doubleValue)
+                } else if let intValue = item.value as? Int {
+                    rowValues.append(Double(intValue))
+                } else {
+                    throw ToolError.invalidArguments("\(key)[\(rowIndex)][\(colIndex)] must be a number")
+                }
+            }
+            result.append(rowValues)
+        }
+        return result
+    }
+
     /// Check if a key exists
     public func hasKey(_ key: String) -> Bool {
         return self[key] != nil

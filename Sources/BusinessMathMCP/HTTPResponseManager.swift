@@ -179,7 +179,7 @@ public actor HTTPResponseManager {
         return nil
     }
 
-    /// Send an HTTP response to a connection
+    /// Send an HTTP response to a connection using proper HTTP framing
     private func sendHTTPResponse(
         connection: HTTPConnection,
         statusCode: Int,
@@ -188,30 +188,24 @@ public actor HTTPResponseManager {
         mcpSessionId: String? = nil
     ) {
         Task {
-            let statusText = self.statusText(for: statusCode)
-
-            // Build HTTP response headers
-            var response = "HTTP/1.1 \(statusCode) \(statusText)\r\n"
-            response += "Content-Type: \(contentType)\r\n"
-            response += "Content-Length: \(body.count)\r\n"
-            response += "Connection: close\r\n"
+            // Build headers list
+            var headers: [(String, String)] = [
+                ("Content-Type", contentType),
+                ("Content-Length", "\(body.count)"),
+                ("Connection", "close")
+            ]
             if let sessionId = mcpSessionId {
-                response += "Mcp-Session-Id: \(sessionId)\r\n"
+                headers.append(("Mcp-Session-Id", sessionId))
             }
             // CORS headers for cross-origin requests
-            response += "Access-Control-Allow-Origin: *\r\n"
-            response += "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
-            response += "Access-Control-Allow-Headers: Content-Type, Authorization, Mcp-Session-Id\r\n"
-            response += "Access-Control-Expose-Headers: Mcp-Session-Id\r\n"
-            response += "\r\n"
+            headers.append(("Access-Control-Allow-Origin", "*"))
+            headers.append(("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"))
+            headers.append(("Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Session-Id"))
+            headers.append(("Access-Control-Expose-Headers", "Mcp-Session-Id"))
 
-            // Combine headers and body
-            var responseData = response.data(using: .utf8) ?? Data()
-            responseData.append(body)
-
-            // Send to client
+            // Send proper HTTP response (.head, .body, .end)
             do {
-                try await connection.send(responseData)
+                try await connection.sendHTTPResponse(statusCode: statusCode, headers: headers, body: body)
                 // Close connection after response
                 await connection.close()
             } catch {
@@ -272,10 +266,5 @@ public actor HTTPResponseManager {
     /// Get count of pending requests (for monitoring)
     public func pendingCount() -> Int {
         return pendingRequests.count
-    }
-
-    /// Helper to access HTTP status text
-    private func statusText(for code: Int) -> String {
-        return HTTPStatus.text(for: code)
     }
 }

@@ -58,8 +58,8 @@ public final class NIOHTTPConnection: HTTPConnection, @unchecked Sendable {
         self.remoteAddress = channel.remoteAddress?.description ?? "unknown"
     }
 
-    /// Send data to the client
-    /// - Parameter data: Data to send
+    /// Send raw data to the client (used for SSE streaming where .head was already sent)
+    /// - Parameter data: Data to send as .body part
     /// - Throws: HTTPConnectionError if the operation fails
     public func send(_ data: Data) async throws {
         guard channel.isActive else {
@@ -75,11 +75,44 @@ public final class NIOHTTPConnection: HTTPConnection, @unchecked Sendable {
             let finalBuffer = buffer
 
             // Ensure write happens on the EventLoop
-            // For HTTP channels with HTTPResponseEncoder, we need to wrap in HTTPServerResponsePart.body
+            // Write as HTTPServerResponsePart.body for SSE streaming (head already sent)
             try await channel.eventLoop.submit {
-                // Write as HTTPServerResponsePart.body for SSE streaming
                 let part = HTTPServerResponsePart.body(.byteBuffer(finalBuffer))
                 return self.channel.writeAndFlush(part)
+            }.flatMap { $0 }.get()
+        } catch {
+            throw HTTPConnectionError.writeFailed(error)
+        }
+    }
+
+    /// Send a complete HTTP response with proper NIO framing (.head, .body, .end)
+    ///
+    /// Unlike `send()` which only writes a `.body` part (for SSE streaming),
+    /// this method writes the full `.head`, `.body`, `.end` sequence that
+    /// NIO's HTTPResponseEncoder expects.
+    public func sendHTTPResponse(statusCode: Int, headers: [(String, String)], body: Data) async throws {
+        guard channel.isActive else {
+            throw HTTPConnectionError.connectionInactive
+        }
+
+        do {
+            var httpHeaders = HTTPHeaders()
+            for (name, value) in headers {
+                httpHeaders.add(name: name, value: value)
+            }
+
+            let status = HTTPResponseStatus(statusCode: statusCode)
+            let responseHead = HTTPResponseHead(version: .http1_1, status: status, headers: httpHeaders)
+
+            var buffer = channel.allocator.buffer(capacity: body.count)
+            buffer.writeBytes(body)
+            let finalBuffer = buffer
+
+            // Write .head, .body, .end on the EventLoop in sequence
+            try await channel.eventLoop.submit {
+                self.channel.write(HTTPServerResponsePart.head(responseHead), promise: nil)
+                self.channel.write(HTTPServerResponsePart.body(.byteBuffer(finalBuffer)), promise: nil)
+                return self.channel.writeAndFlush(HTTPServerResponsePart.end(nil))
             }.flatMap { $0 }.get()
         } catch {
             throw HTTPConnectionError.writeFailed(error)
