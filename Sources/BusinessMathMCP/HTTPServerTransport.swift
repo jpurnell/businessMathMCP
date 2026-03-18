@@ -10,20 +10,19 @@ import Logging
 // Import OAuth types
 
 
-/// HTTP server transport for MCP using SwiftNIO
+/// HTTP server transport for MCP using SwiftNIO (Streamable HTTP, spec 2025-03-26)
 ///
-/// This transport implements MCP over HTTP with Server-Sent Events (SSE):
+/// This transport implements MCP Streamable HTTP:
 /// - Cross-platform (macOS, Linux) using SwiftNIO
 /// - Listens on a specified port
-/// - GET /mcp/sse - Opens SSE connection for server→client streaming
-/// - POST /mcp - Accepts JSON-RPC requests (includes X-Session-ID header)
-/// - Routes responses via SSE to correct client
+/// - POST /mcp - JSON-RPC requests, returns JSON response with Mcp-Session-Id header
+/// - GET /mcp (Accept: text/event-stream) - SSE stream for server-initiated messages
+/// - DELETE /mcp - Terminate session
 ///
 /// Architecture:
-/// 1. Client opens SSE connection (GET /mcp/sse)
-/// 2. Server creates SSESession and returns session ID
-/// 3. Client sends requests via POST with X-Session-ID header
-/// 4. Server routes responses back via SSE stream
+/// 1. Client POSTs initialize to /mcp, receives JSON response with Mcp-Session-Id
+/// 2. Client includes Mcp-Session-Id header on all subsequent requests
+/// 3. Server routes responses directly as JSON via HTTPResponseManager
 public actor HTTPServerTransport: Transport {
     public let logger: Logger
     private let port: UInt16
@@ -40,8 +39,11 @@ public actor HTTPServerTransport: Transport {
     /// Response manager - accessible to handler for routing responses
     internal let responseManager: HTTPResponseManager
 
-    /// SSE session manager - accessible to handler for SSE connections
+    /// SSE session manager (legacy, kept for backward compat)
     internal let sseSessionManager: SSESessionManager
+
+    /// Streamable HTTP session manager (MCP 2025-03-26)
+    internal let streamableSessionManager: StreamableSessionManager
 
     private let authenticator: APIKeyAuthenticator?
 
@@ -76,6 +78,7 @@ public actor HTTPServerTransport: Transport {
         self.tlsKeyPath = tlsKeyPath
         self.responseManager = HTTPResponseManager(logger: logger)
         self.sseSessionManager = SSESessionManager(logger: logger)
+        self.streamableSessionManager = StreamableSessionManager(logger: logger)
 
         // Create receive stream
         var continuation: AsyncThrowingStream<Data, Error>.Continuation!
@@ -91,6 +94,9 @@ public actor HTTPServerTransport: Transport {
 
         // Start SSE session maintenance (cleanup + heartbeat)
         await sseSessionManager.startMaintenance()
+
+        // Start streamable session maintenance
+        await streamableSessionManager.startMaintenance()
 
         // Create event loop group
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
@@ -158,6 +164,9 @@ public actor HTTPServerTransport: Transport {
         // Shutdown SSE sessions
         await sseSessionManager.shutdown()
 
+        // Shutdown streamable sessions
+        await streamableSessionManager.shutdown()
+
         // Close server channel
         if let channel = serverChannel {
             try? await channel.close()
@@ -192,7 +201,7 @@ public actor HTTPServerTransport: Transport {
                 "jsonrpc": "2.0",
                 "id": errorId,
                 "result": [
-                    "protocolVersion": "2024-11-05",
+                    "protocolVersion": "2025-03-26",
                     "serverInfo": [
                         "name": "BusinessMath MCP Server",
                         "version": "2.0.0"
@@ -207,26 +216,27 @@ public actor HTTPServerTransport: Transport {
             ]
             if let successData = try? JSONSerialization.data(withJSONObject: successResponse) {
                 logger.debug("Converted 'already initialized' error to success response")
-                // Route the synthetic success response instead
-                let sseRouted = await sseSessionManager.routeResponse(successData)
-                if sseRouted { return }
                 _ = await responseManager.routeResponse(successData)
                 return
             }
         }
 
-        // Try routing through SSE first (for clients using SSE)
-        let sseRouted = await sseSessionManager.routeResponse(data)
-
-        if sseRouted {
-            return  // Successfully sent via SSE
-        }
-
-        // Fall back to HTTP response manager (for legacy non-SSE clients)
+        // Primary path: route through HTTP response manager (Streamable HTTP)
         let httpRouted = await responseManager.routeResponse(data)
 
-        if !httpRouted {
-            logger.warning("Failed to route response (\(data.count) bytes) - no pending request found")
+        if httpRouted {
+            return
+        }
+
+        // Fallback: broadcast to SSE streams (for server-initiated messages)
+        let sseRouted = await streamableSessionManager.broadcastToAllSSE(data)
+
+        if !sseRouted {
+            // Try legacy SSE manager as last resort
+            let legacyRouted = await sseSessionManager.routeResponse(data)
+            if !legacyRouted {
+                logger.warning("Failed to route response (\(data.count) bytes) - no pending request found")
+            }
         }
     }
 

@@ -203,10 +203,10 @@ struct HTTPTransportTests {
         try await transport.connect()
         try await Task.sleep(nanoseconds: 200_000_000)
 
-        // Try DELETE on /health (only GET allowed)
+        // Try PUT on /mcp (only GET, POST, DELETE allowed)
         let url = URL(string: "http://localhost:9094/mcp")!
         var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
+        request.httpMethod = "PUT"
 
         let (_, response) = try await URLSession.shared.data(for: request)
 

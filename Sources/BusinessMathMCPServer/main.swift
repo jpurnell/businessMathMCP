@@ -595,10 +595,10 @@ struct BusinessMathMCPServerMain {
             if let cert = tlsCert {
                 writeStderr("  TLS Certificate: \(cert)\n")
             }
-            writeStderr("  Endpoints:\n")
-            writeStderr("    - GET /mcp/sse  : Server-Sent Events stream\n")
+            writeStderr("  Endpoints (Streamable HTTP, MCP 2025-03-26):\n")
             writeStderr("    - POST /mcp     : JSON-RPC requests\n")
-            writeStderr("    - GET /mcp      : Server info\n")
+            writeStderr("    - GET /mcp      : Server info / SSE stream (Accept: text/event-stream)\n")
+            writeStderr("    - DELETE /mcp   : Terminate session\n")
             writeStderr("    - GET /health   : Health check\n")
             writeStderr("\n")
 

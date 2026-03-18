@@ -4,13 +4,13 @@ import Foundation
 @preconcurrency import NIOHTTP1
 import Logging
 
-/// SwiftNIO channel handler for MCP HTTP server
+/// SwiftNIO channel handler for MCP Streamable HTTP server (spec 2025-03-26)
 ///
 /// This handler processes incoming HTTP requests and routes them to appropriate handlers:
 /// - GET /health - Health check endpoint
-/// - GET /mcp - Server information
-/// - GET /mcp/sse - Server-Sent Events connection
-/// - POST /mcp - JSON-RPC requests
+/// - GET /mcp - Server info (no Accept: text/event-stream) or SSE stream (with Accept: text/event-stream)
+/// - POST /mcp - JSON-RPC requests (Streamable HTTP)
+/// - DELETE /mcp - Terminate session
 /// - OPTIONS * - CORS preflight
 ///
 /// ## Topics
@@ -119,9 +119,12 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         let isOAuthEndpoint = oauthEndpoints.contains(path)
 
         // Check authentication for protected endpoints
-        // Exclude health, server info, and OAuth endpoints from auth
-        let isPublicEndpoint = ["/health", "/mcp"].contains(path) || isOAuthEndpoint
-        let requiresAuth = !isPublicEndpoint || (method == .POST && !isOAuthEndpoint)
+        // Exclude health and OAuth endpoints from auth
+        // GET /mcp without SSE Accept header is public (server info); POST/DELETE/GET+SSE require auth
+        let isPublicEndpoint = ["/health"].contains(path) || isOAuthEndpoint
+        let isMcpGetWithoutSSE = (method == .GET && path == "/mcp" &&
+            !(head.headers.first(name: "Accept")?.contains("text/event-stream") ?? false))
+        let requiresAuth = !isPublicEndpoint && !isMcpGetWithoutSSE
 
         if requiresAuth {
             let authorized = await checkAuthorization(headers: head.headers)
@@ -143,7 +146,23 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
             handleHealthCheck(context: context)
 
         case (.GET, "/mcp"):
-            handleServerInfo(context: context)
+            // Streamable HTTP: Accept: text/event-stream means SSE stream request
+            let acceptHeader = head.headers.first(name: "Accept") ?? ""
+            if acceptHeader.contains("text/event-stream") {
+                await processStreamableSSE(channel: channel, eventLoop: eventLoop, context: context, headers: head.headers)
+            } else {
+                handleServerInfo(context: context)
+            }
+
+        case (.POST, "/mcp"):
+            await processStreamablePost(channel: channel, context: context, headers: head.headers, body: body)
+
+        case (.DELETE, "/mcp"):
+            await processSessionDelete(context: context, headers: head.headers)
+
+        // Legacy SSE endpoint - return 410 Gone
+        case (.GET, "/mcp/sse"):
+            sendResponse(context: context, status: .gone, body: "Legacy SSE endpoint removed. Use GET /mcp with Accept: text/event-stream")
 
         // OAuth 2.0 Endpoints
         case (.GET, "/.well-known/oauth-authorization-server"):
@@ -161,15 +180,7 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         case (.POST, "/token"):
             await handleOAuthToken(context: context, body: body, headers: head.headers)
 
-        // MCP Endpoints
-        case (.GET, "/mcp/sse"):
-            await processSSEConnection(channel: channel, eventLoop: eventLoop, context: context, headers: head.headers)
-
-        case (.POST, "/mcp"):
-            await processJSONRPCRequest(channel: channel, context: context, headers: head.headers, body: body, uri: fullUri)
-
-        case (_, "/health"), (_, "/mcp"), (_, "/mcp/sse"):
-            // Path exists but method not allowed
+        case (_, "/health"), (_, "/mcp"):
             sendResponse(context: context, status: .methodNotAllowed, body: "Method Not Allowed")
 
         default:
@@ -188,11 +199,12 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         {
           "name": "BusinessMath MCP Server",
           "version": "2.0.0",
-          "protocol": "MCP over HTTP + SSE (SwiftNIO)",
+          "protocol": "MCP Streamable HTTP (2025-03-26)",
           "platform": "cross-platform",
           "endpoints": {
-            "sse": "GET /mcp/sse - Open Server-Sent Events stream",
-            "rpc": "POST /mcp - Send JSON-RPC request"
+            "mcp": "POST /mcp - JSON-RPC requests",
+            "sse": "GET /mcp (Accept: text/event-stream) - Server-initiated messages",
+            "delete": "DELETE /mcp - Terminate session"
           },
           "authentication": "\(authenticator != nil ? "enabled" : "disabled")",
           "cors": "enabled"
@@ -362,49 +374,15 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         return params
     }
 
-    private func processSSEConnection(channel: Channel, eventLoop: EventLoop, context: ChannelHandlerContext, headers: HTTPHeaders) async {
-        guard let transport = transport else { return }
+    // MARK: - Streamable HTTP Endpoints (MCP 2025-03-26)
 
-        // Create HTTPConnection from channel
-        let connection = NIOHTTPConnection(channel: channel)
-
-        // Create SSE session
-        let session = SSESession(connection: connection, logger: logger)
-        let sessionId = session.sessionId
-
-        // Register with manager (async operation)
-        await transport.sseSessionManager.registerSession(session)
-
-        // Send SSE headers on the EventLoop
-        let responseHead = HTTPResponseHead(
-            version: .http1_1,
-            status: .ok,
-            headers: createSSEHeaders(sessionId: sessionId)
-        )
-
-        // Use nonisolated(unsafe) to avoid Sendable warning
-        nonisolated(unsafe) let unsafeContext = context
-
-        // Prepare the initial endpoint event (MCP SSE protocol requirement)
-        // This tells the client which URL to use for POST requests
-        let endpointEvent = "event: endpoint\ndata: /mcp?sessionId=\(sessionId)\n\n"
-        var buffer = channel.allocator.buffer(capacity: endpointEvent.utf8.count)
-        buffer.writeString(endpointEvent)
-
-        eventLoop.execute {
-            // Send headers
-            unsafeContext.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
-            // Send initial endpoint event
-            unsafeContext.write(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
-            unsafeContext.flush()
-        }
-
-        // Connection stays open for SSE events
-        // The session will be managed by SSESessionManager
-        logger.info("SSE connection established for session \(sessionId)")
-    }
-
-    private func processJSONRPCRequest(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?, uri: String) async {
+    /// Handle POST /mcp — Streamable HTTP JSON-RPC requests
+    ///
+    /// Per the MCP 2025-03-26 spec:
+    /// - `initialize` requests create a new session (Mcp-Session-Id returned in response)
+    /// - Notifications (no id) return 202 Accepted
+    /// - Regular requests return JSON response directly with Mcp-Session-Id header
+    private func processStreamablePost(channel: Channel, context: ChannelHandlerContext, headers: HTTPHeaders, body: ByteBuffer?) async {
         guard let transport = transport else { return }
         guard let bodyBuffer = body else {
             sendResponse(context: context, status: .badRequest, body: "Missing request body")
@@ -413,40 +391,128 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
 
         let bodyData = Data(buffer: bodyBuffer)
 
-        // Extract session ID from headers OR URL query parameters
-        // MCP SSE transport sends sessionId in URL: /mcp?sessionId=XXX
-        var sessionId = headers.first(name: "X-Session-ID")
-        if sessionId == nil {
-            sessionId = extractSessionIdFromQuery(uri: uri)
-        }
-
-        // Parse JSON-RPC to get request ID
-        guard let requestId = extractRequestId(from: bodyData) else {
-            sendResponse(context: context, status: .badRequest, body: "Invalid JSON-RPC request")
+        // Parse JSON-RPC
+        guard let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] else {
+            sendResponse(context: context, status: .badRequest, body: "Invalid JSON")
             return
         }
 
-        if let sessionId = sessionId {
-            // SSE mode: associate request with session
-            await transport.sseSessionManager.associateRequest(requestId: requestId, with: sessionId)
+        let method = json["method"] as? String
+        let hasId = json.keys.contains("id")
+        let requestId = extractRequestId(from: bodyData)
+        let isInitialize = (method == "initialize")
+        let isNotification = !hasId
 
-            // Forward request to MCP server via receive stream
+        // Session ID from header
+        let sessionId = headers.first(name: "Mcp-Session-Id")
+
+        if isInitialize {
+            // Create new session — don't require Mcp-Session-Id on initialize
+            let newSessionId = await transport.streamableSessionManager.createSession()
+
+            if let reqId = requestId, reqId != .null {
+                // Register with HTTPResponseManager so response routes back as JSON
+                let connection = NIOHTTPConnection(channel: channel)
+                await transport.responseManager.registerRequest(requestId: reqId, connection: connection)
+                await transport.responseManager.setSessionIdForRequest(reqId, sessionId: newSessionId)
+            }
+
+            // Forward to MCP server
             transport.receiveContinuation.yield(bodyData)
+            // Response will be sent by HTTPResponseManager.routeResponse() with Mcp-Session-Id header
 
-            // Send immediate acknowledgment (response will come via SSE)
-            // Use 202 Accepted to indicate request is being processed asynchronously
+        } else if isNotification {
+            // Notifications have no id — validate session if provided, return 202
+            if let sid = sessionId {
+                guard await transport.streamableSessionManager.validateSession(sid) else {
+                    sendResponse(context: context, status: .notFound, body: "Session not found")
+                    return
+                }
+                await transport.streamableSessionManager.touchSession(sid)
+            }
+
+            transport.receiveContinuation.yield(bodyData)
             sendResponse(context: context, status: .accepted, body: "")
+
         } else {
-            // HTTP mode: register with response manager and keep connection open
-            // The HTTPResponseManager will send the JSON-RPC response when ready
-            let connection = NIOHTTPConnection(channel: channel)
-            await transport.responseManager.registerRequest(requestId: requestId, connection: connection)
+            // Regular request — validate session
+            if let sid = sessionId {
+                guard await transport.streamableSessionManager.validateSession(sid) else {
+                    sendResponse(context: context, status: .notFound, body: "Session not found")
+                    return
+                }
+                await transport.streamableSessionManager.touchSession(sid)
+            }
 
-            // Forward request to MCP server via receive stream
+            // Register with HTTPResponseManager for direct JSON response
+            if let reqId = requestId, reqId != .null {
+                let connection = NIOHTTPConnection(channel: channel)
+                await transport.responseManager.registerRequest(requestId: reqId, connection: connection)
+                if let sid = sessionId {
+                    await transport.responseManager.setSessionIdForRequest(reqId, sessionId: sid)
+                }
+            }
+
             transport.receiveContinuation.yield(bodyData)
+            // Response will be sent by HTTPResponseManager.routeResponse()
+        }
+    }
 
-            // Do NOT send a response here - HTTPResponseManager.routeResponse() will
-            // send the actual JSON-RPC response with Content-Type: application/json
+    /// Handle GET /mcp with Accept: text/event-stream — SSE stream for server-initiated messages
+    private func processStreamableSSE(channel: Channel, eventLoop: EventLoop, context: ChannelHandlerContext, headers: HTTPHeaders) async {
+        guard let transport = transport else { return }
+
+        // Require Mcp-Session-Id for SSE streams
+        guard let sessionId = headers.first(name: "Mcp-Session-Id") else {
+            sendResponse(context: context, status: .badRequest, body: "Missing Mcp-Session-Id header")
+            return
+        }
+
+        guard await transport.streamableSessionManager.validateSession(sessionId) else {
+            sendResponse(context: context, status: .notFound, body: "Session not found")
+            return
+        }
+
+        // Create SSE connection for server-initiated messages
+        let connection = NIOHTTPConnection(channel: channel)
+        let sseSession = SSESession(connection: connection, logger: logger)
+
+        // Register with session
+        await transport.streamableSessionManager.addSSEConnection(sseSession, to: sessionId)
+
+        // Send SSE response headers (no endpoint event — that's the old protocol)
+        var sseHeaders = HTTPHeaders()
+        sseHeaders.add(name: "Content-Type", value: "text/event-stream")
+        sseHeaders.add(name: "Cache-Control", value: "no-cache")
+        sseHeaders.add(name: "Connection", value: "keep-alive")
+        sseHeaders.add(name: "Mcp-Session-Id", value: sessionId)
+        addCORSHeaders(to: &sseHeaders)
+
+        let responseHead = HTTPResponseHead(version: .http1_1, status: .ok, headers: sseHeaders)
+
+        nonisolated(unsafe) let unsafeContext = context
+        eventLoop.execute {
+            unsafeContext.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
+            unsafeContext.flush()
+        }
+
+        logger.info("Streamable HTTP SSE stream opened for session \(sessionId)")
+    }
+
+    /// Handle DELETE /mcp — Terminate session
+    private func processSessionDelete(context: ChannelHandlerContext, headers: HTTPHeaders) async {
+        guard let transport = transport else { return }
+
+        guard let sessionId = headers.first(name: "Mcp-Session-Id") else {
+            sendResponse(context: context, status: .badRequest, body: "Missing Mcp-Session-Id header")
+            return
+        }
+
+        let removed = await transport.streamableSessionManager.removeSession(sessionId)
+        if removed {
+            sendResponse(context: context, status: .ok, body: "Session terminated")
+        } else {
+            sendResponse(context: context, status: .notFound, body: "Session not found")
         }
     }
 
@@ -556,38 +622,14 @@ final class MCPServerHandler: ChannelInboundHandler, @unchecked Sendable {
         // Don't close - allow HTTP keep-alive for connection reuse
     }
 
-    private func createSSEHeaders(sessionId: String) -> HTTPHeaders {
-        var headers = HTTPHeaders()
-        headers.add(name: "Content-Type", value: "text/event-stream")
-        headers.add(name: "Cache-Control", value: "no-cache")
-        headers.add(name: "Connection", value: "keep-alive")  // SSE needs keep-alive
-        headers.add(name: "X-Session-ID", value: sessionId)
-        addCORSHeaders(to: &headers)
-        return headers
-    }
-
     private func addCORSHeaders(to headers: inout HTTPHeaders) {
         headers.add(name: "Access-Control-Allow-Origin", value: "*")
-        headers.add(name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS")
-        headers.add(name: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, X-Session-ID")
-        headers.add(name: "Access-Control-Expose-Headers", value: "X-Session-ID")
+        headers.add(name: "Access-Control-Allow-Methods", value: "GET, POST, DELETE, OPTIONS")
+        headers.add(name: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Mcp-Session-Id")
+        headers.add(name: "Access-Control-Expose-Headers", value: "Mcp-Session-Id")
     }
 
     // MARK: - Utilities
-
-    /// Extract sessionId from URL query parameters (e.g., /mcp?sessionId=XXX)
-    private func extractSessionIdFromQuery(uri: String) -> String? {
-        guard let queryStart = uri.firstIndex(of: "?") else { return nil }
-        let queryString = String(uri[uri.index(after: queryStart)...])
-        let params = queryString.split(separator: "&")
-        for param in params {
-            let parts = param.split(separator: "=", maxSplits: 1)
-            if parts.count == 2 && parts[0] == "sessionId" {
-                return String(parts[1])
-            }
-        }
-        return nil
-    }
 
     private func extractRequestId(from data: Data) -> HTTPResponseManager.JSONRPCId? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

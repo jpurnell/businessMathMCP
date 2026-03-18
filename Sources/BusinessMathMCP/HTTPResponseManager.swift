@@ -38,6 +38,7 @@ public actor HTTPResponseManager {
         let connection: HTTPConnection
         let receivedAt: Date
         let requestId: JSONRPCId
+        var mcpSessionId: String?
     }
 
     /// JSON-RPC request/response ID (can be string, number, or null)
@@ -122,6 +123,11 @@ public actor HTTPResponseManager {
         logger.debug("Registered pending request: \(requestId)")
     }
 
+    /// Attach an Mcp-Session-Id to a pending request so it's included in the response header
+    public func setSessionIdForRequest(_ requestId: JSONRPCId, sessionId: String) {
+        pendingRequests[requestId]?.mcpSessionId = sessionId
+    }
+
     /// Route a JSON-RPC response back to its HTTP connection
     /// - Parameter responseData: The JSON-RPC response (as Data)
     /// - Returns: Whether the response was successfully routed
@@ -143,7 +149,8 @@ public actor HTTPResponseManager {
             connection: pending.connection,
             statusCode: 200,
             body: responseData,
-            contentType: "application/json"
+            contentType: "application/json",
+            mcpSessionId: pending.mcpSessionId
         )
 
         logger.debug("Routed response for request: \(requestId)")
@@ -177,7 +184,8 @@ public actor HTTPResponseManager {
         connection: HTTPConnection,
         statusCode: Int,
         body: Data,
-        contentType: String
+        contentType: String,
+        mcpSessionId: String? = nil
     ) {
         Task {
             let statusText = self.statusText(for: statusCode)
@@ -187,11 +195,14 @@ public actor HTTPResponseManager {
             response += "Content-Type: \(contentType)\r\n"
             response += "Content-Length: \(body.count)\r\n"
             response += "Connection: close\r\n"
+            if let sessionId = mcpSessionId {
+                response += "Mcp-Session-Id: \(sessionId)\r\n"
+            }
             // CORS headers for cross-origin requests
             response += "Access-Control-Allow-Origin: *\r\n"
-            response += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-            response += "Access-Control-Allow-Headers: Content-Type, Authorization, X-Session-ID\r\n"
-            response += "Access-Control-Expose-Headers: X-Session-ID\r\n"
+            response += "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
+            response += "Access-Control-Allow-Headers: Content-Type, Authorization, Mcp-Session-Id\r\n"
+            response += "Access-Control-Expose-Headers: Mcp-Session-Id\r\n"
             response += "\r\n"
 
             // Combine headers and body
@@ -237,7 +248,8 @@ public actor HTTPResponseManager {
                     connection: pending.connection,
                     statusCode: 504, // Gateway Timeout
                     body: errorData,
-                    contentType: "application/json"
+                    contentType: "application/json",
+                    mcpSessionId: pending.mcpSessionId
                 )
             }
 
