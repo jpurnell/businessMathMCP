@@ -4,6 +4,7 @@ import Logging
 @preconcurrency import NIOCore
 @preconcurrency import NIOPosix
 @preconcurrency import NIOHTTP1
+@preconcurrency import NIOSSL
 
 // OAuth must be imported after Foundation
 // Import OAuth types
@@ -47,22 +48,32 @@ public actor HTTPServerTransport: Transport {
     /// OAuth server for OAuth 2.0 authentication (optional)
     internal let oauthServer: OAuthServer?
 
+    /// TLS certificate and key paths (optional, enables HTTPS)
+    private let tlsCertPath: String?
+    private let tlsKeyPath: String?
+
     /// Initialize HTTP server transport
     /// - Parameters:
     ///   - port: Port number to listen on (default: 8080)
     ///   - authenticator: Optional API key authenticator (if nil, no auth required)
     ///   - oauthServer: Optional OAuth server for OAuth 2.0 authentication
+    ///   - tlsCertPath: Path to TLS certificate chain (PEM format)
+    ///   - tlsKeyPath: Path to TLS private key (PEM format)
     ///   - logger: Logger instance
     public init(
         port: UInt16 = 8080,
         authenticator: APIKeyAuthenticator? = nil,
         oauthServer: OAuthServer? = nil,
+        tlsCertPath: String? = nil,
+        tlsKeyPath: String? = nil,
         logger: Logger = Logger(label: "http-server-transport")
     ) {
         self.port = port
         self.logger = logger
         self.authenticator = authenticator
         self.oauthServer = oauthServer
+        self.tlsCertPath = tlsCertPath
+        self.tlsKeyPath = tlsKeyPath
         self.responseManager = HTTPResponseManager(logger: logger)
         self.sseSessionManager = SSESessionManager(logger: logger)
 
@@ -85,27 +96,54 @@ public actor HTTPServerTransport: Transport {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.eventLoopGroup = group
 
+        // Configure TLS if certificate and key paths are provided
+        var sslContext: NIOSSLContext? = nil
+        if let certPath = tlsCertPath, let keyPath = tlsKeyPath {
+            let certificateChain = try NIOSSLCertificate.fromPEMFile(certPath)
+            let privateKey = try NIOSSLPrivateKey(file: keyPath, format: .pem)
+            var tlsConfig = TLSConfiguration.makeServerConfiguration(
+                certificateChain: certificateChain.map { .certificate($0) },
+                privateKey: .privateKey(privateKey)
+            )
+            tlsConfig.minimumTLSVersion = .tlsv12
+            sslContext = try NIOSSLContext(configuration: tlsConfig)
+            logger.info("TLS enabled with cert: \(certPath)")
+        }
+
         // Configure and bind server with SwiftNIO
         do {
             let bootstrap = NIOPosix.ServerBootstrap(group: group)
                 .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .childChannelInitializer { channel in
+                .childChannelInitializer { [sslContext] channel in
                     // Manually configure HTTP pipeline without HTTPServerPipelineHandler
                     // (which would close connections after each response, breaking SSE)
-                    let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .dropBytes))
-                    let encoder = HTTPResponseEncoder()
-                    let handler = MCPServerHandler(transport: self, authenticator: self.authenticator, oauthServer: self.oauthServer, logger: self.logger)
+                    // Use nonisolated(unsafe) since NIO handlers are bound to a single event loop
+                    nonisolated(unsafe) let decoder = ByteToMessageHandler(HTTPRequestDecoder(leftOverBytesStrategy: .dropBytes))
+                    nonisolated(unsafe) let encoder = HTTPResponseEncoder()
+                    nonisolated(unsafe) let handler = MCPServerHandler(transport: self, authenticator: self.authenticator, oauthServer: self.oauthServer, logger: self.logger)
 
-                    return channel.pipeline.addHandler(decoder).flatMap {
-                        channel.pipeline.addHandler(encoder)
-                    }.flatMap {
-                        channel.pipeline.addHandler(handler)
+                    if let sslContext = sslContext {
+                        nonisolated(unsafe) let sslHandler = NIOSSLServerHandler(context: sslContext)
+                        return channel.pipeline.addHandler(sslHandler).flatMap {
+                            channel.pipeline.addHandler(decoder)
+                        }.flatMap {
+                            channel.pipeline.addHandler(encoder)
+                        }.flatMap {
+                            channel.pipeline.addHandler(handler)
+                        }
+                    } else {
+                        return channel.pipeline.addHandler(decoder).flatMap {
+                            channel.pipeline.addHandler(encoder)
+                        }.flatMap {
+                            channel.pipeline.addHandler(handler)
+                        }
                     }
                 }
             let channel: Channel = try await bootstrap.bind(host: "0.0.0.0", port: Int(port)).get()
             self.serverChannel = channel
 
-            logger.info("HTTP server listening on port \(port)")
+            let scheme = sslContext != nil ? "HTTPS" : "HTTP"
+            logger.info("\(scheme) server listening on port \(port)")
         } catch {
             logger.error("Failed to bind to port \(port): \(error)")
             try? await group.shutdownGracefully()

@@ -58,14 +58,34 @@ enum Command {
 /// Transport mode for server
 enum TransportMode {
     case stdio
-    case http(port: Int)
+    case http(port: Int, tlsCert: String?, tlsKey: String?)
 
     static func parse() -> TransportMode {
         let args = CommandLine.arguments
         if let httpIndex = args.firstIndex(of: "--http"),
            httpIndex + 1 < args.count,
            let port = Int(args[httpIndex + 1]) {
-            return .http(port: port)
+
+            // Parse optional TLS cert/key paths
+            var tlsCert: String? = nil
+            var tlsKey: String? = nil
+
+            if let certIndex = args.firstIndex(of: "--tls-cert"),
+               certIndex + 1 < args.count {
+                tlsCert = args[certIndex + 1]
+            }
+            if let keyIndex = args.firstIndex(of: "--tls-key"),
+               keyIndex + 1 < args.count {
+                tlsKey = args[keyIndex + 1]
+            }
+
+            // Validate: both must be provided or neither
+            if (tlsCert != nil) != (tlsKey != nil) {
+                writeStderr("Error: --tls-cert and --tls-key must both be provided\n")
+                exit(1)
+            }
+
+            return .http(port: port, tlsCert: tlsCert, tlsKey: tlsKey)
         }
         return .stdio
     }
@@ -155,6 +175,8 @@ func printHelp() {
 
     SERVER OPTIONS:
       --http <port>           Run HTTP server on specified port
+      --tls-cert <path>       Path to TLS certificate chain (PEM format)
+      --tls-key <path>        Path to TLS private key (PEM format)
       --verbose, -v           Enable verbose debug logging
       (default)               Run stdio server
 
@@ -177,6 +199,9 @@ func printHelp() {
 
       # Start HTTP server on port 8080
       businessmath-mcp-server --http 8080
+
+      # Start HTTPS server with TLS
+      businessmath-mcp-server --http 8080 --tls-cert /path/to/fullchain.pem --tls-key /path/to/privkey.pem
 
       # Start with verbose logging for debugging
       businessmath-mcp-server --http 8080 --verbose
@@ -563,9 +588,13 @@ struct BusinessMathMCPServerMain {
             writeStderr("\n✓ Starting server with stdio transport\n")
             try await server.start(transport: StdioTransport())
 
-        case .http(let port):
-            writeStderr("✓ Starting server with HTTP transport on port \(port)\n")
-            writeStderr("  Server will be available at http://localhost:\(port)\n")
+        case .http(let port, let tlsCert, let tlsKey):
+            let scheme = tlsCert != nil ? "HTTPS" : "HTTP"
+            writeStderr("✓ Starting server with \(scheme) transport on port \(port)\n")
+            writeStderr("  Server will be available at \(scheme.lowercased())://localhost:\(port)\n")
+            if let cert = tlsCert {
+                writeStderr("  TLS Certificate: \(cert)\n")
+            }
             writeStderr("  Endpoints:\n")
             writeStderr("    - GET /mcp/sse  : Server-Sent Events stream\n")
             writeStderr("    - POST /mcp     : JSON-RPC requests\n")
@@ -668,7 +697,9 @@ struct BusinessMathMCPServerMain {
             let httpTransport = HTTPServerTransport(
                 port: UInt16(port),
                 authenticator: authRequired || keyCount > 0 ? authenticator : nil,
-                oauthServer: oauthServer
+                oauthServer: oauthServer,
+                tlsCertPath: tlsCert,
+                tlsKeyPath: tlsKey
             )
             try await server.start(transport: httpTransport)
         }
