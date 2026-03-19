@@ -1478,7 +1478,7 @@ public struct CapTableTool: MCPToolHandler, Sendable {
             ))
         }
 
-        var capTable = CapTable(shareholders: shareholders, optionPool: optionPool)
+        let capTable = CapTable(shareholders: shareholders, optionPool: optionPool)
 
         switch action {
         case "ownership":
