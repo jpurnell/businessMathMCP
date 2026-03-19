@@ -591,6 +591,9 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
                 }
             }
 
+            // Validate parameters before constructing any distribution
+            try validateDistributionParameters(type: distType, params: params)
+
             // Create SimulationInput with appropriate distribution
             let simInput: SimulationInput
             switch distType {
@@ -612,9 +615,6 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
             case "lognormal":
                 guard let mean = params["mean"], let stdDev = params["stdDev"] else {
                     throw ToolError.invalidArguments("LogNormal distribution requires 'mean' and 'stdDev'")
-                }
-                guard mean > 0 else {
-                    throw ToolError.invalidArguments("LogNormal mean must be positive")
                 }
                 // Convert desired lognormal mean/stdDev to underlying normal μ/σ
                 let varianceRatio = (stdDev / mean) * (stdDev / mean)

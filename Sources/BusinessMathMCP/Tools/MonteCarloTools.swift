@@ -28,6 +28,106 @@ public func getMonteCarloTools() -> [any MCPToolHandler] {
 
 // MARK: - Helper Functions
 
+/// Validate distribution parameters before construction.
+/// Catches invalid inputs that would cause crashes (precondition failures)
+/// or nonsensical results (NaN, infinity) in the underlying library.
+///
+/// Called from CreateDistributionTool, RunMonteCarloTool, and AdvancedSimulationTools
+/// to provide clear error messages instead of server crashes.
+public func validateDistributionParameters(type: String, params: [String: Double]) throws {
+    switch type {
+    case "normal":
+        if let stdDev = params["stdDev"], stdDev < 0 {
+            throw ToolError.invalidArguments("Normal stdDev must be >= 0 (got \(stdDev))")
+        }
+    case "uniform":
+        if let min = params["min"], let max = params["max"], min >= max {
+            throw ToolError.invalidArguments("Uniform requires min < max (got min=\(min), max=\(max))")
+        }
+    case "triangular":
+        if let min = params["min"], let max = params["max"] {
+            if min >= max {
+                throw ToolError.invalidArguments("Triangular requires min < max (got min=\(min), max=\(max))")
+            }
+            if let mode = params["mode"] {
+                if mode < min || mode > max {
+                    throw ToolError.invalidArguments("Triangular requires min <= mode <= max (got min=\(min), mode=\(mode), max=\(max))")
+                }
+            }
+        }
+    case "lognormal":
+        if let mean = params["mean"], mean <= 0 {
+            throw ToolError.invalidArguments("LogNormal mean must be > 0 (got \(mean))")
+        }
+        if let stdDev = params["stdDev"], stdDev < 0 {
+            throw ToolError.invalidArguments("LogNormal stdDev must be >= 0 (got \(stdDev))")
+        }
+    case "exponential":
+        if let rate = params["rate"], rate <= 0 {
+            throw ToolError.invalidArguments("Exponential rate must be > 0 (got \(rate))")
+        }
+    case "beta":
+        if let alpha = params["alpha"], alpha <= 0 {
+            throw ToolError.invalidArguments("Beta alpha must be > 0 (got \(alpha))")
+        }
+        if let beta = params["beta"], beta <= 0 {
+            throw ToolError.invalidArguments("Beta beta must be > 0 (got \(beta))")
+        }
+    case "gamma":
+        if let shape = params["shape"], shape < 1 {
+            throw ToolError.invalidArguments("Gamma shape must be >= 1 (got \(shape))")
+        }
+        if let scale = params["scale"], scale <= 0 {
+            throw ToolError.invalidArguments("Gamma scale must be > 0 (got \(scale))")
+        }
+    case "weibull":
+        if let shape = params["shape"], shape <= 0 {
+            throw ToolError.invalidArguments("Weibull shape must be > 0 (got \(shape))")
+        }
+        if let scale = params["scale"], scale <= 0 {
+            throw ToolError.invalidArguments("Weibull scale must be > 0 (got \(scale))")
+        }
+    case "chisquared":
+        if let df = params["degreesOfFreedom"], df < 1 {
+            throw ToolError.invalidArguments("Chi-Squared degreesOfFreedom must be >= 1 (got \(df))")
+        }
+    case "f":
+        if let df1 = params["df1"], df1 < 1 {
+            throw ToolError.invalidArguments("F distribution df1 must be >= 1 (got \(df1))")
+        }
+        if let df2 = params["df2"], df2 < 1 {
+            throw ToolError.invalidArguments("F distribution df2 must be >= 1 (got \(df2))")
+        }
+    case "t":
+        if let df = params["degreesOfFreedom"], df < 1 {
+            throw ToolError.invalidArguments("T distribution degreesOfFreedom must be >= 1 (got \(df))")
+        }
+    case "pareto":
+        if let scale = params["scale"], scale <= 0 {
+            throw ToolError.invalidArguments("Pareto scale must be > 0 (got \(scale))")
+        }
+        if let shape = params["shape"], shape <= 0 {
+            throw ToolError.invalidArguments("Pareto shape must be > 0 (got \(shape))")
+        }
+    case "logistic":
+        if let stdDev = params["stdDev"], stdDev <= 0 {
+            throw ToolError.invalidArguments("Logistic stdDev must be > 0 (got \(stdDev))")
+        }
+    case "geometric":
+        if let p = params["p"] {
+            if p <= 0 || p > 1 {
+                throw ToolError.invalidArguments("Geometric p must be in (0, 1] (got \(p))")
+            }
+        }
+    case "rayleigh":
+        if let mean = params["mean"], mean <= 0 {
+            throw ToolError.invalidArguments("Rayleigh mean must be > 0 (got \(mean))")
+        }
+    default:
+        break // Unknown types handled elsewhere
+    }
+}
+
 /// Format a number with specified decimal places
 private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
     return value.formatDecimal(decimals: decimals)
@@ -124,6 +224,14 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
 
         var samples: [Double] = []
         var distInfo: String = ""
+
+        // Build params dict and validate before constructing any distribution
+        var validationParams: [String: Double] = [:]
+        for (key, value) in parametersDict {
+            if let d = value.value as? Double { validationParams[key] = d }
+            else if let i = value.value as? Int { validationParams[key] = Double(i) }
+        }
+        try validateDistributionParameters(type: type, params: validationParams)
 
         switch type {
         case "normal":
@@ -492,6 +600,9 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                     throw ToolError.invalidArguments("Parameter '\(key)' must be a number")
                 }
             }
+
+            // Validate parameters before constructing any distribution
+            try validateDistributionParameters(type: distType, params: params)
 
             // Create SimulationInput directly based on distribution type
             let simInput: SimulationInput
