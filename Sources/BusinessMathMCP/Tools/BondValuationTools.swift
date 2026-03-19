@@ -1016,7 +1016,7 @@ public struct NelsonSiegelTool: MCPToolHandler, Sendable {
         let params = curve.parameters
 
         // Build fitted yields table
-        var fittedTable = maturities.enumerated().map { i, mat in
+        let fittedTable = maturities.enumerated().map { i, mat in
             let fitted = curve.yield(maturity: mat)
             let error = (fitted - yields[i]) * 10000 // in bps
             return "  \(mat.formatDecimal(decimals: 2))Y: Observed \((yields[i] * 100).formatDecimal(decimals: 3))%  Fitted \((fitted * 100).formatDecimal(decimals: 3))%  Error \(error.formatDecimal(decimals: 1)) bps"

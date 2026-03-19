@@ -20,9 +20,7 @@ extension MCPToolCallResult {
         switch firstContent {
         case .text(let string):
             return string
-        case .image, .resource, .audio:
-            return ""
-        @unknown default:
+        default:
             return ""
         }
     }

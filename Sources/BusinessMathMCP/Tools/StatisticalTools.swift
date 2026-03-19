@@ -658,7 +658,7 @@ public struct CalculateCovarianceTool: MCPToolHandler, Sendable {
         }
 
         let population: Population = populationType == "population" ? .population : .sample
-        let cov = try covariance(x, y, population)
+        let cov = covariance(x, y, population)
 
         // Calculate correlation for context
         let corr = try correlationCoefficient(x, y, population)

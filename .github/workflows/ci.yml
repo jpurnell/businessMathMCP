@@ -73,11 +73,11 @@ jobs:
         run: |
           swift build -c release --product businessmath-mcp-server
 
-          # Start server in background
-          .build/release/businessmath-mcp-server &
+          # Start server in background with HTTP transport (stdio exits when stdin closes)
+          MCP_AUTH_REQUIRED=false .build/release/businessmath-mcp-server --http 8080 &
           SERVER_PID=$!
 
-          # Give it time to start (or crash)
+          # Give it time to start
           sleep 3
 
           # Check if process is still running

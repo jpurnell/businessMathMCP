@@ -199,7 +199,7 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
 
         // Extract metrics
         let totalRevenue = incomeStatement.totalRevenue.valuesArray[0]
-        let totalExpenses = incomeStatement.totalExpenses.valuesArray[0]
+        let _ = incomeStatement.totalExpenses.valuesArray[0]
         let netIncome = incomeStatement.netIncome.valuesArray[0]
         let grossProfit = incomeStatement.grossProfit.valuesArray[0]
         let operatingIncome = incomeStatement.operatingIncome.valuesArray[0]
