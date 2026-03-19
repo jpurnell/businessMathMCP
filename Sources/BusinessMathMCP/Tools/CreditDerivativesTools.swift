@@ -18,7 +18,8 @@ public func getCreditDerivativesTools() -> [any MCPToolHandler] {
         CDSPricingTool(),
         MertonModelTool(),
         HazardRateAnalysisTool(),
-        BootstrapCreditCurveTool()
+        BootstrapCreditCurveTool(),
+        RecoveryMetricsTool()
     ]
 }
 
@@ -524,6 +525,163 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
         • \(Int(tenors.max() ?? 5))Y cumulative default probability: \((curve.defaultProbability(time: tenors.max() ?? 5)).percent())
         • Average hazard rate: \((curve.hazardRates.valuesArray.reduce(0, +) / Double(curve.hazardRates.valuesArray.count)).percent())
         • Spread range: \(formatNumber((spreads.min() ?? 0) * 10000)) - \(formatNumber((spreads.max() ?? 0) * 10000)) bps
+        """
+
+        return .success(text: result)
+    }
+}
+
+// MARK: - Recovery Metrics Tool
+
+public struct RecoveryMetricsTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "calculate_recovery_metrics",
+        description: """
+        Calculate credit loss and recovery metrics for debt positions.
+
+        Computes Loss Given Default (LGD), Expected Loss (EL), and optionally
+        implied recovery rate from market spreads. Completes the credit risk
+        toolkit alongside CDS pricing and Merton default model.
+
+        Key Formulas:
+        • LGD = 1 - Recovery Rate
+        • Expected Loss = PD × LGD × Exposure
+        • Implied Recovery = 1 - (Spread × T) / PD (simplified)
+
+        Standard Recovery Rates by Seniority:
+        • Senior Secured: 70%
+        • Senior Unsecured: 50%
+        • Subordinated: 30%
+        • Junior: 10%
+
+        Use Cases:
+        • Loan loss provisioning (CECL/IFRS 9)
+        • Credit risk pricing
+        • Portfolio credit risk assessment
+        • Regulatory capital calculations
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "defaultProbability": MCPSchemaProperty(
+                    type: "number",
+                    description: "Probability of default (0-1, e.g., 0.02 for 2%)"
+                ),
+                "exposure": MCPSchemaProperty(
+                    type: "number",
+                    description: "Exposure at default (dollar amount)"
+                ),
+                "recoveryRate": MCPSchemaProperty(
+                    type: "number",
+                    description: "Recovery rate (0-1). If omitted, uses standard rate for seniority."
+                ),
+                "seniority": MCPSchemaProperty(
+                    type: "string",
+                    description: "Debt seniority: seniorSecured, seniorUnsecured, subordinated, junior",
+                    enum: ["seniorSecured", "seniorUnsecured", "subordinated", "junior"]
+                ),
+                "marketSpread": MCPSchemaProperty(
+                    type: "number",
+                    description: "If provided, computes implied recovery rate from market spread (as decimal)"
+                ),
+                "maturity": MCPSchemaProperty(
+                    type: "number",
+                    description: "Maturity in years (required if marketSpread is provided)"
+                )
+            ],
+            required: ["defaultProbability", "exposure"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let pd = try args.getDouble("defaultProbability")
+        let exposure = try args.getDouble("exposure")
+        let seniorityStr = args.getStringOptional("seniority")
+        let marketSpread = args.getDoubleOptional("marketSpread")
+        let maturity = args.getDoubleOptional("maturity")
+
+        guard pd >= 0 && pd <= 1 else {
+            throw ToolError.invalidArguments("defaultProbability must be between 0 and 1")
+        }
+
+        let recoveryModel = RecoveryModel<Double>()
+
+        // Determine recovery rate
+        let seniority: Seniority?
+        switch seniorityStr {
+        case "seniorSecured": seniority = .seniorSecured
+        case "seniorUnsecured": seniority = .seniorUnsecured
+        case "subordinated": seniority = .subordinated
+        case "junior": seniority = .junior
+        default: seniority = nil
+        }
+
+        let recoveryRate: Double
+        if let rr = args.getDoubleOptional("recoveryRate") {
+            recoveryRate = rr
+        } else if let sen = seniority {
+            recoveryRate = RecoveryModel<Double>.standardRecoveryRate(seniority: sen)
+        } else {
+            recoveryRate = 0.50 // Default to senior unsecured
+        }
+
+        let lgd = recoveryModel.lossGivenDefault(recoveryRate: recoveryRate)
+        let expectedLoss = recoveryModel.expectedLoss(
+            defaultProbability: pd, recoveryRate: recoveryRate, exposure: exposure
+        )
+
+        var result = """
+        Recovery Metrics Analysis
+        =========================
+
+        Inputs:
+          Default Probability (PD): \(pd.percent())
+          Exposure at Default (EAD): \(exposure.currency())
+          Recovery Rate: \(recoveryRate.percent())\(seniority != nil ? " (\(seniorityStr ?? ""))" : "")
+
+        Key Metrics:
+          Loss Given Default (LGD): \(lgd.percent())
+          Expected Loss (EL): \(expectedLoss.currency())
+          EL as % of Exposure: \((expectedLoss / exposure).percent())
+
+        Formula: EL = PD × LGD × EAD = \(pd.percent()) × \(lgd.percent()) × \(exposure.currency()) = \(expectedLoss.currency())
+
+        Standard Recovery Rates:
+          Senior Secured:   \(RecoveryModel<Double>.standardRecoveryRate(seniority: .seniorSecured).percent())
+          Senior Unsecured: \(RecoveryModel<Double>.standardRecoveryRate(seniority: .seniorUnsecured).percent())
+          Subordinated:     \(RecoveryModel<Double>.standardRecoveryRate(seniority: .subordinated).percent())
+          Junior:           \(RecoveryModel<Double>.standardRecoveryRate(seniority: .junior).percent())
+        """
+
+        // Add implied recovery if market spread provided
+        if let spread = marketSpread, let mat = maturity {
+            let impliedRecovery = recoveryModel.impliedRecoveryRate(
+                spread: spread, defaultProbability: pd, maturity: mat
+            )
+            result += """
+
+
+        Implied Recovery from Market Spread:
+          Market Spread: \((spread * 10000).formatDecimal(decimals: 0)) bps
+          Maturity: \(mat.formatDecimal(decimals: 1)) years
+          Implied Recovery Rate: \(impliedRecovery.percent())
+          Implied LGD: \((1 - impliedRecovery).percent())
+          vs. Assumed Recovery: \(recoveryRate.percent()) (\(impliedRecovery > recoveryRate ? "market implies higher recovery" : "market implies lower recovery"))
+        """
+        }
+
+        result += """
+
+
+        Interpretation:
+        • Expected loss of \(expectedLoss.currency()) should be provisioned
+        • \(lgd > 0.5 ? "High" : "Moderate") loss severity given default
+        • \(pd > 0.05 ? "Elevated" : pd > 0.01 ? "Moderate" : "Low") default risk
         """
 
         return .success(text: result)

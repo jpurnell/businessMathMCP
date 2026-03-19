@@ -19,7 +19,8 @@ public func getEquityValuationTools() -> [any MCPToolHandler] {
         GordonGrowthModelTool(),
         TwoStageDDMTool(),
         EnterpriseValueBridgeTool(),
-        ResidualIncomeModelTool()
+        ResidualIncomeModelTool(),
+        HModelTool()
     ]
 }
 
@@ -626,6 +627,132 @@ public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
         • Positive RI means returns exceed cost of capital
         • Model values excess returns above normal return
         • Best for asset-heavy or financial companies
+        """
+
+        return .success(text: result)
+    }
+}
+
+// MARK: - H-Model (Fuller-Hsia) Tool
+
+public struct HModelTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "value_equity_h_model",
+        description: """
+        Value equity using the H-Model (Fuller-Hsia) dividend discount model.
+
+        Models a linearly declining growth rate from an initial high rate to a
+        terminal stable rate over 2H years. More realistic than Two-Stage DDM's
+        abrupt transition.
+
+        Formula: V = D₀(1+gₗ)/(r-gₗ) + D₀×H×(gₛ-gₗ)/(r-gₗ)
+
+        Where:
+        • D₀ = current dividend
+        • gₛ = initial short-term high growth rate
+        • gₗ = terminal long-term growth rate
+        • H = half-life (years until growth is halfway to terminal)
+        • r = required rate of return
+
+        When gₛ = gₗ, collapses to Gordon Growth Model.
+
+        Use Cases:
+        • Companies gradually transitioning from high to stable growth
+        • More realistic than abrupt two-stage transition
+        • Maturing growth companies
+
+        Example: D₀=$2, gₛ=15%, gₗ=4%, H=5, r=10% → V=$53.00/share
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "currentDividend": MCPSchemaProperty(
+                    type: "number",
+                    description: "Current annual dividend per share (D₀)"
+                ),
+                "initialGrowthRate": MCPSchemaProperty(
+                    type: "number",
+                    description: "Short-term high growth rate (as decimal, e.g., 0.15 for 15%)"
+                ),
+                "terminalGrowthRate": MCPSchemaProperty(
+                    type: "number",
+                    description: "Long-term stable growth rate (as decimal, must be < requiredReturn)"
+                ),
+                "halfLife": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Years until growth rate is halfway to terminal (full transition = 2H years)"
+                ),
+                "requiredReturn": MCPSchemaProperty(
+                    type: "number",
+                    description: "Required rate of return / cost of equity (as decimal)"
+                )
+            ],
+            required: ["currentDividend", "initialGrowthRate", "terminalGrowthRate",
+                       "halfLife", "requiredReturn"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let currentDividend = try args.getDouble("currentDividend")
+        let initialGrowthRate = try args.getDouble("initialGrowthRate")
+        let terminalGrowthRate = try args.getDouble("terminalGrowthRate")
+        let halfLife = try args.getInt("halfLife")
+        let requiredReturn = try args.getDouble("requiredReturn")
+
+        guard currentDividend >= 0 else {
+            throw ToolError.invalidArguments("currentDividend must be non-negative")
+        }
+
+        guard requiredReturn > terminalGrowthRate else {
+            throw ToolError.invalidArguments(
+                "requiredReturn (\(requiredReturn.percent())) must exceed terminalGrowthRate (\(terminalGrowthRate.percent()))"
+            )
+        }
+
+        let model = HModel(
+            currentDividend: currentDividend,
+            initialGrowthRate: initialGrowthRate,
+            terminalGrowthRate: terminalGrowthRate,
+            halfLife: halfLife,
+            requiredReturn: requiredReturn
+        )
+
+        let value = try model.valuePerShare()
+
+        // Decompose into components for output
+        let denominator = requiredReturn - terminalGrowthRate
+        let terminalComponent = (currentDividend * (1 + terminalGrowthRate)) / denominator
+        let growthPremium = (currentDividend * Double(halfLife) * (initialGrowthRate - terminalGrowthRate)) / denominator
+
+        let result = """
+        H-Model (Fuller-Hsia) Valuation
+        ================================
+
+        Inputs:
+          Current Dividend (D₀): \(currentDividend.currency())
+          Initial Growth Rate (gₛ): \(initialGrowthRate.percent())
+          Terminal Growth Rate (gₗ): \(terminalGrowthRate.percent())
+          Half-Life (H): \(halfLife) years (full transition: \(halfLife * 2) years)
+          Required Return (r): \(requiredReturn.percent())
+
+        Valuation:
+          Terminal Component: D₀(1+gₗ)/(r-gₗ) = \(terminalComponent.currency())
+          Growth Premium: D₀×H×(gₛ-gₗ)/(r-gₗ) = \(growthPremium.currency())
+                                                  ─────────────
+          Intrinsic Value: \(value.currency())/share
+
+        Formula: V = \(currentDividend.currency())×(1+\(terminalGrowthRate.percent()))/(\(requiredReturn.percent())-\(terminalGrowthRate.percent())) + \(currentDividend.currency())×\(halfLife)×(\(initialGrowthRate.percent())-\(terminalGrowthRate.percent()))/(\(requiredReturn.percent())-\(terminalGrowthRate.percent()))
+
+        Interpretation:
+        • Growth declines linearly from \(initialGrowthRate.percent()) to \(terminalGrowthRate.percent()) over \(halfLife * 2) years
+        • Terminal component (\(formatNumber(terminalComponent / value * 100))% of value) reflects stable-phase dividends
+        • Growth premium (\(formatNumber(growthPremium / value * 100))% of value) captures above-normal growth
+        • Compare to market price to assess value
         """
 
         return .success(text: result)

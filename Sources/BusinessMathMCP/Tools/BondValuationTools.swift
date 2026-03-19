@@ -21,7 +21,8 @@ public func getBondValuationTools() -> [any MCPToolHandler] {
         CreditSpreadAnalysisTool(),
         CallableBondPriceTool(),
         OptionAdjustedSpreadTool(),
-        ExpectedLossTool()
+        ExpectedLossTool(),
+        NelsonSiegelTool()
     ]
 }
 
@@ -909,6 +910,176 @@ public struct ExpectedLossTool: MCPToolHandler, Sendable {
         • Actual loss is binary: either 0 or LGD × Exposure
         • Use for loan loss reserves and credit risk capital
         • Higher seniority → Lower loss given default
+        """
+
+        return .success(text: result)
+    }
+}
+
+// MARK: - Nelson-Siegel Yield Curve Tool
+
+public struct NelsonSiegelTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "fit_nelson_siegel",
+        description: """
+        Fit a Nelson-Siegel yield curve to observed market data.
+
+        The Nelson-Siegel model is the standard parametric yield curve model used
+        by central banks and fixed income desks. It fits a smooth curve through
+        observed yields and allows interpolation at any maturity.
+
+        Parameters:
+        • β₀: Long-term rate (level)
+        • β₁: Short-term component (slope)
+        • β₂: Medium-term component (curvature)
+        • λ: Decay parameter (controls curvature location)
+
+        Use Cases:
+        • Yield curve construction from sparse data
+        • Interpolation between observed maturities
+        • Forward rate calculation
+        • Relative value analysis
+        • Risk management (key rate durations)
+
+        Example: Fit to Treasury yields at 3M, 6M, 1Y, 2Y, 5Y, 10Y, 30Y
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "maturities": MCPSchemaProperty(
+                    type: "array",
+                    description: "Observed maturities in years [0.25, 0.5, 1, 2, 5, 10, 30]",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "yields": MCPSchemaProperty(
+                    type: "array",
+                    description: "Observed yields as decimals [0.045, 0.046, ...] matching maturities",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "interpolateAt": MCPSchemaProperty(
+                    type: "array",
+                    description: "Additional maturities to interpolate yields at",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "lambda": MCPSchemaProperty(
+                    type: "number",
+                    description: "Decay parameter (default 2.5)"
+                ),
+                "includeForwardRates": MCPSchemaProperty(
+                    type: "boolean",
+                    description: "If true, also compute instantaneous forward rates (default false)"
+                )
+            ],
+            required: ["maturities", "yields"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let maturities = try args.getDoubleArray("maturities")
+        let yields = try args.getDoubleArray("yields")
+        let interpolateAt = (try? args.getDoubleArray("interpolateAt")) ?? []
+        let lambda = args.getDoubleOptional("lambda") ?? 2.5
+        let includeForwardRates = args.getBoolOptional("includeForwardRates") ?? false
+
+        guard maturities.count == yields.count else {
+            throw ToolError.invalidArguments(
+                "maturities (\(maturities.count)) and yields (\(yields.count)) must have same length"
+            )
+        }
+
+        guard maturities.count >= 3 else {
+            throw ToolError.invalidArguments("Need at least 3 maturity/yield points to fit curve")
+        }
+
+        // Build BondMarketData from raw maturities/yields (par bond assumption)
+        let bondData = zip(maturities, yields).map { maturity, yieldVal in
+            BondMarketData(
+                maturity: maturity,
+                couponRate: yieldVal,
+                faceValue: 100.0,
+                marketPrice: 100.0,
+                frequency: 2
+            )
+        }
+
+        // Calibrate
+        let curve = try NelsonSiegelYieldCurve.calibrate(
+            to: bondData,
+            fixedLambda: lambda
+        )
+        let params = curve.parameters
+
+        // Build fitted yields table
+        var fittedTable = maturities.enumerated().map { i, mat in
+            let fitted = curve.yield(maturity: mat)
+            let error = (fitted - yields[i]) * 10000 // in bps
+            return "  \(mat.formatDecimal(decimals: 2))Y: Observed \((yields[i] * 100).formatDecimal(decimals: 3))%  Fitted \((fitted * 100).formatDecimal(decimals: 3))%  Error \(error.formatDecimal(decimals: 1)) bps"
+        }.joined(separator: "\n")
+
+        // Interpolation
+        var interpolationSection = ""
+        if !interpolateAt.isEmpty {
+            let interpResults = interpolateAt.map { mat in
+                let y = curve.yield(maturity: mat)
+                return "  \(mat.formatDecimal(decimals: 2))Y: \((y * 100).formatDecimal(decimals: 3))%"
+            }.joined(separator: "\n")
+            interpolationSection = """
+
+        Interpolated Yields:
+        \(interpResults)
+        """
+        }
+
+        // Forward rates
+        var forwardSection = ""
+        if includeForwardRates {
+            let allMats = (maturities + interpolateAt).sorted()
+            let forwardResults = allMats.map { mat in
+                let fwd = curve.forwardRate(maturity: mat)
+                return "  \(mat.formatDecimal(decimals: 2))Y: \((fwd * 100).formatDecimal(decimals: 3))%"
+            }.joined(separator: "\n")
+            forwardSection = """
+
+        Forward Rates (instantaneous):
+        \(forwardResults)
+        """
+        }
+
+        // Calculate SSE
+        let sse = zip(maturities, yields).reduce(0.0) { sum, pair in
+            let fitted = curve.yield(maturity: pair.0)
+            let diff = fitted - pair.1
+            return sum + diff * diff
+        }
+
+        let result = """
+        Nelson-Siegel Yield Curve Fit
+        =============================
+
+        Fitted Parameters:
+          Beta0 (β₀, level): \(params.beta0.formatDecimal(decimals: 6))
+          Beta1 (β₁, slope): \(params.beta1.formatDecimal(decimals: 6))
+          Beta2 (β₂, curvature): \(params.beta2.formatDecimal(decimals: 6))
+          Lambda (λ, decay): \(params.lambda.formatDecimal(decimals: 4))
+
+        Goodness of Fit:
+          Sum of Squared Errors: \(sse.formatDecimal(decimals: 8))
+          RMSE: \(sqrt(sse / Double(maturities.count)).formatDecimal(decimals: 6))
+
+        Fitted vs Observed:
+        \(fittedTable)
+        \(interpolationSection)\(forwardSection)
+
+        Interpretation:
+        • β₀ = \(params.beta0.formatDecimal(decimals: 4)): Long-term yield level (\((params.beta0 * 100).formatDecimal(decimals: 2))%)
+        • β₁ = \(params.beta1.formatDecimal(decimals: 4)): Slope (\(params.beta1 < 0 ? "normal/upward" : "inverted") curve)
+        • β₂ = \(params.beta2.formatDecimal(decimals: 4)): Curvature (\(params.beta2 > 0 ? "hump" : "trough") shape)
+        • Short rate ≈ β₀ + β₁ = \(((params.beta0 + params.beta1) * 100).formatDecimal(decimals: 2))%
         """
 
         return .success(text: result)

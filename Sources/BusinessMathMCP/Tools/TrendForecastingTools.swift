@@ -18,7 +18,9 @@ public func getTrendForecastingTools() -> [any MCPToolHandler] {
         LinearTrendForecastTool(),
         ExponentialTrendForecastTool(),
         LogisticTrendForecastTool(),
-        TimeSeriesDecomposeTool()
+        TimeSeriesDecomposeTool(),
+        HoltWintersForecastTool(),
+        DetectAnomaliesTool()
     ]
 }
 
@@ -515,6 +517,297 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
         • Seasonally adjust data (remove seasonal component)
         • Improve forecasts by adding seasonality back
         • Understand recurring patterns
+        """
+
+        return .success(text: output)
+    }
+}
+
+// MARK: - Holt-Winters Forecast
+
+public struct HoltWintersForecastTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "holt_winters_forecast",
+        description: """
+        Forecast future values using Holt-Winters triple exponential smoothing.
+
+        Captures level, trend, AND seasonality — the standard production forecasting
+        method for time series with recurring patterns.
+
+        Three smoothing parameters:
+        • α (alpha): Level smoothing (0-1)
+        • β (beta): Trend smoothing (0-1)
+        • γ (gamma): Seasonal smoothing (0-1)
+
+        Use Cases:
+        • Quarterly/monthly revenue forecasting with seasonal patterns
+        • Demand planning with cyclical variation
+        • Inventory forecasting
+        • Any time series with trend + seasonality
+
+        Example - Quarterly Sales:
+        Historical: [110, 120, 95, 90, 115, 125, 100, 95, 120, 130, 105, 100]
+        seasonalPeriods: 4
+        Forecast: Next 4 quarters with seasonal pattern preserved
+
+        Requires at least 2 full seasonal cycles of data (2 × seasonalPeriods).
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "values": MCPSchemaProperty(
+                    type: "array",
+                    description: "Historical time series values (at least 2 × seasonalPeriods required)",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "seasonalPeriods": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Length of one seasonal cycle (e.g., 4 for quarterly, 12 for monthly)"
+                ),
+                "forecastPeriods": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Number of periods to forecast"
+                ),
+                "alpha": MCPSchemaProperty(
+                    type: "number",
+                    description: "Level smoothing parameter (0-1, default 0.2)"
+                ),
+                "beta": MCPSchemaProperty(
+                    type: "number",
+                    description: "Trend smoothing parameter (0-1, default 0.1)"
+                ),
+                "gamma": MCPSchemaProperty(
+                    type: "number",
+                    description: "Seasonal smoothing parameter (0-1, default 0.1)"
+                ),
+                "confidenceLevel": MCPSchemaProperty(
+                    type: "number",
+                    description: "If provided, includes confidence intervals (e.g., 0.95 for 95%)"
+                )
+            ],
+            required: ["values", "seasonalPeriods", "forecastPeriods"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let values = try args.getDoubleArray("values")
+        let seasonalPeriods = try args.getInt("seasonalPeriods")
+        let forecastPeriods = try args.getInt("forecastPeriods")
+        let alpha = args.getDoubleOptional("alpha") ?? 0.2
+        let beta = args.getDoubleOptional("beta") ?? 0.1
+        let gamma = args.getDoubleOptional("gamma") ?? 0.1
+        let confidenceLevel = args.getDoubleOptional("confidenceLevel")
+
+        guard seasonalPeriods >= 2 else {
+            throw ToolError.invalidArguments("seasonalPeriods must be at least 2")
+        }
+
+        guard forecastPeriods > 0 else {
+            throw ToolError.invalidArguments("forecastPeriods must be positive")
+        }
+
+        guard alpha >= 0 && alpha <= 1 && beta >= 0 && beta <= 1 && gamma >= 0 && gamma <= 1 else {
+            throw ToolError.invalidArguments("Smoothing parameters (alpha, beta, gamma) must be between 0 and 1")
+        }
+
+        let requiredValues = seasonalPeriods * 2
+        guard values.count >= requiredValues else {
+            throw ToolError.invalidArguments(
+                "Need at least \(requiredValues) values (2 × seasonalPeriods=\(seasonalPeriods)), got \(values.count)"
+            )
+        }
+
+        // Train the model
+        var model = HoltWintersModel<Double>(
+            alpha: alpha, beta: beta, gamma: gamma, seasonalPeriods: seasonalPeriods
+        )
+        try model.train(values: values)
+        let forecastValues = model.predictValues(periods: forecastPeriods)
+
+        var output = """
+        Holt-Winters Forecast (Triple Exponential Smoothing)
+
+        Parameters:
+        • Alpha (level): \(formatNumber(alpha))
+        • Beta (trend): \(formatNumber(beta))
+        • Gamma (seasonal): \(formatNumber(gamma))
+        • Seasonal periods: \(seasonalPeriods)
+        • Historical data points: \(values.count)
+
+        Forecast (\(forecastPeriods) periods):
+        \(forecastValues.enumerated().map { i, val in
+            "  Period \(values.count + i + 1): \(formatNumber(val))"
+        }.joined(separator: "\n"))
+        """
+
+        // Add confidence intervals if requested
+        if let cl = confidenceLevel, cl > 0 && cl < 1 {
+            // Build a TimeSeries for the confidence interval method
+            let periods = (0..<values.count).map { Period.year($0) }
+            let ts = TimeSeries(periods: periods, values: values)
+
+            var ciModel = HoltWintersModel<Double>(
+                alpha: alpha, beta: beta, gamma: gamma, seasonalPeriods: seasonalPeriods
+            )
+            try ciModel.train(on: ts)
+            let ciResult = try ciModel.predictWithConfidence(
+                periods: forecastPeriods, confidenceLevel: cl
+            )
+
+            let lowerValues = ciResult.lowerBound.valuesArray
+            let upperValues = ciResult.upperBound.valuesArray
+
+            output += """
+
+
+        Confidence Intervals (\(formatNumber(cl * 100))%):
+        \(forecastValues.enumerated().map { i, val in
+            let lower = i < lowerValues.count ? formatNumber(lowerValues[i]) : "N/A"
+            let upper = i < upperValues.count ? formatNumber(upperValues[i]) : "N/A"
+            return "  Period \(values.count + i + 1): \(formatNumber(val))  [Lower: \(lower), Upper: \(upper)]"
+        }.joined(separator: "\n"))
+        """
+        }
+
+        output += """
+
+
+        Interpretation:
+        • Holt-Winters captures level, trend, and seasonal components
+        • \(forecastValues.count >= 2 && forecastValues.last.map({ $0 > forecastValues[0] }) == true ? "Upward trend detected" : "Stable or downward trend")
+        • Seasonal pattern from \(seasonalPeriods)-period cycle preserved in forecast
+
+        Best used for: Data with both trend and seasonal patterns (quarterly sales, monthly traffic).
+        """
+
+        return .success(text: output)
+    }
+}
+
+// MARK: - Anomaly Detection
+
+public struct DetectAnomaliesTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "detect_anomalies",
+        description: """
+        Detect anomalies in time series data using rolling z-score method.
+
+        Identifies values that deviate significantly from the local mean within a
+        rolling window. Flags anomalies with severity levels based on z-score magnitude.
+
+        Severity Levels:
+        • Mild: 2-3 standard deviations from mean
+        • Moderate: 3-4 standard deviations
+        • Severe: >4 standard deviations
+
+        Use Cases:
+        • Revenue/expense spike detection
+        • Fraud detection in transaction data
+        • Quality control monitoring
+        • Server metrics alerting
+
+        Example:
+        values: [100, 102, 98, 101, 150, 99, 103, 97, 200, 101]
+        windowSize: 5, threshold: 2.0
+        → Anomalies at indices 4 (150) and 8 (200)
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "values": MCPSchemaProperty(
+                    type: "array",
+                    description: "Time series values to analyze",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "windowSize": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Rolling window size for z-score calculation"
+                ),
+                "threshold": MCPSchemaProperty(
+                    type: "number",
+                    description: "Z-score threshold for flagging anomalies (default 2.0)"
+                )
+            ],
+            required: ["values", "windowSize"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let values = try args.getDoubleArray("values")
+        let windowSize = try args.getInt("windowSize")
+        let threshold = args.getDoubleOptional("threshold") ?? 2.0
+
+        guard values.count > 0 else {
+            throw ToolError.invalidArguments("values array must not be empty")
+        }
+
+        guard windowSize >= 2 else {
+            throw ToolError.invalidArguments("windowSize must be at least 2")
+        }
+
+        // Build a TimeSeries with simple period labels
+        let periods = (0..<values.count).map { Period.year(2000 + $0) }
+        let ts = TimeSeries(periods: periods, values: values)
+
+        // Run anomaly detection
+        let detector = ZScoreAnomalyDetector<Double>(windowSize: windowSize)
+        let anomalies = detector.detect(in: ts, threshold: threshold)
+
+        if anomalies.isEmpty {
+            let output = """
+            Anomaly Detection Results
+
+            Parameters:
+            • Window size: \(windowSize)
+            • Threshold: \(formatNumber(threshold)) standard deviations
+            • Data points: \(values.count)
+
+            No anomalies detected. All values are within \(formatNumber(threshold)) standard
+            deviations of the rolling mean.
+
+            0 anomalies found in \(values.count) data points.
+            """
+            return .success(text: output)
+        }
+
+        let output = """
+        Anomaly Detection Results
+
+        Parameters:
+        • Window size: \(windowSize)
+        • Threshold: \(formatNumber(threshold)) standard deviations
+        • Data points: \(values.count)
+
+        Detected \(anomalies.count) anomal\(anomalies.count == 1 ? "y" : "ies"):
+        \(anomalies.enumerated().map { i, anomaly in
+            let idx = periods.firstIndex(of: anomaly.period).map { String($0) } ?? "?"
+            return """
+              \(i + 1). Index \(idx): Value = \(formatNumber(Double(anomaly.value)))
+                 Expected: \(formatNumber(Double(anomaly.expectedValue)))
+                 Z-Score: \(formatNumber(Double(anomaly.deviationScore)))
+                 Severity: \(anomaly.severity.rawValue.capitalized)
+            """
+        }.joined(separator: "\n"))
+
+        Summary:
+        • \(anomalies.filter { $0.severity == .severe }.count) severe anomalies
+        • \(anomalies.filter { $0.severity == .moderate }.count) moderate anomalies
+        • \(anomalies.filter { $0.severity == .mild }.count) mild anomalies
+
+        Interpretation:
+        • Severe: >4σ — likely data error or extreme event
+        • Moderate: 3-4σ — unusual, warrants investigation
+        • Mild: \(formatNumber(threshold))-3σ — notable but within broader range
         """
 
         return .success(text: output)

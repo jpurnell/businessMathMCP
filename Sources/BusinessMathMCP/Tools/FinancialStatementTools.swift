@@ -18,7 +18,10 @@ public func getFinancialStatementTools() -> [any MCPToolHandler] {
         CreateIncomeStatementTool(),
         CreateBalanceSheetTool(),
         CreateCashFlowStatementTool(),
-        ValidateFinancialStatementsTool()
+        ValidateFinancialStatementsTool(),
+        LeaseVsBuyTool(),
+        RatioSummaryTool(),
+        CapTableTool()
     ]
 }
 
@@ -1077,5 +1080,547 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
         """
 
         return .success(text: output)
+    }
+}
+
+// MARK: - Lease vs Buy Analysis Tool
+
+public struct LeaseVsBuyTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "analyze_lease_vs_buy",
+        description: """
+        Compare leasing vs purchasing an asset using NPV analysis.
+
+        Calculates the present value of both lease and purchase options and
+        determines the Net Advantage to Leasing (NAL).
+
+        Lease PV: PV of all lease payments
+        Buy PV: Purchase price + PV of maintenance - PV of salvage value
+        NAL: Buy PV - Lease PV (positive = leasing is better)
+
+        Use Cases:
+        - Equipment financing decisions
+        - Real estate lease-vs-buy
+        - Vehicle fleet management
+        - Capital budgeting
+
+        Example: $5,000/mo lease vs $150,000 purchase with $30,000 salvage
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "leasePayment": MCPSchemaProperty(
+                    type: "number",
+                    description: "Periodic lease payment amount"
+                ),
+                "leasePeriods": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Number of lease payment periods"
+                ),
+                "purchasePrice": MCPSchemaProperty(
+                    type: "number",
+                    description: "Asset purchase price"
+                ),
+                "salvageValue": MCPSchemaProperty(
+                    type: "number",
+                    description: "Expected salvage/residual value at end of holding period"
+                ),
+                "holdingPeriod": MCPSchemaProperty(
+                    type: "integer",
+                    description: "Number of periods if purchasing (same period unit as lease)"
+                ),
+                "discountRate": MCPSchemaProperty(
+                    type: "number",
+                    description: "Annual discount rate for NPV calculation (as decimal)"
+                ),
+                "maintenanceCost": MCPSchemaProperty(
+                    type: "number",
+                    description: "Periodic maintenance cost if buying (default 0)"
+                )
+            ],
+            required: ["leasePayment", "leasePeriods", "purchasePrice",
+                       "salvageValue", "holdingPeriod", "discountRate"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let leasePayment = try args.getDouble("leasePayment")
+        let leasePeriods = try args.getInt("leasePeriods")
+        let purchasePrice = try args.getDouble("purchasePrice")
+        let salvageValue = try args.getDouble("salvageValue")
+        let holdingPeriod = try args.getInt("holdingPeriod")
+        let annualRate = try args.getDouble("discountRate")
+        let maintenanceCost = args.getDoubleOptional("maintenanceCost") ?? 0.0
+
+        guard annualRate > 0 else {
+            throw ToolError.invalidArguments("discountRate must be positive")
+        }
+
+        guard leasePeriods > 0 && holdingPeriod > 0 else {
+            throw ToolError.invalidArguments("leasePeriods and holdingPeriod must be positive")
+        }
+
+        // Calculate monthly rate (assuming monthly periods)
+        let periodicRate = annualRate / 12.0
+
+        // Lease PV: annuity PV
+        let leasePV: Double
+        if periodicRate > 0 {
+            leasePV = leasePayment * (1 - pow(1 + periodicRate, Double(-leasePeriods))) / periodicRate
+        } else {
+            leasePV = leasePayment * Double(leasePeriods)
+        }
+
+        // Buy PV: purchase + PV of maintenance - PV of salvage
+        let maintenancePV: Double
+        if periodicRate > 0 && maintenanceCost > 0 {
+            maintenancePV = maintenanceCost * (1 - pow(1 + periodicRate, Double(-holdingPeriod))) / periodicRate
+        } else {
+            maintenancePV = maintenanceCost * Double(holdingPeriod)
+        }
+        let salvagePV = salvageValue / pow(1 + periodicRate, Double(holdingPeriod))
+        let buyPV = purchasePrice + maintenancePV - salvagePV
+
+        // Net Advantage to Leasing
+        let nal = buyPV - leasePV
+        let recommendation = nal > 0 ? "LEASE" : "BUY"
+        let savingsPercent = abs(nal) / max(leasePV, buyPV) * 100
+
+        let result = """
+        Lease vs Buy Analysis
+        ======================
+
+        Lease Option:
+          Payment: \(leasePayment.currency())/period
+          Periods: \(leasePeriods)
+          Lease PV: \(leasePV.currency())
+
+        Buy Option:
+          Purchase Price: \(purchasePrice.currency())
+          Salvage Value: \(salvageValue.currency()) (PV: \(salvagePV.currency()))
+          Maintenance: \(maintenanceCost.currency())/period (PV: \(maintenancePV.currency()))
+          Holding Period: \(holdingPeriod) periods
+          Buy PV: \(buyPV.currency())
+
+        Discount Rate: \(annualRate.percent()) annual (\((periodicRate * 100).formatDecimal(decimals: 3))%/period)
+
+        Decision:
+          Net Advantage to Leasing (NAL): \(nal.currency())
+          Recommendation: \(recommendation)
+          Savings: \(savingsPercent.formatDecimal(decimals: 1))%
+
+        NAL = Buy PV - Lease PV = \(buyPV.currency()) - \(leasePV.currency()) = \(nal.currency())
+        \(nal > 0 ? "Leasing saves \(nal.currency()) in present value terms." : "Buying saves \((-nal).currency()) in present value terms.")
+        """
+
+        return .success(text: result)
+    }
+}
+
+// MARK: - Financial Ratio Summary Tool
+
+public struct RatioSummaryTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "calculate_ratio_summary",
+        description: """
+        Compute all key financial ratios from statement data in a single call.
+
+        Accepts raw financial statement line items as arrays (one value per period)
+        and computes comprehensive ratios across four categories.
+
+        Categories:
+        • Profitability: Gross margin, operating margin, net margin, ROE, ROA
+        • Liquidity: Current ratio, quick ratio, cash ratio
+        • Solvency: Debt-to-equity, debt-to-assets, interest coverage
+        • Efficiency: Asset turnover, inventory turnover, receivables turnover
+
+        Replaces 10+ individual ratio tool calls with a single comprehensive analysis.
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "revenue": MCPSchemaProperty(type: "array", description: "Revenue per period", items: MCPSchemaItems(type: "number")),
+                "cogs": MCPSchemaProperty(type: "array", description: "Cost of goods sold per period", items: MCPSchemaItems(type: "number")),
+                "operatingExpenses": MCPSchemaProperty(type: "array", description: "Operating expenses per period", items: MCPSchemaItems(type: "number")),
+                "interestExpense": MCPSchemaProperty(type: "array", description: "Interest expense per period", items: MCPSchemaItems(type: "number")),
+                "taxExpense": MCPSchemaProperty(type: "array", description: "Tax expense per period", items: MCPSchemaItems(type: "number")),
+                "totalAssets": MCPSchemaProperty(type: "array", description: "Total assets per period", items: MCPSchemaItems(type: "number")),
+                "totalLiabilities": MCPSchemaProperty(type: "array", description: "Total liabilities per period", items: MCPSchemaItems(type: "number")),
+                "totalEquity": MCPSchemaProperty(type: "array", description: "Total equity per period", items: MCPSchemaItems(type: "number")),
+                "currentAssets": MCPSchemaProperty(type: "array", description: "Current assets per period", items: MCPSchemaItems(type: "number")),
+                "currentLiabilities": MCPSchemaProperty(type: "array", description: "Current liabilities per period", items: MCPSchemaItems(type: "number")),
+                "cash": MCPSchemaProperty(type: "array", description: "Cash and equivalents per period", items: MCPSchemaItems(type: "number")),
+                "inventory": MCPSchemaProperty(type: "array", description: "Inventory per period", items: MCPSchemaItems(type: "number")),
+                "accountsReceivable": MCPSchemaProperty(type: "array", description: "Accounts receivable per period", items: MCPSchemaItems(type: "number")),
+                "categories": MCPSchemaProperty(type: "array", description: "Which ratio groups: profitability, liquidity, solvency, efficiency (default: all)", items: MCPSchemaItems(type: "string"))
+            ],
+            required: ["revenue", "totalAssets", "totalEquity"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let revenue = try args.getDoubleArray("revenue")
+        let cogs = (try? args.getDoubleArray("cogs")) ?? revenue.map { _ in 0.0 }
+        let opex = (try? args.getDoubleArray("operatingExpenses")) ?? revenue.map { _ in 0.0 }
+        let interest = (try? args.getDoubleArray("interestExpense")) ?? revenue.map { _ in 0.0 }
+        let tax = (try? args.getDoubleArray("taxExpense")) ?? revenue.map { _ in 0.0 }
+        let totalAssets = try args.getDoubleArray("totalAssets")
+        let totalLiabilities = (try? args.getDoubleArray("totalLiabilities")) ?? totalAssets.map { _ in 0.0 }
+        let totalEquity = try args.getDoubleArray("totalEquity")
+        let currentAssets = (try? args.getDoubleArray("currentAssets")) ?? totalAssets
+        let currentLiabilities = (try? args.getDoubleArray("currentLiabilities")) ?? totalLiabilities
+        let cash = (try? args.getDoubleArray("cash")) ?? currentAssets.map { _ in 0.0 }
+        let inventory = (try? args.getDoubleArray("inventory")) ?? currentAssets.map { _ in 0.0 }
+        let ar = (try? args.getDoubleArray("accountsReceivable")) ?? currentAssets.map { _ in 0.0 }
+
+        let categoryStrs = (try? args.getStringArray("categories")) ?? ["profitability", "liquidity", "solvency", "efficiency"]
+        let categories = Set(categoryStrs.map { $0.lowercased() })
+
+        let periods = revenue.count
+        var output = "Financial Ratio Summary (\(periods) period\(periods == 1 ? "" : "s"))\n"
+        output += String(repeating: "=", count: 50) + "\n"
+
+        for p in 0..<periods {
+            output += "\nPeriod \(p + 1):\n"
+
+            let grossProfit = revenue[p] - cogs[p]
+            let operatingIncome = grossProfit - opex[p]
+            let netIncome = operatingIncome - interest[p] - tax[p]
+
+            if categories.contains("profitability") {
+                let grossMargin = revenue[p] > 0 ? grossProfit / revenue[p] : 0
+                let opMargin = revenue[p] > 0 ? operatingIncome / revenue[p] : 0
+                let netMargin = revenue[p] > 0 ? netIncome / revenue[p] : 0
+                let roe = totalEquity[p] > 0 ? netIncome / totalEquity[p] : 0
+                let roa = totalAssets[p] > 0 ? netIncome / totalAssets[p] : 0
+
+                output += """
+                  Profitability:
+                    Gross Margin: \(grossMargin.percent())
+                    Operating Margin: \(opMargin.percent())
+                    Net Margin: \(netMargin.percent())
+                    Return on Equity (ROE): \(roe.percent())
+                    Return on Assets (ROA): \(roa.percent())
+
+                """
+            }
+
+            if categories.contains("liquidity") {
+                let currentRatio = currentLiabilities[p] > 0 ? currentAssets[p] / currentLiabilities[p] : 0
+                let quickRatio = currentLiabilities[p] > 0 ? (currentAssets[p] - inventory[p]) / currentLiabilities[p] : 0
+                let cashRatio = currentLiabilities[p] > 0 ? cash[p] / currentLiabilities[p] : 0
+
+                output += """
+                  Liquidity:
+                    Current Ratio: \(currentRatio.formatDecimal(decimals: 2))x
+                    Quick Ratio: \(quickRatio.formatDecimal(decimals: 2))x
+                    Cash Ratio: \(cashRatio.formatDecimal(decimals: 2))x
+
+                """
+            }
+
+            if categories.contains("solvency") {
+                let debtToEquity = totalEquity[p] > 0 ? totalLiabilities[p] / totalEquity[p] : 0
+                let debtToAssets = totalAssets[p] > 0 ? totalLiabilities[p] / totalAssets[p] : 0
+                let interestCoverage = interest[p] > 0 ? operatingIncome / interest[p] : 0
+
+                output += """
+                  Solvency:
+                    Debt-to-Equity: \(debtToEquity.formatDecimal(decimals: 2))x
+                    Debt-to-Assets: \(debtToAssets.percent())
+                    Interest Coverage: \(interestCoverage.formatDecimal(decimals: 2))x
+
+                """
+            }
+
+            if categories.contains("efficiency") {
+                let assetTurnover = totalAssets[p] > 0 ? revenue[p] / totalAssets[p] : 0
+                let inventoryTurnover = inventory[p] > 0 ? cogs[p] / inventory[p] : 0
+                let receivablesTurnover = ar[p] > 0 ? revenue[p] / ar[p] : 0
+
+                output += """
+                  Efficiency:
+                    Asset Turnover: \(assetTurnover.formatDecimal(decimals: 2))x
+                    Inventory Turnover: \(inventoryTurnover.formatDecimal(decimals: 2))x
+                    Receivables Turnover: \(receivablesTurnover.formatDecimal(decimals: 2))x
+
+                """
+            }
+        }
+
+        return .success(text: output)
+    }
+}
+
+// MARK: - Cap Table Tool
+
+public struct CapTableTool: MCPToolHandler, Sendable {
+    public let tool = MCPTool(
+        name: "model_cap_table",
+        description: """
+        Model startup capitalization table — ownership, funding rounds, and liquidation waterfall.
+
+        Actions:
+        • ownership: Show current ownership percentages
+        • modelRound: Model a new funding round with dilution
+        • grantOptions: Grant options from the pool
+        • liquidationWaterfall: Distribute exit proceeds by preference
+
+        Supports ISO 8601 dates for investment dates.
+
+        Example: 2 founders (4M shares each), seed investor (1M shares),
+        1M option pool → model Series A at $20M pre-money.
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "shareholders": MCPSchemaProperty(
+                    type: "array",
+                    description: "Array of shareholder objects: {name, shares, pricePerShare, investmentDate?, liquidationPreference?}",
+                    items: MCPSchemaItems(type: "object")
+                ),
+                "optionPool": MCPSchemaProperty(
+                    type: "number",
+                    description: "Number of shares in option pool"
+                ),
+                "action": MCPSchemaProperty(
+                    type: "string",
+                    description: "Action: ownership, modelRound, grantOptions, liquidationWaterfall",
+                    enum: ["ownership", "modelRound", "grantOptions", "liquidationWaterfall"]
+                ),
+                "roundParams": MCPSchemaProperty(
+                    type: "object",
+                    description: "For modelRound: {newInvestment, preMoneyValuation, investorName}"
+                ),
+                "grantParams": MCPSchemaProperty(
+                    type: "object",
+                    description: "For grantOptions: {recipient, shares, strikePrice}"
+                ),
+                "exitValue": MCPSchemaProperty(
+                    type: "number",
+                    description: "For liquidationWaterfall: total exit proceeds"
+                )
+            ],
+            required: ["shareholders", "optionPool", "action"]
+        )
+    )
+
+    public init() {}
+
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let action = try args.getString("action")
+        let optionPool = try args.getDouble("optionPool")
+
+        // Parse shareholders
+        guard let shareholdersValue = args["shareholders"],
+              let shareholdersList = shareholdersValue.value as? [AnyCodable] else {
+            throw ToolError.invalidArguments("shareholders must be an array")
+        }
+
+        let dateFormatter = ISO8601DateFormatter()
+        var shareholders: [CapTable.Shareholder] = []
+
+        for (i, item) in shareholdersList.enumerated() {
+            guard let dict = item.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("shareholders[\(i)] must be an object")
+            }
+            guard let nameValue = dict["name"], let name = nameValue.value as? String else {
+                throw ToolError.invalidArguments("shareholders[\(i)].name is required")
+            }
+            guard let sharesValue = dict["shares"] else {
+                throw ToolError.invalidArguments("shareholders[\(i)].shares is required")
+            }
+            let shares: Double
+            if let d = sharesValue.value as? Double { shares = d }
+            else if let n = sharesValue.value as? Int { shares = Double(n) }
+            else { throw ToolError.invalidArguments("shareholders[\(i)].shares must be a number") }
+
+            guard let ppsValue = dict["pricePerShare"] else {
+                throw ToolError.invalidArguments("shareholders[\(i)].pricePerShare is required")
+            }
+            let pps: Double
+            if let d = ppsValue.value as? Double { pps = d }
+            else if let n = ppsValue.value as? Int { pps = Double(n) }
+            else { throw ToolError.invalidArguments("shareholders[\(i)].pricePerShare must be a number") }
+
+            var investmentDate = Date()
+            if let dateValue = dict["investmentDate"], let dateStr = dateValue.value as? String {
+                if let parsed = dateFormatter.date(from: dateStr) {
+                    investmentDate = parsed
+                }
+            }
+
+            var liquidationPreference: Double?
+            if let lpValue = dict["liquidationPreference"] {
+                if let d = lpValue.value as? Double { liquidationPreference = d }
+                else if let n = lpValue.value as? Int { liquidationPreference = Double(n) }
+            }
+
+            shareholders.append(CapTable.Shareholder(
+                name: name,
+                shares: shares,
+                investmentDate: investmentDate,
+                pricePerShare: pps,
+                liquidationPreference: liquidationPreference
+            ))
+        }
+
+        var capTable = CapTable(shareholders: shareholders, optionPool: optionPool)
+
+        switch action {
+        case "ownership":
+            let ownership = capTable.ownership()
+            let totalShares = shareholders.reduce(0.0) { $0 + $1.shares } + optionPool
+
+            var output = "Cap Table — Ownership\n"
+            output += String(repeating: "=", count: 50) + "\n\n"
+            for sh in shareholders {
+                let pct = ownership[sh.name] ?? 0
+                output += "  \(sh.name): \(sh.shares.formatDecimal(decimals: 0)) shares (\((pct * 100).formatDecimal(decimals: 2))%)\n"
+            }
+            if optionPool > 0 {
+                let poolPct = optionPool / totalShares * 100
+                output += "  Option Pool: \(optionPool.formatDecimal(decimals: 0)) shares (\(poolPct.formatDecimal(decimals: 2))%)\n"
+            }
+            output += "\n  Total Fully Diluted: \(totalShares.formatDecimal(decimals: 0)) shares\n"
+
+            return .success(text: output)
+
+        case "modelRound":
+            guard let rpValue = args["roundParams"],
+                  let rpDict = rpValue.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("roundParams required for modelRound action")
+            }
+
+            let investment: Double
+            if let key = rpDict["newInvestment"] {
+                if let d = key.value as? Double { investment = d }
+                else if let n = key.value as? Int { investment = Double(n) }
+                else { throw ToolError.invalidArguments("roundParams.newInvestment must be a number") }
+            } else {
+                throw ToolError.invalidArguments("roundParams.newInvestment is required")
+            }
+
+            let preMoney: Double
+            if let key = rpDict["preMoneyValuation"] {
+                if let d = key.value as? Double { preMoney = d }
+                else if let n = key.value as? Int { preMoney = Double(n) }
+                else { throw ToolError.invalidArguments("roundParams.preMoneyValuation must be a number") }
+            } else {
+                throw ToolError.invalidArguments("roundParams.preMoneyValuation is required")
+            }
+
+            var investorName = "New Investor"
+            if let nameValue = rpDict["investorName"], let n = nameValue.value as? String {
+                investorName = n
+            }
+
+            let postTable = capTable.modelRound(
+                newInvestment: investment,
+                preMoneyValuation: preMoney,
+                optionPoolIncrease: 0,
+                investorName: investorName
+            )
+
+            let postOwnership = postTable.ownership()
+            let postTotal = postTable.shareholders.reduce(0.0) { $0 + $1.shares } + postTable.optionPool
+
+            var output = "Cap Table — Post-\(investorName) Round\n"
+            output += String(repeating: "=", count: 50) + "\n\n"
+            output += "  Pre-Money Valuation: \(preMoney.currency())\n"
+            output += "  Investment: \(investment.currency())\n"
+            output += "  Post-Money Valuation: \((preMoney + investment).currency())\n\n"
+
+            for sh in postTable.shareholders {
+                let pct = postOwnership[sh.name] ?? 0
+                output += "  \(sh.name): \(sh.shares.formatDecimal(decimals: 0)) shares (\((pct * 100).formatDecimal(decimals: 2))%)\n"
+            }
+            if postTable.optionPool > 0 {
+                let poolPct = postTable.optionPool / postTotal * 100
+                output += "  Option Pool: \(postTable.optionPool.formatDecimal(decimals: 0)) shares (\(poolPct.formatDecimal(decimals: 2))%)\n"
+            }
+            output += "\n  Total Fully Diluted: \(postTotal.formatDecimal(decimals: 0)) shares\n"
+
+            return .success(text: output)
+
+        case "grantOptions":
+            guard let gpValue = args["grantParams"],
+                  let gpDict = gpValue.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("grantParams required for grantOptions action")
+            }
+            guard let recipientValue = gpDict["recipient"], let recipient = recipientValue.value as? String else {
+                throw ToolError.invalidArguments("grantParams.recipient is required")
+            }
+            let grantShares: Double
+            if let key = gpDict["shares"] {
+                if let d = key.value as? Double { grantShares = d }
+                else if let n = key.value as? Int { grantShares = Double(n) }
+                else { throw ToolError.invalidArguments("grantParams.shares must be a number") }
+            } else {
+                throw ToolError.invalidArguments("grantParams.shares is required")
+            }
+            let strikePrice: Double
+            if let key = gpDict["strikePrice"] {
+                if let d = key.value as? Double { strikePrice = d }
+                else if let n = key.value as? Int { strikePrice = Double(n) }
+                else { strikePrice = 0.0 }
+            } else {
+                strikePrice = 0.0
+            }
+
+            let postGrant = capTable.grantOptions(
+                recipient: recipient, shares: grantShares, strikePrice: strikePrice
+            )
+
+            var output = "Cap Table — Option Grant\n"
+            output += String(repeating: "=", count: 50) + "\n\n"
+            output += "  Granted \(grantShares.formatDecimal(decimals: 0)) options to \(recipient) at \(strikePrice.currency()) strike\n\n"
+
+            let postOwnership = postGrant.ownership()
+            for sh in postGrant.shareholders {
+                let pct = postOwnership[sh.name] ?? 0
+                output += "  \(sh.name): \(sh.shares.formatDecimal(decimals: 0)) shares (\((pct * 100).formatDecimal(decimals: 2))%)\n"
+            }
+            output += "  Remaining Option Pool: \(postGrant.optionPool.formatDecimal(decimals: 0)) shares\n"
+
+            return .success(text: output)
+
+        case "liquidationWaterfall":
+            guard let exitValue = args.getDoubleOptional("exitValue") else {
+                throw ToolError.invalidArguments("exitValue required for liquidationWaterfall action")
+            }
+
+            let distribution = capTable.liquidationWaterfall(exitValue: exitValue)
+
+            var output = "Liquidation Waterfall Distribution\n"
+            output += String(repeating: "=", count: 50) + "\n\n"
+            output += "  Exit Value: \(exitValue.currency())\n\n"
+
+            for (name, amount) in distribution.sorted(by: { $0.value > $1.value }) {
+                let pct = exitValue > 0 ? amount / exitValue * 100 : 0
+                output += "  \(name): \(amount.currency()) (\(pct.formatDecimal(decimals: 2))%)\n"
+            }
+
+            let totalDistributed = distribution.values.reduce(0.0, +)
+            output += "\n  Total Distributed: \(totalDistributed.currency())\n"
+
+            return .success(text: output)
+
+        default:
+            throw ToolError.invalidArguments("Unknown action '\(action)'. Valid: ownership, modelRound, grantOptions, liquidationWaterfall")
+        }
     }
 }
