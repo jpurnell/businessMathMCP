@@ -1,5 +1,6 @@
 import Foundation
 import MCP
+import SwiftMCPServer
 import BusinessMath
 
 // MARK: - Create Amortization Schedule Tool

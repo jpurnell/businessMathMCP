@@ -1,10 +1,11 @@
 import Foundation
 import MCP
+import SwiftMCPServer
 
 // MARK: - Prompt Definitions
 
 /// Provides prompt templates for common financial analysis tasks
-public actor PromptProvider {
+public actor PromptProvider: MCPPromptProvider {
 
     /// List all available prompts
     public func listPrompts() -> [Prompt] {

@@ -22,6 +22,11 @@ let package = Package(
             url: "https://github.com/jpurnell/businessMath",
             branch: "main"
         ),
+        // MCP Server framework (transport, auth, OAuth, session management)
+        .package(
+            url: "https://github.com/jpurnell/SwiftMCPServer.git",
+            branch: "main"
+        ),
         // MCP SDK
         .package(
             url: "https://github.com/modelcontextprotocol/swift-sdk.git",
@@ -32,20 +37,6 @@ let package = Package(
             url: "https://github.com/apple/swift-numerics",
             from: "1.0.0"
         ),
-        // SwiftNIO for cross-platform HTTP server
-        .package(
-            url: "https://github.com/apple/swift-nio.git",
-            from: "2.65.0"
-        ),
-        .package(
-            url: "https://github.com/apple/swift-nio-ssl.git",
-            from: "2.26.0"
-        ),
-        // Cryptography (cross-platform: macOS + Linux)
-        .package(
-            url: "https://github.com/apple/swift-crypto.git",
-            from: "3.0.0"
-        ),
         // DocC plugin for documentation generation
         .package(
             url: "https://github.com/apple/swift-docc-plugin",
@@ -53,44 +44,28 @@ let package = Package(
         )
     ],
     targets: [
-        // System library for SQLite (available on macOS and Linux)
-        .systemLibrary(
-            name: "CSQLite",
-            pkgConfig: "sqlite3",
-            providers: [
-                .brew(["sqlite3"]),
-                .apt(["libsqlite3-dev"])
-            ]
-        ),
         .target(
             name: "BusinessMathMCP",
             dependencies: [
                 .product(name: "BusinessMath", package: "BusinessMath"),
+                .product(name: "SwiftMCPServer", package: "SwiftMCPServer"),
                 .product(name: "MCP", package: "swift-sdk"),
                 .product(name: "Numerics", package: "swift-numerics"),
-                // SwiftNIO dependencies for HTTP server
-                .product(name: "NIOCore", package: "swift-nio"),
-                .product(name: "NIOPosix", package: "swift-nio"),
-                .product(name: "NIOHTTP1", package: "swift-nio"),
-                .product(name: "NIOFoundationCompat", package: "swift-nio"),
-                .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
-                .product(name: "NIOSSL", package: "swift-nio-ssl"),
-                // OAuth dependencies
-                .product(name: "Crypto", package: "swift-crypto"),
-                "CSQLite"
-            ],
-            swiftSettings: [
-                // Temporarily disabled for SwiftNIO type inference issues
-                // .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .executableTarget(
             name: "BusinessMathMCPServer",
-            dependencies: ["BusinessMathMCP"]
+            dependencies: [
+                "BusinessMathMCP",
+                .product(name: "SwiftMCPServer", package: "SwiftMCPServer"),
+            ]
         ),
         .testTarget(
             name: "BusinessMathMCPTests",
-            dependencies: ["BusinessMathMCP"]
+            dependencies: [
+                "BusinessMathMCP",
+                .product(name: "SwiftMCPServer", package: "SwiftMCPServer"),
+            ]
         )
     ]
 )

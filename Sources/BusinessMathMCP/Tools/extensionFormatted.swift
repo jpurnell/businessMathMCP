@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftMCPServer
 
 extension BinaryFloatingPoint {
 	public func currency(_ currency: String = "usd") -> String {

@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Smoke tests that exercise every tool with nil and empty arguments.
 /// These catch tools that crash instead of returning errors on bad input.

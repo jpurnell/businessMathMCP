@@ -8,6 +8,7 @@
 import Foundation
 import BusinessMath
 import MCP
+import SwiftMCPServer
 
 // MARK: - Tool 1: Hypothesis T-Test
 

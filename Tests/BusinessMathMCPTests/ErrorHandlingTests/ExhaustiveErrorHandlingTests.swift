@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Exhaustive error handling tests that cover ALL registered tools.
 /// Every tool must gracefully handle wrong types, missing params, and invalid enums.

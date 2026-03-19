@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 @Suite("Portfolio and Risk Domain Tests")
 struct PortfolioAndRiskDomainTests {

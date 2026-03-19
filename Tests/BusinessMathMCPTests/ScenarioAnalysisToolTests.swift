@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 @testable import BusinessMath
 
 /// Test suite for ScenarioAnalysisTool

@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Error handling tests using representative tools from different parameter patterns.
 /// Rather than testing every tool, we sample one tool per pattern type.

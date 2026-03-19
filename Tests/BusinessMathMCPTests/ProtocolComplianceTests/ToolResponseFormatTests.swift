@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Tests that verify tool response format and quality.
 @Suite("Tool Response Format Tests")

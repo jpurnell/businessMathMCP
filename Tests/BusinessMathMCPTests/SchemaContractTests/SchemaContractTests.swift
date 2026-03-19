@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Automated schema invariant tests that cover ALL registered tools.
 /// Each test iterates every tool handler and asserts a structural property.

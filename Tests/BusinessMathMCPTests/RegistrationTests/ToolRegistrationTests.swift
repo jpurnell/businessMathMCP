@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Tests that verify tool registration, discovery, and dispatch through the registry.
 @Suite("Tool Registration Tests")

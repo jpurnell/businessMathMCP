@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 @testable import BusinessMath
 
 /// Tests for PeriodJSON and TimeSeriesJSON marshalling in TypeMarshalling.swift.

@@ -1,10 +1,11 @@
 import Foundation
 import MCP
+import SwiftMCPServer
 
 // MARK: - Resource Definitions
 
 /// Provides resource listings and content for BusinessMath MCP Server
-public actor ResourceProvider {
+public actor ResourceProvider: MCPResourceProvider {
 
     /// List all available resources
     public func listResources() -> [Resource] {
@@ -102,7 +103,7 @@ public actor ResourceProvider {
     }
 
     /// Read resource content by URI
-    public func readResource(uri: String) throws -> ReadResource.Result {
+    public func readResource(uri: String) async throws -> ReadResource.Result {
         switch uri {
         // Documentation
         case "docs://tvm-formulas":

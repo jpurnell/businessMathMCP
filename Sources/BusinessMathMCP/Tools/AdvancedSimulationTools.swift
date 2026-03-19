@@ -1,5 +1,6 @@
 import Foundation
 import MCP
+import SwiftMCPServer
 @preconcurrency import BusinessMath
 
 // MARK: - Correlated Monte Carlo Tool

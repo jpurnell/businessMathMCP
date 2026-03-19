@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Unit tests for both value extraction systems:
 /// - [String: MCP.Value] extensions (ValueExtensions.swift)

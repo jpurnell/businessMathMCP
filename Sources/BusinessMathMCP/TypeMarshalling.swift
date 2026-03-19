@@ -2,6 +2,7 @@ import Foundation
 import BusinessMath
 import Numerics
 import MCP
+import SwiftMCPServer
 
 // MARK: - JSON-Compatible Type Wrappers
 

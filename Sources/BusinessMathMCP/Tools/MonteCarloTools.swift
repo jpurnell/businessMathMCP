@@ -9,6 +9,7 @@ import Foundation
 @preconcurrency import BusinessMath
 import Numerics
 import MCP
+import SwiftMCPServer
 
 // MARK: - Tool Registration
 

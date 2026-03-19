@@ -1,5 +1,6 @@
 import Foundation
 import MCP
+import SwiftMCPServer
 import BusinessMath
 
 // MARK: - Branch-and-Bound Tool

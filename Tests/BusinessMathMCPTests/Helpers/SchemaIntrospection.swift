@@ -1,6 +1,7 @@
 import Foundation
 import MCP
 @testable import BusinessMathMCP
+@testable import SwiftMCPServer
 
 /// Extracted schema metadata for a single tool, suitable for test assertions.
 struct ToolSchemaInfo: Sendable {
