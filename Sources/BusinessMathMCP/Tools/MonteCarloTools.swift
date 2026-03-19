@@ -175,8 +175,16 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                   let stdDev = getParam("stdDev") else {
                 throw ToolError.invalidArguments("LogNormal distribution requires 'mean' and 'stdDev'")
             }
+            guard mean > 0 else {
+                throw ToolError.invalidArguments("LogNormal mean must be positive")
+            }
+            // Convert desired lognormal mean/stdDev to underlying normal μ/σ
+            let varianceRatio = (stdDev / mean) * (stdDev / mean)
+            let sigma2 = Foundation.log(1.0 + varianceRatio)
+            let mu = Foundation.log(mean) - sigma2 / 2.0
+            let sigma = Foundation.sqrt(sigma2)
             distInfo = "LogNormal(μ=\(formatNumber(mean, decimals: 2)), σ=\(formatNumber(stdDev, decimals: 2)))"
-            let dist = DistributionLogNormal(mean, stdDev)
+            let dist = DistributionLogNormal(mu, sigma)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -510,7 +518,15 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                 guard let mean = params["mean"], let stdDev = params["stdDev"] else {
                     throw ToolError.invalidArguments("LogNormal distribution requires 'mean' and 'stdDev'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionLogNormal(mean, stdDev))
+                guard mean > 0 else {
+                    throw ToolError.invalidArguments("LogNormal mean must be positive")
+                }
+                // Convert desired lognormal mean/stdDev to underlying normal μ/σ
+                let varianceRatio = (stdDev / mean) * (stdDev / mean)
+                let sigma2 = Foundation.log(1.0 + varianceRatio)
+                let mu = Foundation.log(mean) - sigma2 / 2.0
+                let sigma = Foundation.sqrt(sigma2)
+                simInput = SimulationInput(name: name, distribution: DistributionLogNormal(mu, sigma))
 
             case "exponential":
                 guard let rate = params["rate"] else {

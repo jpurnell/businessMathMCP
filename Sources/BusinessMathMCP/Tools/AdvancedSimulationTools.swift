@@ -613,7 +613,15 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
                 guard let mean = params["mean"], let stdDev = params["stdDev"] else {
                     throw ToolError.invalidArguments("LogNormal distribution requires 'mean' and 'stdDev'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionLogNormal(mean, stdDev))
+                guard mean > 0 else {
+                    throw ToolError.invalidArguments("LogNormal mean must be positive")
+                }
+                // Convert desired lognormal mean/stdDev to underlying normal μ/σ
+                let varianceRatio = (stdDev / mean) * (stdDev / mean)
+                let sigma2 = Foundation.log(1.0 + varianceRatio)
+                let mu = Foundation.log(mean) - sigma2 / 2.0
+                let sigma = Foundation.sqrt(sigma2)
+                simInput = SimulationInput(name: name, distribution: DistributionLogNormal(mu, sigma))
             default:
                 throw ToolError.invalidArguments("Distribution '\(distType)' not yet supported for GPU simulation. Supported: normal, uniform, triangular, lognormal")
             }
