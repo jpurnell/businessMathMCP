@@ -165,7 +165,9 @@ struct APIAuthTests {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test-key-456", forHTTPHeaderField: "Authorization")
-        request.httpBody = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#.data(using: .utf8)
+        // Use a notification (no "id") so the server returns 202 immediately
+        // without needing MCP processing pipeline — we only care about auth here
+        request.httpBody = #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#.data(using: .utf8)
 
         let (_, response) = try await URLSession.shared.data(for: request)
 
@@ -230,7 +232,9 @@ struct APIAuthTests {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = #"{"jsonrpc":"2.0","id":1,"method":"test"}"#.data(using: .utf8)
+        // Use a notification (no "id") so the server returns 202 immediately
+        // without needing MCP processing pipeline — we only care about auth here
+        request.httpBody = #"{"jsonrpc":"2.0","method":"test"}"#.data(using: .utf8)
 
         let (_, response) = try await URLSession.shared.data(for: request)
 
