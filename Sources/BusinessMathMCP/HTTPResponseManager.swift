@@ -27,7 +27,7 @@ public actor HTTPResponseManager {
     /// Registry of pending requests: JSON-RPC ID → HTTP connection
     private var pendingRequests: [JSONRPCId: PendingRequest] = [:]
 
-    /// Timeout for pending requests (default: 30 seconds)
+    /// Timeout for pending requests (default: 5 minutes)
     private let requestTimeout: TimeInterval
 
     /// Cleanup task for expired requests
@@ -82,7 +82,7 @@ public actor HTTPResponseManager {
     /// - Parameters:
     ///   - requestTimeout: Maximum time to wait for a response (default: 30s)
     ///   - logger: Logger instance
-    public init(requestTimeout: TimeInterval = 30.0, logger: Logger = Logger(label: "http-response-manager")) {
+    public init(requestTimeout: TimeInterval = 300.0, logger: Logger = Logger(label: "http-response-manager")) {
         self.requestTimeout = requestTimeout
         self.logger = logger
     }

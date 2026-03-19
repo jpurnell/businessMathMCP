@@ -12,7 +12,7 @@ public actor StreamableSessionManager {
     /// Active sessions keyed by Mcp-Session-Id
     private var sessions: [String: StreamableSession] = [:]
 
-    /// Session timeout (default: 5 minutes)
+    /// Session timeout (default: 30 minutes)
     private let sessionTimeout: TimeInterval
 
     /// Cleanup task
@@ -31,7 +31,7 @@ public actor StreamableSessionManager {
     }
 
     public init(
-        sessionTimeout: TimeInterval = 300.0,
+        sessionTimeout: TimeInterval = 1800.0,
         logger: Logger = Logger(label: "streamable-session-manager")
     ) {
         self.sessionTimeout = sessionTimeout
