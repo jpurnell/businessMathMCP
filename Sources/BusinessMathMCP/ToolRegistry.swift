@@ -54,5 +54,6 @@ public func allToolHandlers() -> [any MCPToolHandler] {
     handlers += getEnhancedCovenantTools()
     handlers += getMultiPeriodAnalysisTools()
     handlers += getAdvancedFinancialModelingTools()
+    handlers += getInventoryManagementTools()
     return handlers
 }
