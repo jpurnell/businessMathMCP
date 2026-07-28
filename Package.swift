@@ -27,10 +27,10 @@ let package = Package(
             url: "https://github.com/jpurnell/SwiftMCPServer.git",
             branch: "main"
         ),
-        // MCP SDK
+        // MCP SDK (fork 0.11.x — 2025-11-25 spec + Swift 6.4 concurrency fixes)
         .package(
-            url: "https://github.com/modelcontextprotocol/swift-sdk.git",
-            from: "0.10.0"
+            url: "https://github.com/jpurnell/swift-sdk.git",
+            "0.11.0"..<"0.12.0"
         ),
         // Numerics (shared dependency)
         .package(
