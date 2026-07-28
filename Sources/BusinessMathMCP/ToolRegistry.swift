@@ -41,6 +41,7 @@ public func allToolHandlers() -> [any MCPToolHandler] {
     handlers += getLoanPaymentAnalysisTools()
     handlers += getGrowthAnalysisTools()
     handlers += getTrendForecastingTools()
+    handlers += getForecastEvaluationTools()
     handlers += getSeasonalityTools()
     handlers += getAdvancedOptionsTools()
     handlers += getAdvancedOptimizationTools()

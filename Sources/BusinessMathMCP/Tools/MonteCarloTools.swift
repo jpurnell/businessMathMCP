@@ -722,7 +722,7 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
             simulation.addInput(input)
         }
 
-        let results = try simulation.run()
+        let results = try await simulation.run()
 
         // Format output
         let inputNames = simulationInputs.map { $0.name }.joined(separator: ", ")

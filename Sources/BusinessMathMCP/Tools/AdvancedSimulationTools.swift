@@ -640,7 +640,7 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
             simulation.addInput(input)
         }
 
-        let results = try simulation.run()
+        let results = try await simulation.run()
         let elapsedTime = Date().timeIntervalSince(startTime)
 
         // Estimate CPU time for comparison
