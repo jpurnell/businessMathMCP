@@ -4,6 +4,12 @@ Last updated: 2026-08-03. Purpose: clean `/recover` after restart for the swift-
 `2026-07-28` implementation effort. Companion to memory `project_swift_sdk_mcp2_impl.md`
 (loaded automatically) — this doc adds live state, exact paths, and the next action.
 
+## Where to `/recover` from
+Launch Claude Code **from this repo** (`…/Math/businessMathMCP/`) — it now has its own
+`CLAUDE.md` that auto-loads and lists the reading order (this handoff first). Launching from the
+sibling `…/Math/BusinessMath/` also works (that's where auto-memory + the `/recover` skill are
+wired, and memory points here). Either way, read this file first.
+
 ## TL;DR — where we are
 Phase 0 (transport groundwork) is DONE and up as two upstream PRs. The Phase-1 stateless-core
 design proposal was written, then **rejected by adversarial review** and the plan **pivoted**.
