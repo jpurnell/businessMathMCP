@@ -1,5 +1,15 @@
 # swift-sdk 2026-07-28 Implementation Roadmap (full spec)
 
+> **RE-SEQUENCED 2026-07-29 (post adversarial review of the SEP-2575 proposal).** The original
+> "Phase 1 stateless core first" ordering was rejected: upstream #245 is unowned + repo is
+> merge-frozen ~3mo; the stdio consumer needs ~none of the stateless HTTP surface; the keystone
+> is a large fork-conflict-prone dispatch-core delta. **New order:** (0) coordinate on #245 +
+> land the open bugfix PRs #267/#268 to prove a merge path → (A) minimal stdio 2026-07-28
+> (version constant + accept namespaced per-request `_meta`) → (B) self-contained high-value
+> pieces SEP-2164 + SEP-2549 (TTL, "high value for 207 tools") → (C) full stateless HTTP core,
+> gated on a maintainer-blessed design. See `SEP-2575_STATELESS_CORE_DESIGN_PROPOSAL.md`
+> (NOT APPROVED banner + Revised Direction).
+
 Goal: bring `modelcontextprotocol/swift-sdk` to full MCP `2026-07-28` conformance.
 Model: **implement as upstream PRs** (claim the existing tracking issues), and **carry each
 commit in `jpurnell/swift-sdk` (`0.12.x`)** so businessMathMCP is never blocked on upstream
