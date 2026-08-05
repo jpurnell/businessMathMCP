@@ -1,117 +1,74 @@
-# [PROJECT NAME] Master Plan
-
-> **ACTION REQUIRED:** Replace all `[PLACEHOLDER]` sections below with your
-> project's actual content. This file is the source of truth for project vision,
-> architecture, and goals. Do not start implementation until it is filled in.
+# businessMathMCP Master Plan
 
 **Purpose:** Source of truth for project vision, architecture, and goals.
+
+> **Provenance:** Written 2026-08-05 from README, `Package.swift`, and the source tree.
 
 ---
 
 ## Project Overview
 
 ### Mission
-[1-2 sentences: what this project does and why it exists.]
+
+An MCP server exposing BusinessMath's financial and statistical library as tools an AI agent
+can call.
 
 ### Target Users
-- [Who uses this? Be specific about roles and contexts.]
+- AI agents doing financial analysis — valuation, statistics, optimisation, forecasting
+- MCP-capable hosts such as Claude Desktop and Claude Code
+- Anyone who wants BusinessMath's results without writing Swift
 
 ### Key Differentiators
-- [What makes this different from alternatives?]
+- **A large, coherent tool surface** rather than a handful of calculator endpoints — the
+  library's breadth is the product
+- **Deterministic, auditable answers.** Every result comes from tested library code, so the
+  same inputs give the same output and the derivation is inspectable — the opposite of an
+  LLM estimating a discount rate
+- Financial correctness is the library's problem, already solved and tested there
 
 ---
 
 ## Architecture
 
-### Technology Stack
-- **Language:** Swift 6.0+
-- **Build System:** Swift Package Manager
-- **Testing:** Swift Testing framework
-- **Concurrency:** Swift 6 strict concurrency throughout
-- [Add frameworks: SwiftUI, SwiftData, Vapor, etc.]
-- [Add dependencies: BusinessMath, etc.]
-
-### Module Structure
+- **Language:** Swift 6 · **Build:** SwiftPM · **Testing:** Swift Testing
 
 ```
-Sources/[ProjectName]/
-├── [Describe your source layout here]
-└── ...
+Sources/BusinessMathMCP/
+├── Tools/                 # one file per tool family
+└── BusinessMathMCP.docc/
 ```
 
-### Key Types
+57 source files, 26 test files.
 
-| Type | Purpose |
-|------|---------|
-| `[TypeName]` | [What it does] |
+### A note on dependencies
 
-### Data Flow
-
-```
-[Describe the primary data pipeline from input to output]
-```
-
----
-
-## Core Architectural Decisions
-
-1. [Decision 1 — what you chose and why.]
-2. [Decision 2]
-3. [Add more as needed]
+`Package.swift` declares no external package dependencies, which is unusual for an MCP
+server — the sibling servers build on `SwiftMCPServer`. **[NEEDS INPUT]** — whether that is
+deliberate (a self-contained implementation) or historical. If historical, adopting
+`SwiftMCPServer` would remove a duplicate protocol implementation and inherit its
+authentication.
 
 ---
 
 ## Current Status
 
-### What's Working
-- [ ] [List completed milestones]
+- [x] Tool surface implemented and tested — 26 test files
+- [x] CI configured
 
-### What's Next
-- [ ] [List upcoming work items]
-
----
+### Priorities
+**[NEEDS INPUT]**
 
 ## Quality Standards
 
-### Code Quality
-- All code follows `coding_rules.md`
-- TDD: failing tests before implementation
-- Documentation for all public APIs
-- No warnings in build output
-- Quality gate: 0 errors, 0 warnings before every commit
-
-### Documentation Quality
-- DocC comments for all public functions
-- Usage examples in documentation
-- Articles for complex topics
-
----
-
-## Collaboration Principles
-
-### AI as Sparring Partner, Not Oracle
-
-AI proposes; the human interrogates. High AI confidence triggers harder questions, not faster acceptance.
-
-- **Interrogate confident outputs.** When the AI states something with certainty, ask for the counterargument before accepting.
-- **Demand counterarguments.** Before locking in an approach, require an explicit case for the strongest alternative.
-- **Sit with discomfort.** Resist the pull to take the first plausible answer.
-
-This principle is operationalized in the **Adversarial Review** step of `design_proposal.md`.
-
----
+`coding_rules.md`, Swift 6 strict concurrency, zero warnings, DocC on public types.
+**Every tool documents its JSON schema** — required fields, units, enum cases. An agent
+cannot introspect intent from a Swift signature, and a financial tool whose units are
+ambiguous will be called wrongly with confident-looking results.
 
 ## Roadmap
 
-### Phase 1: [Name]
-- [ ] [Milestone]
-
-### Phase 2: [Name]
-- [ ] [Milestone]
-
-### Future
-- [Ideas not yet committed to]
+**[NEEDS INPUT]**
 
 ---
 
-**Last Updated:** [DATE] ([brief note on what changed])
+**Last Updated:** 2026-08-05
