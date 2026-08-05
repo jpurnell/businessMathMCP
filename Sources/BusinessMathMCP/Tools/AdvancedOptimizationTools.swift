@@ -80,8 +80,8 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
 
         **Problem Configuration:**
         - Periods: \(numberOfPeriods) time periods
-        - Discount rate: \(String(format: "%.1f%%", discountRate * 100)) per period
-        - Discount factor δ: \(String(format: "%.4f", discountFactor))
+        - Discount rate: \((discountRate * 100).percentDigits(1)) per period
+        - Discount factor δ: \(discountFactor.digits(4))
         - Problem type: \(problemType.replacingOccurrences(of: "_", with: " "))
         - Decision variables per period: \(dimensions)
         - Inter-temporal dependencies: \(hasInterdependence ? "Yes" : "No")
@@ -92,15 +92,15 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
 
         where:
         - xₜ = decision vector at period t
-        - δ = discount factor (\(String(format: "%.4f", discountFactor)))
+        - δ = discount factor (\(discountFactor.digits(4)))
         - f(xₜ) = objective function at period t
         ```
 
         **Time Value Impact:**
         - Period 0 weight: 1.000 (present value)
-        - Period 1 weight: \(String(format: "%.3f", discountFactor))
-        - Period 2 weight: \(String(format: "%.3f", pow(discountFactor, 2)))
-        - Period \(numberOfPeriods-1) weight: \(String(format: "%.3f", pow(discountFactor, Double(numberOfPeriods-1))))
+        - Period 1 weight: \(discountFactor.digits(3))
+        - Period 2 weight: \((pow(discountFactor, 2)).digits(3))
+        - Period \(numberOfPeriods-1) weight: \((pow(discountFactor, Double(numberOfPeriods-1))).digits(3))
 
         Future costs/revenues are automatically discounted to present value.
 
@@ -145,7 +145,7 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
         for (t, state) in result.trajectory.enumerated() {
             let periodValue = result.periodObjectives[t]
             let discounted = periodValue * pow(\(discountFactor), Double(t))
-            print("  Period \\(t): \\(state) → $\\(String(format: "%.2f", periodValue)) (PV: $\\(String(format: "%.2f", discounted)))")
+            print("  Period \\(t): \\(state) → $\\(periodValue.digits(2)) (PV: $\\(discounted.digits(2)))")
         }
         ```
 
@@ -628,7 +628,7 @@ public struct RobustOptimizeTool: MCPToolHandler, Sendable {
         **Problem Configuration:**
         - Scenarios to protect against: \(numberOfScenarios)
         - Problem type: \(problemType)
-        - Robustness factor: \(String(format: "%.0f%%", robustnessFactor * 100))
+        - Robustness factor: \((robustnessFactor * 100).percentDigits(0))
         - Decision variables: \(dimensions)
 
         **What This Optimizes:**
@@ -638,7 +638,7 @@ public struct RobustOptimizeTool: MCPToolHandler, Sendable {
         where:
         - x = decision variables (robust choice)
         - ω = worst-case uncertain parameters
-        - Protects against worst \(String(format: "%.0f%%", (1-robustnessFactor) * 100)) of scenarios
+        - Protects against worst \(((1-robustnessFactor) * 100).percentDigits(0)) of scenarios
         ```
 
         **Robustness Interpretation:**
@@ -707,7 +707,7 @@ public struct RobustOptimizeTool: MCPToolHandler, Sendable {
 
         **Worst-Case Objective:** Guaranteed performance level
         - Decision protects against this scenario
-        - \(String(format: "%.0f%%", robustnessFactor * 100)) of scenarios will be better
+        - \((robustnessFactor * 100).percentDigits(0)) of scenarios will be better
 
         **Average Objective:** Expected performance
         - Usually worse than pure stochastic solution
@@ -912,7 +912,7 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
         - Number of scenarios: \(numberOfScenarios) discrete futures
         - Problem type: \(problemType.replacingOccurrences(of: "_", with: " "))
         - Decision variables: \(dimensions)
-        - Probabilities: \(hasProbabilities ? "Specified" : "Equal (\(String(format: "%.1f%%", equalProb * 100)) each)")
+        - Probabilities: \(hasProbabilities ? "Specified" : "Equal (\((equalProb * 100).percentDigits(1)) each)")
 
         **What This Optimizes:**
         ```
@@ -1036,7 +1036,7 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
     private func getExampleScenarios(problemType: String, numberOfScenarios: Int, hasProbabilities: Bool) -> String {
         let probs = hasProbabilities ?
             ["0.2", "0.5", "0.3"] :
-            Array(repeating: String(format: "%.2f", 1.0/Double(numberOfScenarios)), count: numberOfScenarios)
+            Array(repeating: (1.0/Double(numberOfScenarios)).digits(2), count: numberOfScenarios)
 
         switch problemType {
         case "capacity_planning", "strategic_planning":

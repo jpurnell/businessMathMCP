@@ -131,12 +131,12 @@ public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
         - Variables: \(dimensions)
         - Swarm size: \(numberOfParticles) particles
         - Max iterations: \(maxIterations)
-        - Search region: [\(lower.map { String(format: "%.2f", $0) }.joined(separator: ", "))] to [\(upper.map { String(format: "%.2f", $0) }.joined(separator: ", "))]
+        - Search region: [\(lower.map { $0.digits(2) }.joined(separator: ", "))] to [\(upper.map { $0.digits(2) }.joined(separator: ", "))]
 
         **Algorithm Parameters:**
-        - Inertia weight (ω): \(String(format: "%.2f", inertiaWeight)) \(explainInertia(inertiaWeight))
-        - Cognitive weight (c₁): \(String(format: "%.2f", cognitiveWeight)) \(explainCognitive(cognitiveWeight))
-        - Social weight (c₂): \(String(format: "%.2f", socialWeight)) \(explainSocial(socialWeight))
+        - Inertia weight (ω): \(inertiaWeight.digits(2)) \(explainInertia(inertiaWeight))
+        - Cognitive weight (c₁): \(cognitiveWeight.digits(2)) \(explainCognitive(cognitiveWeight))
+        - Social weight (c₂): \(socialWeight.digits(2)) \(explainSocial(socialWeight))
         - Topology: \(topology) \(explainTopology(topology))
 
         **How PSO Works:**
@@ -677,8 +677,8 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         - Generations: \(generations)
 
         **Evolutionary Parameters:**
-        - Crossover rate: \(String(format: "%.2f", crossoverRate)) (\(Int(crossoverRate * 100))% of offspring via recombination)
-        - Mutation rate: \(String(format: "%.4f", mutationRate)) (\(String(format: "%.2f", mutationRate * 100))% chance per gene)
+        - Crossover rate: \(crossoverRate.digits(2)) (\(Int(crossoverRate * 100))% of offspring via recombination)
+        - Mutation rate: \(mutationRate.digits(4)) (\((mutationRate * 100).digits(2))% chance per gene)
         - Elitism: Keep best \(elitismCount) individuals
         - Selection: \(selectionMethod)\(selectionMethod == "tournament" ? " (size \(tournamentSize))" : "")
 
@@ -698,7 +698,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
            Combine two parents to create offspring:
            \(getCrossoverExplanation(encoding: encoding))
 
-        4. MUTATION (\(String(format: "%.2f", mutationRate * 100))% probability per gene)
+        4. MUTATION (\((mutationRate * 100).digits(2))% probability per gene)
            Random changes for exploration:
            \(getMutationExplanation(encoding: encoding))
 
@@ -787,7 +787,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
         **Mutation Strategies:**
 
-        **Current Rate: \(String(format: "%.4f", mutationRate))**
+        **Current Rate: \(mutationRate.digits(4))**
         \(getMutationGuidance(mutationRate: mutationRate, dimensions: dimensions))
 
         **Parameter Tuning:**
@@ -851,7 +851,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
         **Problem: Premature convergence**
         - Increase population size to \(populationSize * 2)
-        - Increase mutation rate to \(String(format: "%.4f", mutationRate * 2))
+        - Increase mutation rate to \((mutationRate * 2).digits(4))
         - Use rank or stochastic universal selection
         - Reduce elitism count
 
@@ -1232,8 +1232,8 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
         var guidance = """
         **Mutation Rate Analysis:**
-        - Current: \(String(format: "%.4f", mutationRate)) (\(String(format: "%.2f", mutationRate * 100))%)
-        - Rule of thumb: 1/L = \(String(format: "%.4f", recommended)) where L=chromosome length
+        - Current: \(mutationRate.digits(4)) (\((mutationRate * 100).digits(2))%)
+        - Rule of thumb: 1/L = \(recommended.digits(4)) where L=chromosome length
         """
 
         if mutationRate < recommended * 0.5 {
@@ -1248,7 +1248,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
 
         **Mutation Impact:**
-        - Expected mutations per child: \(String(format: "%.1f", mutationRate * Double(dimensions)))
+        - Expected mutations per child: \((mutationRate * Double(dimensions)).digits(1))
         - With population \(100), expect ~\(Int(mutationRate * Double(dimensions) * 100)) mutations per generation
         """
 
@@ -1262,7 +1262,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         **Current Configuration:**
         - Population: \(populationSize) (recommended: ~\(recommendedPop))
         - Generations: \(generations) (typical: 50-200)
-        - Mutation rate: \(String(format: "%.4f", mutationRate))
+        - Mutation rate: \(mutationRate.digits(4))
         """
 
         if populationSize < recommendedPop {

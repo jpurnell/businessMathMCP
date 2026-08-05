@@ -320,9 +320,9 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
 
         **Problem Configuration:**
         - Assets: \(n)
-        - Risk Aversion (λ): \(String(format: "%.1f", riskAversion))
-        - Concentration Limit: \(String(format: "%.0f%%", concentrationLimit * 100))
-        - Total Budget: $\(String(format: "%.0f", budget))
+        - Risk Aversion (λ): \(riskAversion.digits(1))
+        - Concentration Limit: \((concentrationLimit * 100).percentDigits(0))
+        - Total Budget: $\(budget.digits(0))
 
         **Optimal Portfolio Allocation:**
         """
@@ -336,9 +336,9 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
 
 
             \(assetNames[i]):
-              Allocation: $\(String(format: "%.0f", allocation)) (\(String(format: "%.1f%%", weight * 100)))
-              Expected Return: \(String(format: "%.1f%%", expectedReturns[i] * 100))
-              Risk Contribution: \(String(format: "%.1f%%", riskContrib * 100))
+              Allocation: $\(allocation.digits(0)) (\((weight * 100).percentDigits(1)))
+              Expected Return: \((expectedReturns[i] * 100).percentDigits(1))
+              Risk Contribution: \((riskContrib * 100).percentDigits(1))
             """
         }
 
@@ -346,22 +346,22 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
 
 
         **Portfolio Metrics:**
-        - Expected Return: \(String(format: "%.2f%%", portfolioReturn * 100))
-        - Portfolio Volatility: \(String(format: "%.2f%%", portfolioVolatility * 100))
-        - Sharpe Ratio: \(String(format: "%.3f", sharpeRatio)) (using \(String(format: "%.1f%%", riskFreeRate * 100)) risk-free rate)
+        - Expected Return: \((portfolioReturn * 100).percentDigits(2))
+        - Portfolio Volatility: \((portfolioVolatility * 100).percentDigits(2))
+        - Sharpe Ratio: \(sharpeRatio.digits(3)) (using \((riskFreeRate * 100).percentDigits(1)) risk-free rate)
         - Convergence: \(result.converged ? "✓ Yes" : "⚠️ No") in \(result.iterations) iterations
 
         **Risk-Return Tradeoff:**
-        - Without risk penalty: Would invest 100% in highest return asset (\(String(format: "%.0f%%", expectedReturns.max()! * 100)))
-        - With risk aversion λ=\(String(format: "%.1f", riskAversion)): Diversified across \(optimalWeights.filter { $0 > 0.01 }.count) assets
-        - Diversification benefit: Lower volatility (\(String(format: "%.2f%%", portfolioVolatility * 100))) vs. single-asset risk
+        - Without risk penalty: Would invest 100% in highest return asset (\((expectedReturns.max()! * 100).percentDigits(0)))
+        - With risk aversion λ=\(riskAversion.digits(1)): Diversified across \(optimalWeights.filter { $0 > 0.01 }.count) assets
+        - Diversification benefit: Lower volatility (\((portfolioVolatility * 100).percentDigits(2))) vs. single-asset risk
 
         **Interpretation:**
         This portfolio balances return maximization against risk minimization. Higher-return assets
         typically have higher allocations, but diversification reduces overall portfolio risk through
         correlation effects. The Sharpe ratio measures risk-adjusted performance.
 
-        **Objective:** Maximized E[r] - \(String(format: "%.1f", riskAversion)) × σ² (mean-variance optimization)
+        **Objective:** Maximized E[r] - \(riskAversion.digits(1)) × σ² (mean-variance optimization)
         """
 
         return .success(text: output)

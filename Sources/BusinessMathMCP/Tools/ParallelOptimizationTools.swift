@@ -132,7 +132,7 @@ public struct ParallelOptimizeTool: MCPToolHandler, Sendable {
         **Problem Configuration:**
         - Variables: \(variables.joined(separator: ", "))
         - Dimensions: \(dimensions)
-        - Search region: [\(lower.map { String(format: "%.2f", $0) }.joined(separator: ", "))] to [\(upper.map { String(format: "%.2f", $0) }.joined(separator: ", "))]
+        - Search region: [\(lower.map { $0.digits(2) }.joined(separator: ", "))] to [\(upper.map { $0.digits(2) }.joined(separator: ", "))]
         - Parallel starts: \(numberOfStarts)
         - Algorithm: \(algorithm)
         - Max iterations per run: \(maxIterations)
@@ -188,7 +188,7 @@ public struct ParallelOptimizeTool: MCPToolHandler, Sendable {
         // Analyze results
         print("✓ Best solution: \\(result.solution)")
         print("✓ Objective value: \\(result.objectiveValue)")
-        print("✓ Success rate: \\(String(format: "%.1f", result.successRate * 100))%")
+        print("✓ Success rate: \\((result.successRate * 100).digits(1))%")
         print("✓ Best starting point: \\(result.bestStartingPoint)")
         print("✓ Total attempts: \\(result.allResults.count)")
 

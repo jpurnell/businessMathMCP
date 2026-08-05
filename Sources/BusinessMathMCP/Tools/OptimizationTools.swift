@@ -499,7 +499,7 @@ public struct CapitalAllocationTool: MCPToolHandler, Sendable {
         var result = """
         Capital Allocation (\(method.uppercased()) Method)
 
-        Budget: $\(String(format: "%.0f", budget))
+        Budget: $\(budget.digits(0))
 
         Selected Projects:
         """
@@ -511,9 +511,9 @@ public struct CapitalAllocationTool: MCPToolHandler, Sendable {
                 result += """
 
                 \(i+1). \(project.name)
-                   Cost: $\(String(format: "%.0f", allocation))
-                   NPV: $\(String(format: "%.0f", project.npv))
-                   Profitability Index: \(String(format: "%.2f", pi))
+                   Cost: $\(allocation.digits(0))
+                   NPV: $\(project.npv.digits(0))
+                   Profitability Index: \(pi.digits(2))
                 """
             }
         }
@@ -522,9 +522,9 @@ public struct CapitalAllocationTool: MCPToolHandler, Sendable {
 
 
         Summary:
-        - Total NPV: $\(String(format: "%.0f", allocationResult.totalNPV))
-        - Capital Used: $\(String(format: "%.0f", allocationResult.capitalUsed))
-        - Capital Remaining: $\(String(format: "%.0f", budget - allocationResult.capitalUsed))
+        - Total NPV: $\(allocationResult.totalNPV.digits(0))
+        - Capital Used: $\(allocationResult.capitalUsed.digits(0))
+        - Capital Remaining: $\((budget - allocationResult.capitalUsed).digits(0))
         - Projects Selected: \(allocationResult.projectsSelected.count) of \(capitalProjects.count)
         """
 
@@ -685,12 +685,12 @@ public struct LinearProgramTool: MCPToolHandler, Sendable {
 
 
             Optimal Solution:
-            - Objective Value: \(String(format: "%.6f", actualValue))
+            - Objective Value: \(actualValue.digits(6))
             - Variable Values:
             """
 
             for (i, value) in result.solution.enumerated() {
-                output += "\n  x[\(i)] = \(String(format: "%.6f", value))"
+                output += "\n  x[\(i)] = \(value.digits(6))"
             }
         } else {
             output += "\n\nNo optimal solution found."

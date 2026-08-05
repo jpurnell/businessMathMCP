@@ -305,7 +305,7 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
         correlationSummary += "     " + names.enumerated().map { "[\($0.offset)]".paddingLeft(toLength: 7) }.joined(separator: " ")
         correlationSummary += "\n"
         for (i, row) in correlationValues.enumerated() {
-            correlationSummary += "[\(i)] " + row.map { String(format: "%6.3f", $0).paddingLeft(toLength: 7) }.joined(separator: " ")
+            correlationSummary += "[\(i)] " + row.map { $0.digits(3).paddingLeft(toLength: 7) }.joined(separator: " ")
             correlationSummary += "\n"
         }
 
@@ -378,7 +378,7 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
                     strengthDesc = "Very weak"
                 }
 
-                insights.append("• \(names[i]) ↔ \(names[j]): \(String(format: "%.3f", corr)) (\(strengthDesc) \(direction))")
+                insights.append("• \(names[i]) ↔ \(names[j]): \(corr.digits(3)) (\(strengthDesc) \(direction))")
             }
         }
 
@@ -656,8 +656,8 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
 
         Performance:
         • Acceleration: \(accelerationStatus)
-        • Execution Time: \(String(format: "%.2f", elapsedTime))s
-        \(useGPU ? "• Speedup vs CPU: ~\(String(format: "%.1f", speedup))× faster" : "")
+        • Execution Time: \(elapsedTime.digits(2))s
+        \(useGPU ? "• Speedup vs CPU: ~\(speedup.digits(1))× faster" : "")
         \(useGPU ? "• GPU Device: Metal-compatible" : "• Reason: \(getGPUFallbackReason(gpuAvailable: gpuAvailable, iterations: iterations))")
 
         Model:
@@ -719,7 +719,7 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
         if useGPU {
             tips.append("✓ GPU acceleration active")
             if elapsedTime < 1.0 {
-                tips.append("✓ Excellent performance (\(String(format: "%.2f", elapsedTime))s)")
+                tips.append("✓ Excellent performance (\(elapsedTime.digits(2))s)")
             }
             if iterations < 100000 {
                 tips.append("💡 Increase iterations to \(iterations * 10) for even better GPU utilization")

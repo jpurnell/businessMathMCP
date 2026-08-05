@@ -127,8 +127,8 @@ public struct BlackScholesOptionTool: MCPToolHandler, Sendable {
         \(optionType == .call ?
         "Call option gives the right to BUY at \(strikePrice.currency())" :
         "Put option gives the right to SELL at \(strikePrice.currency())")
-        Current profit if exercised: $\(String(format: "%.2f", intrinsicValue))
-        Premium for waiting/flexibility: $\(String(format: "%.2f", timeValue))
+        Current profit if exercised: $\(intrinsicValue.digits(2))
+        Premium for waiting/flexibility: $\(timeValue.digits(2))
 
         Note: This is for European options (exercisable only at expiration).
         For American options (exercisable anytime), use binomial tree model.
@@ -354,14 +354,14 @@ public struct CalculateGreeksTool: MCPToolHandler, Sendable {
 //        Option Details:
 //        - Type: \(optionType == .call ? "Call" : "Put")
 //        - Style: \(americanStyle ? "American" : "European")
-//        - Spot Price: $\(String(format: "%.2f", spotPrice))
-//        - Strike Price: $\(String(format: "%.2f", strikePrice))
-//        - Time to Expiry: \(String(format: "%.2f", timeToExpiry)) years
-//        - Risk-Free Rate: \(String(format: "%.1f%%", riskFreeRate * 100))
-//        - Volatility: \(String(format: "%.1f%%", volatility * 100))
+//        - Spot Price: $\(spotPrice.digits(2))
+//        - Strike Price: $\(strikePrice.digits(2))
+//        - Time to Expiry: \(timeToExpiry.digits(2)) years
+//        - Risk-Free Rate: \((riskFreeRate * 100).percentDigits(1))
+//        - Volatility: \((volatility * 100).percentDigits(1))
 //        - Tree Steps: \(steps)
 //
-//        Option Value: $\(String(format: "%.4f", binomialPrice))
+//        Option Value: $\(binomialPrice.digits(4))
 //        """
 //
 //        if americanStyle {
@@ -383,11 +383,11 @@ public struct CalculateGreeksTool: MCPToolHandler, Sendable {
 //
 //
 //            Early Exercise Value:
-//            - European Value: $\(String(format: "%.4f", europeanPrice))
-//            - American Value: $\(String(format: "%.4f", binomialPrice))
-//            - Early Exercise Premium: $\(String(format: "%.4f", earlyExercisePremium))
+//            - European Value: $\(europeanPrice.digits(4))
+//            - American Value: $\(binomialPrice.digits(4))
+//            - Early Exercise Premium: $\(earlyExercisePremium.digits(4))
 //
-//            The American option is worth \(String(format: "%.2f%%", (earlyExercisePremium / europeanPrice) * 100)) more
+//            The American option is worth \(((earlyExercisePremium / europeanPrice) * 100).percentDigits(2)) more
 //            due to the flexibility to exercise early.
 //            """
 //        }
@@ -410,9 +410,9 @@ public struct CalculateGreeksTool: MCPToolHandler, Sendable {
 //
 //
 //            Comparison to Black-Scholes:
-//            - Binomial: $\(String(format: "%.4f", binomialPrice))
-//            - Black-Scholes: $\(String(format: "%.4f", blackScholesPrice))
-//            - Difference: $\(String(format: "%.4f", difference)) (\(String(format: "%.2f%%", percentDiff)))
+//            - Binomial: $\(binomialPrice.digits(4))
+//            - Black-Scholes: $\(blackScholesPrice.digits(4))
+//            - Difference: $\(difference.digits(4)) (\(percentDiff.percentDigits(2)))
 //
 //            Binomial tree converges to Black-Scholes as steps increase.
 //            """

@@ -199,8 +199,8 @@ public struct BranchAndBoundTool: MCPToolHandler, Sendable {
         print("Objective value: \\(result.objectiveValue)")
         print("Solution: \\(result.solution)")
         print("Nodes explored: \\(result.nodesExplored)")
-        print("Solve time: \\(String(format: "%.2f", result.solveTime))s")
-        print("Optimality gap: \\(String(format: "%.2f%%", result.relativeGap * 100))")
+        print("Solve time: \\(result.solveTime.digits(2))s")
+        print("Optimality gap: \\((result.relativeGap * 100).percentDigits(2))")
 
         // Verify integrality
         let integerIndices = \(integerVars)
@@ -640,8 +640,8 @@ public struct BranchAndCutTool: MCPToolHandler, Sendable {
         print("Objective value: \\(result.objectiveValue)")
         print("Solution: \\(result.solution)")
         print("Nodes explored: \\(result.nodesExplored)")  // Compare to B&B
-        print("Solve time: \\(String(format: "%.2f", result.solveTime))s")
-        print("Optimality gap: \\(String(format: "%.2f%%", result.gap * 100))")
+        print("Solve time: \\(result.solveTime.digits(2))s")
+        print("Optimality gap: \\((result.gap * 100).percentDigits(2))")
 
         // Cutting plane statistics
         print("\\n🎯 Cutting Plane Statistics:")

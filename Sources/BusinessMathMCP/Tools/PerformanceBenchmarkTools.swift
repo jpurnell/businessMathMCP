@@ -111,11 +111,11 @@ public struct ProfileOptimizerTool: MCPToolHandler, Sendable {
         )
 
         // Analyze results
-        print("Average time: \\(String(format: "%.4f", result.avgTime))s")
-        print("Std deviation: \\(String(format: "%.4f", result.stdDev))s")
-        print("Success rate: \\(String(format: "%.1f", result.successRate * 100))%")
-        print("Min time: \\(String(format: "%.4f", result.minTime))s")
-        print("Max time: \\(String(format: "%.4f", result.maxTime))s")
+        print("Average time: \\(result.avgTime.digits(4))s")
+        print("Std deviation: \\(result.stdDev.digits(4))s")
+        print("Success rate: \\((result.successRate * 100).digits(1))%")
+        print("Min time: \\(result.minTime.digits(4))s")
+        print("Max time: \\(result.maxTime.digits(4))s")
 
         // Check consistency
         if result.stdDev / result.avgTime < 0.2 {
@@ -424,10 +424,10 @@ public struct CompareOptimizersTool: MCPToolHandler, Sendable {
 
         // Analyze winner
         let fastest = results.sorted(by: { $0.avgTime < $1.avgTime })[0]
-        print("\\n🏆 Fastest: \\(fastest.name) at \\(String(format: "%.4f", fastest.avgTime))s")
+        print("\\n🏆 Fastest: \\(fastest.name) at \\(fastest.avgTime.digits(4))s")
 
         let mostReliable = results.sorted(by: { $0.successRate > $1.successRate })[0]
-        print("🎯 Most reliable: \\(mostReliable.name) at \\(String(format: "%.1f", mostReliable.successRate * 100))%")
+        print("🎯 Most reliable: \\(mostReliable.name) at \\((mostReliable.successRate * 100).digits(1))%")
         ```
 
         **What to Look For:**

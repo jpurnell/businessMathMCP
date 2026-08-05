@@ -108,10 +108,10 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         - Neighborhood: \(neighborhoodType)
 
         **Temperature Schedule:**
-        - Initial temperature (T₀): \(String(format: "%.1f", initialTemp)) \(explainTemperature(initialTemp, type: "initial"))
-        - Final temperature (Tf): \(String(format: "%.4f", finalTemp))
+        - Initial temperature (T₀): \(initialTemp.digits(1)) \(explainTemperature(initialTemp, type: "initial"))
+        - Final temperature (Tf): \(finalTemp.digits(4))
         - Cooling schedule: \(coolingSchedule)
-        - Cooling rate (α): \(String(format: "%.3f", coolingRate)) \(explainCoolingRate(coolingRate, schedule: coolingSchedule))
+        - Cooling rate (α): \(coolingRate.digits(3)) \(explainCoolingRate(coolingRate, schedule: coolingSchedule))
         - Iterations per temperature: \(itersPerTemp)
         - Estimated temperature steps: ~\(totalTemperatureSteps)
         - Total iterations: ~\(totalTemperatureSteps * itersPerTemp) (max: \(maxIterations))
@@ -169,11 +169,11 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         P(accept worse) = exp(-ΔE / T)
 
         At T = \(initialTemp) (hot):
-          ΔE = 10  → P = exp(-10/\(initialTemp)) = \(String(format: "%.4f", exp(-10.0/initialTemp)))  ← High acceptance
-          ΔE = 100 → P = exp(-100/\(initialTemp)) = \(String(format: "%.4f", exp(-100.0/initialTemp)))
+          ΔE = 10  → P = exp(-10/\(initialTemp)) = \((exp(-10.0/initialTemp)).digits(4))  ← High acceptance
+          ΔE = 100 → P = exp(-100/\(initialTemp)) = \((exp(-100.0/initialTemp)).digits(4))
 
         At T = 1.0 (cool):
-          ΔE = 10  → P = exp(-10/1) = \(String(format: "%.4f", exp(-10.0)))  ← Low acceptance
+          ΔE = 10  → P = exp(-10/1) = \((exp(-10.0)).digits(4))  ← Low acceptance
           ΔE = 100 → P = exp(-100/1) ≈ 0.0000...  ← Almost never
 
         As T → 0: Only better solutions accepted (like greedy hill climbing)
@@ -221,12 +221,12 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         print("Best energy: \\(result.bestEnergy)")
         print("Final temperature: \\(result.finalTemperature)")
         print("Total iterations: \\(result.iterations)")
-        print("Acceptance ratio: \\(String(format: "%.2f%%", result.acceptanceRatio * 100))")
+        print("Acceptance ratio: \\((result.acceptanceRatio * 100).percentDigits(2))")
 
         // Cooling curve
         print("\\nCooling history:")
         for (step, temp, energy) in result.coolingHistory {
-            print("Step \\(step): T=\\(String(format: "%.2f", temp)), E=\\(String(format: "%.2f", energy))")
+            print("Step \\(step): T=\\(temp.digits(2)), E=\\(energy.digits(2))")
         }
         """
 
@@ -565,11 +565,11 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
             - Total cooling time: ~\(steps) temperature levels × \(100) iterations = \(steps * 100) iterations
 
             **Cooling curve:**
-            Step 0: T = \(String(format: "%.1f", initialTemp))
-            Step \(steps/4): T = \(String(format: "%.1f", initialTemp * pow(rate, Double(steps/4))))
-            Step \(steps/2): T = \(String(format: "%.1f", initialTemp * pow(rate, Double(steps/2))))
-            Step \(3*steps/4): T = \(String(format: "%.1f", initialTemp * pow(rate, Double(3*steps/4))))
-            Step \(steps): T = \(String(format: "%.4f", finalTemp))
+            Step 0: T = \(initialTemp.digits(1))
+            Step \(steps/4): T = \((initialTemp * pow(rate, Double(steps/4))).digits(1))
+            Step \(steps/2): T = \((initialTemp * pow(rate, Double(steps/2))).digits(1))
+            Step \(3*steps/4): T = \((initialTemp * pow(rate, Double(3*steps/4))).digits(1))
+            Step \(steps): T = \(finalTemp.digits(4))
             """
         default:
             return "Cooling analysis for \(schedule) schedule"
@@ -852,11 +852,11 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
         - Dimensions: \(dimensions)
         - Population size: \(populationSize) (\(populationSize/dimensions)× dimensions)
         - Max generations: \(maxGenerations)
-        - Search bounds: [\(lower.map { String(format: "%.2f", $0) }.joined(separator: ", "))] to [\(upper.map { String(format: "%.2f", $0) }.joined(separator: ", "))]
+        - Search bounds: [\(lower.map { $0.digits(2) }.joined(separator: ", "))] to [\(upper.map { $0.digits(2) }.joined(separator: ", "))]
 
         **DE Parameters:**
-        - Differential weight (F): \(String(format: "%.2f", differentialWeight)) \(explainDEWeight(differentialWeight))
-        - Crossover rate (CR): \(String(format: "%.2f", crossoverRate)) \(explainDECrossover(crossoverRate))
+        - Differential weight (F): \(differentialWeight.digits(2)) \(explainDEWeight(differentialWeight))
+        - Crossover rate (CR): \(crossoverRate.digits(2)) \(explainDECrossover(crossoverRate))
         - Strategy: \(strategy) \(explainDEStrategy(strategy))
 
         **How Differential Evolution Works:**
