@@ -1,6 +1,0 @@
-# Framework repository. Project content never lives here — it belongs in the
-# consuming project's own project/ directory. See rules/architecture_decisions.md
-# (ADR-013) and project/decisions/ for this repo's own log.
-
-.DS_Store
-.claude/settings.local.json
