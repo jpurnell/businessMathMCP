@@ -41,4 +41,5 @@ Instruction Set/
 
 # Deployment and development docs (local only)
 DEPLOY_INSTRUCTIONS.md
-development-guidelines/
+development-guidelines//.claude/skills/
+/development-guidelines.pre-v2/

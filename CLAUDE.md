@@ -19,7 +19,7 @@ This repo hosts the BusinessMath MCP server (207+ tools) AND coordinates the ups
 
 The development-guidelines are in the sibling repo: `../BusinessMath/development-guidelines/`.
 For any non-trivial feature:
-1. **Design proposal** first (`00_CORE_RULES/05_DESIGN_PROPOSAL.md` template). Ground it in the
+1. **Design proposal** first (`development-guidelines/rules/design_proposal.md` template). Ground it in the
    REAL spec source (schema.json + the official `@modelcontextprotocol/conformance` scenarios)
    BEFORE writing it — do not paraphrase from memory.
 2. **Adversarial review** of the proposal (fan out independent reviewers to break it) BEFORE
