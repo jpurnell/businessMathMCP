@@ -16,15 +16,40 @@ permissions:
 jobs:
   tests:
     name: Build & Test
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.x (Swift 6)
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.4'
+      - name: Select Xcode 26.x (Swift 6.2+)
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_26* 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE_PATH" ]; then
+            echo "No Xcode 26.x found on this runner; using the default."
+            xcodebuild -version
+          else
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+            echo "Selected $XCODE_PATH"
+          fi
+
+      - name: Verify Swift meets the manifest's floor
+        run: |
+          swift --version
+          # Package.swift declares swift-tools-version: 6.2. Assert it here so a runner
+          # image that drifts below the floor fails with this message rather than with
+          # "using Swift tools version 6.2.0 but the installed version is 6.1.0" from
+          # somewhere deep in a build step.
+          REQUIRED=6.2
+          ACTUAL=$(swift --version 2>&1 | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$ACTUAL" ]; then
+            echo "::error::Could not determine the Swift version on this runner."
+            exit 1
+          fi
+          if [ "$(printf '%s\n%s\n' "$REQUIRED" "$ACTUAL" | sort -V | head -1)" != "$REQUIRED" ]; then
+            echo "::error::Package.swift needs Swift >= $REQUIRED; this runner has $ACTUAL."
+            exit 1
+          fi
+          echo "Swift $ACTUAL satisfies the $REQUIRED floor"
 
       - name: Tooling versions
         run: |
@@ -51,20 +76,45 @@ jobs:
           ls -lh .build/release/businessmath-mcp-server
 
   integration:
-    name: Integration with BusinessMath
-    runs-on: macos-15
+    name: Integration with BusinessMath (pinned release)
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.x (Swift 6)
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.4'
-
-      - name: Test with BusinessMath (main branch)
+      - name: Select Xcode 26.x (Swift 6.2+)
         run: |
-          echo "Testing integration with BusinessMath main branch"
+          XCODE_PATH=$(ls -d /Applications/Xcode_26* 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE_PATH" ]; then
+            echo "No Xcode 26.x found on this runner; using the default."
+            xcodebuild -version
+          else
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+            echo "Selected $XCODE_PATH"
+          fi
+
+      - name: Verify Swift meets the manifest's floor
+        run: |
+          swift --version
+          # Package.swift declares swift-tools-version: 6.2. Assert it here so a runner
+          # image that drifts below the floor fails with this message rather than with
+          # "using Swift tools version 6.2.0 but the installed version is 6.1.0" from
+          # somewhere deep in a build step.
+          REQUIRED=6.2
+          ACTUAL=$(swift --version 2>&1 | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)
+          if [ -z "$ACTUAL" ]; then
+            echo "::error::Could not determine the Swift version on this runner."
+            exit 1
+          fi
+          if [ "$(printf '%s\n%s\n' "$REQUIRED" "$ACTUAL" | sort -V | head -1)" != "$REQUIRED" ]; then
+            echo "::error::Package.swift needs Swift >= $REQUIRED; this runner has $ACTUAL."
+            exit 1
+          fi
+          echo "Swift $ACTUAL satisfies the $REQUIRED floor"
+
+      - name: Test against the pinned BusinessMath release
+        run: |
+          echo "Resolving BusinessMath at the version Package.swift pins"
           swift package resolve
           swift build
           swift test --enable-swift-testing
