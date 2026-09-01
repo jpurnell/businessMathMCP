@@ -20,12 +20,12 @@ let package = Package(
         // Core BusinessMath library
         .package(
             url: "https://github.com/jpurnell/businessMath",
-            branch: "main"
+            .upToNextMinor(from: "2.7.0")
         ),
         // MCP Server framework (transport, auth, OAuth, session management)
         .package(
             url: "https://github.com/jpurnell/SwiftMCPServer.git",
-            branch: "main"
+            .upToNextMinor(from: "1.1.6")
         ),
         // MCP SDK (fork 0.11.x — 2025-11-25 spec + Swift 6.4 concurrency fixes)
         .package(

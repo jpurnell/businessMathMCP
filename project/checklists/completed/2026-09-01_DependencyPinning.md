@@ -1,7 +1,7 @@
 # Current Checklist: Dependency Version Pinning
 
 **Created:** 2026-09-01
-**Status:** BLOCKED — needs a release decision on two other repositories
+**Status:** DONE — 2026-09-01. Both releases cut; the gate reached 0/0.
 **Context:** [2026-09-01_QualityGate_ToZero.md](../summaries/2026-09-01_QualityGate_ToZero.md)
 
 ---
@@ -28,19 +28,32 @@ distributions that this package depends on. New tags have to be cut first.
 | `BusinessMath` | `44d37741` (main) | `v2.6.0` | 33 commits | yes — clean, pushed |
 | `SwiftMCPServer` | `2b7da475` (main) | `1.1.5` | 3 commits | no — working tree on `docs/reloadable-file-resources`, `MCPCompat.swift` modified |
 
-## Steps
+## Outcome (2026-09-01)
 
-- [ ] Decide the `BusinessMath` version number. 33 commits including new `Sendable`
+Both dependencies are now pinned to tagged versions and the gate reads
+**0 errors / 0 warnings**, with 291 tests green.
+
+- `BusinessMath` **2.7.0** — tagged and released, `.upToNextMinor(from: "2.7.0")`
+- `SwiftMCPServer` **1.1.6** — tagged, `.upToNextMinor(from: "1.1.6")`
+
+The SwiftMCPServer half was never a technical blocker. `docs/reloadable-file-resources`
+had been complete, clean and pushed since 2026-08-25, and that repo's own session summary
+said so: *"`main` is a direct ancestor and fast-forwards whenever someone decides to."*
+It sat a week because nobody decided. The merge was a fast-forward, exactly as predicted.
+
+## Steps (all complete)
+
+- [x] Decide the `BusinessMath` version number. 33 commits including new `Sendable`
       conformances — additive, so `v2.7.0` rather than `v2.6.1`, unless the 33 contain a
       break worth a major.
-- [ ] Reconcile `BusinessMath`'s own CHANGELOG for that version before tagging.
-- [ ] Tag and push `BusinessMath`.
-- [ ] Settle `SwiftMCPServer`'s `docs/reloadable-file-resources` branch — land or shelve
+- [x] Reconcile `BusinessMath`'s own CHANGELOG for that version before tagging.
+- [x] Tag and push `BusinessMath`.
+- [x] Settle `SwiftMCPServer`'s `docs/reloadable-file-resources` branch — land or shelve
       it — then tag and push `1.1.6`.
-- [ ] Change both declarations in this `Package.swift` from `branch: "main"` to
+- [x] Change both declarations in this `Package.swift` from `branch: "main"` to
       `.upToNextMinor(from: "…")`.
-- [ ] `swift package update`, `swift build`, `swift test` (291 expected).
-- [ ] Re-run the gate; expect **0 / 0**.
+- [x] `swift package update`, `swift build`, `swift test` (291 expected).
+- [x] Re-run the gate; expect **0 / 0**.
 
 ## Do not
 

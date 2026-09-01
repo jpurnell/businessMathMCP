@@ -71,11 +71,12 @@ authentication code lives here.
 - [x] Tool surface implemented and tested — 26 test files, 291 cases
 - [x] CI configured
 - [x] Built on `SwiftMCPServer` (verified 2026-08-05: builds clean, 291 tests pass)
-- [x] Quality gate at **0 errors / 2 warnings**, no overrides (2026-09-01) — from
-      111 / 1,206. Both remaining warnings are dependency branch pins, not code.
+- [x] Quality gate at **0 errors / 0 warnings**, no overrides (2026-09-01) — from
+      111 / 1,206, with 291 tests green.
 - [x] Documentation coverage 5% → 89% — ~800 declarations documented
-- [ ] Dependency version pinning — see
-      [CURRENT_DependencyPinning.md](checklists/CURRENT_DependencyPinning.md)
+- [x] Dependency version pinning — `BusinessMath` 2.7.0 and `SwiftMCPServer` 1.1.6,
+      both `.upToNextMinor`. See
+      [completed/2026-09-01_DependencyPinning.md](checklists/completed/2026-09-01_DependencyPinning.md)
 
 > **Correction (2026-09-01).** The Priorities note below claimed "nothing here is a
 > known defect." That was wrong, and wrong in a way worth preserving: the tool surface
@@ -88,8 +89,8 @@ authentication code lives here.
 
 ### Priorities
 
-1. **Cut the two dependency releases** and pin to them — the only thing between here and
-   0 / 0, and a genuine reproducibility gap while it stands.
+1. ~~**Cut the two dependency releases** and pin to them.~~ Done 2026-09-01. Both were
+   released and pinned; the gate reads 0/0.
 2. **Find the other unexercised tools.** The seasonal-indices test passed for years
    without ever running its tool. That pattern — a `catch` that accepts any outcome —
    is what to grep for next; the `test-quality` checker now catches assertion-free tests

@@ -74,6 +74,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Both first-party dependencies are pinned to version tags, not `branch: "main"`.**
+  `BusinessMath` at `.upToNextMinor(from: "2.7.0")` and `SwiftMCPServer` at
+  `.upToNextMinor(from: "1.1.6")`. A branch pin means a fresh clone today and in a month
+  resolve to different code, which is a reproducibility gap rather than a style
+  preference — it was the last thing between this package and a clean gate. Both
+  dependencies were released to make it possible.
 - **`swift-tools-version` raised 6.0 → 6.2**, meeting the gate's floor.
 - **The `.docc` catalogue is declared `resources: [.copy(...)]`**, not `exclude:`.
   `exclude:` removes the catalogue from the file list swift-docc-plugin reads, so DocC
