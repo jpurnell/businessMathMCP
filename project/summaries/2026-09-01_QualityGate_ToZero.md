@@ -4,9 +4,14 @@
 ~85 repositories and ended here, because this repo held the most defects and the most
 interesting ones.
 
-**Outcome:** 111 errors / 1,206 warnings → **0 errors / 2 warnings.** 291 tests green.
-No overrides, no suppression comments, no config exclusions. The two remaining warnings
-are not code — see *Open* at the bottom.
+**Outcome:** 111 errors / 1,206 warnings → **0 errors / 0 warnings.** 291 tests green.
+No overrides, no suppression comments, no config exclusions.
+
+The last two warnings were dependency branch pins, cleared later the same day by releasing
+both dependencies — `BusinessMath 2.7.0` and `SwiftMCPServer 1.1.6` — and pinning to them.
+The *Open* section at the bottom is superseded by
+[CURRENT_OpenAfterTheReleases.md](../checklists/CURRENT_OpenAfterTheReleases.md), which
+carries what is still outstanding.
 
 ---
 

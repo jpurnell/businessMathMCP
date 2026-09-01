@@ -74,6 +74,11 @@ authentication code lives here.
 - [x] Quality gate at **0 errors / 0 warnings**, no overrides (2026-09-01) — from
       111 / 1,206, with 291 tests green.
 - [x] Documentation coverage 5% → 89% — ~800 declarations documented
+- [ ] Open items after the releases — see
+      [CURRENT_OpenAfterTheReleases.md](checklists/CURRENT_OpenAfterTheReleases.md).
+      The one that matters: **this package is public and depends on the private
+      `SwiftMCPServer`**, so the README's "add this as a dependency" is not true for
+      anyone outside the account.
 - [x] Dependency version pinning — `BusinessMath` 2.7.0 and `SwiftMCPServer` 1.1.6,
       both `.upToNextMinor`. See
       [completed/2026-09-01_DependencyPinning.md](checklists/completed/2026-09-01_DependencyPinning.md)
