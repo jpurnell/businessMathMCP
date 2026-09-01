@@ -3,7 +3,30 @@ name: CI
 on:
   push:
     branches: [ main ]
+    # Two macOS jobs, and macOS bills at 10x. This CI has been failing in under a second
+    # since the tools-version bump, so it has been free by accident; once it resolves
+    # dependencies again it becomes a real build on every push. Nothing listed here can
+    # change what `swift build` produces. `*.md` is root-only on purpose — `**.md` would
+    # also exclude the .docc catalogue, where a broken article is a real failure.
+    paths-ignore:
+      - '*.md'
+      - 'project/**'
+      - 'development-guidelines/**'
+      - 'development-guidelines.pre-v2/**'
+      - 'Instruction Set/**'
+      - 'Documentation/**'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
+    paths-ignore:
+      - '*.md'
+      - 'project/**'
+      - 'development-guidelines/**'
+      - 'development-guidelines.pre-v2/**'
+      - 'Instruction Set/**'
+      - 'Documentation/**'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
 concurrency:
