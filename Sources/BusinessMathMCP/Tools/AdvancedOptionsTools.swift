@@ -35,7 +35,11 @@ private func formatRate(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Option Greeks
 
+/// Calculate option Greeks (sensitivities) for risk management and hedging.
+///
+/// Exposed to clients as the `calculate_option_greeks` tool.
 public struct OptionGreeksTool: MCPToolHandler, Sendable {
+    /// The `calculate_option_greeks` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_option_greeks",
         description: """
@@ -108,8 +112,13 @@ public struct OptionGreeksTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_option_greeks` handler.
     public init() {}
 
+    /// Runs `calculate_option_greeks` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -252,7 +261,11 @@ public struct OptionGreeksTool: MCPToolHandler, Sendable {
 
 // MARK: - Binomial Tree Option
 
+/// Price options using binomial tree model (supports American & European options).
+///
+/// Exposed to clients as the `calculate_binomial_tree_option` tool.
 public struct BinomialTreeOptionTool: MCPToolHandler, Sendable {
+    /// The `calculate_binomial_tree_option` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_binomial_tree_option",
         description: """
@@ -327,8 +340,13 @@ public struct BinomialTreeOptionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_binomial_tree_option` handler.
     public init() {}
 
+    /// Runs `calculate_binomial_tree_option` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

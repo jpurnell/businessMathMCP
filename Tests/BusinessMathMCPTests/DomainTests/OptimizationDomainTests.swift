@@ -54,7 +54,7 @@ struct OptimizationDomainTests {
 
     @Test("parallel_optimization_guide provides optimization guidance")
     func testParallelGuide() async throws {
-        let tool = toolHandlersByName()["parallel_optimization_guide"]!
+        let tool = try #require(toolHandlersByName()["parallel_optimization_guide"])
         let args = argsFromJSON("""
             {"topic": "getting_started"}
         """)

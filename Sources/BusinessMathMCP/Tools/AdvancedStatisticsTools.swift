@@ -14,7 +14,11 @@ import SwiftMCPServer
 
 // MARK: - Tool 1: Binomial Probability
 
+/// Calculate the binomial probability mass function (PMF) - the probability of getting exactly k successes in n independent Bernoulli trials.
+///
+/// Exposed to clients as the `binomial_probability` tool.
 public struct BinomialProbabilityTool: MCPToolHandler, Sendable {
+    /// The `binomial_probability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "binomial_probability",
         description: """
@@ -58,6 +62,10 @@ public struct BinomialProbabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `binomial_probability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -102,7 +110,11 @@ public struct BinomialProbabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 2: Poisson Probability
 
+/// Calculate the Poisson probability - the probability of observing exactly x events in a fixed interval when events occur at a constant average rate.
+///
+/// Exposed to clients as the `poisson_probability` tool.
 public struct PoissonProbabilityTool: MCPToolHandler, Sendable {
+    /// The `poisson_probability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "poisson_probability",
         description: """
@@ -141,6 +153,10 @@ public struct PoissonProbabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `poisson_probability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -180,7 +196,11 @@ public struct PoissonProbabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 3: Exponential Distribution
 
+/// Calculate the exponential distribution PDF - models the time between events in a Poisson process.
+///
+/// Exposed to clients as the `exponential_distribution` tool.
 public struct ExponentialDistributionTool: MCPToolHandler, Sendable {
+    /// The `exponential_distribution` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "exponential_distribution",
         description: """
@@ -219,6 +239,10 @@ public struct ExponentialDistributionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `exponential_distribution` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -259,7 +283,11 @@ public struct ExponentialDistributionTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 4: Hypergeometric Probability
 
+/// Calculate the hypergeometric probability - probability of x successes in n draws without replacement from a finite population.
+///
+/// Exposed to clients as the `hypergeometric_probability` tool.
 public struct HypergeometricProbabilityTool: MCPToolHandler, Sendable {
+    /// The `hypergeometric_probability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "hypergeometric_probability",
         description: """
@@ -308,6 +336,10 @@ public struct HypergeometricProbabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `hypergeometric_probability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -351,7 +383,11 @@ public struct HypergeometricProbabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 5: Log-Normal Distribution
 
+/// Calculate the log-normal distribution PDF - models data that follows a normal distribution after logarithmic transformation.
+///
+/// Exposed to clients as the `lognormal_distribution` tool.
 public struct LogNormalDistributionTool: MCPToolHandler, Sendable {
+    /// The `lognormal_distribution` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "lognormal_distribution",
         description: """
@@ -395,6 +431,10 @@ public struct LogNormalDistributionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `lognormal_distribution` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -437,7 +477,11 @@ public struct LogNormalDistributionTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 6: Calculate Combinations
 
+/// Calculate combinations (n choose r) - the number of ways to choose r items from n items without regard to order.
+///
+/// Exposed to clients as the `calculate_combinations` tool.
 public struct CalculateCombinationsTool: MCPToolHandler, Sendable {
+    /// The `calculate_combinations` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_combinations",
         description: """
@@ -474,6 +518,10 @@ public struct CalculateCombinationsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `calculate_combinations` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -511,7 +559,11 @@ public struct CalculateCombinationsTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 7: Calculate Permutations
 
+/// Calculate permutations (n P r) - the number of ways to arrange r items from n items where order matters.
+///
+/// Exposed to clients as the `calculate_permutations` tool.
 public struct CalculatePermutationsTool: MCPToolHandler, Sendable {
+    /// The `calculate_permutations` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_permutations",
         description: """
@@ -548,6 +600,10 @@ public struct CalculatePermutationsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `calculate_permutations` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -585,7 +641,11 @@ public struct CalculatePermutationsTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 8: Calculate Factorial
 
+/// Calculate the factorial of a number (n!) - the product of all positive integers less than or equal to n.
+///
+/// Exposed to clients as the `calculate_factorial` tool.
 public struct CalculateFactorialTool: MCPToolHandler, Sendable {
+    /// The `calculate_factorial` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_factorial",
         description: """
@@ -619,6 +679,10 @@ public struct CalculateFactorialTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `calculate_factorial` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -656,7 +720,11 @@ public struct CalculateFactorialTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 9: Geometric Mean
 
+/// Calculate the geometric mean - the nth root of the product of n numbers. Useful for growth rates and ratios.
+///
+/// Exposed to clients as the `geometric_mean` tool.
 public struct GeometricMeanTool: MCPToolHandler, Sendable {
+    /// The `geometric_mean` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "geometric_mean",
         description: """
@@ -689,6 +757,10 @@ public struct GeometricMeanTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `geometric_mean` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -725,7 +797,11 @@ public struct GeometricMeanTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 10: Harmonic Mean
 
+/// Calculate the harmonic mean - useful for averaging rates and ratios. The reciprocal of the arithmetic mean of reciprocals.
+///
+/// Exposed to clients as the `harmonic_mean` tool.
 public struct HarmonicMeanTool: MCPToolHandler, Sendable {
+    /// The `harmonic_mean` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "harmonic_mean",
         description: """
@@ -758,6 +834,10 @@ public struct HarmonicMeanTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `harmonic_mean` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -794,7 +874,11 @@ public struct HarmonicMeanTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 11: Weighted Average
 
+/// Calculate the weighted average (weighted mean) - average where each value has a different weight or importance.
+///
+/// Exposed to clients as the `weighted_average` tool.
 public struct WeightedAverageTool: MCPToolHandler, Sendable {
+    /// The `weighted_average` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "weighted_average",
         description: """
@@ -831,6 +915,10 @@ public struct WeightedAverageTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `weighted_average` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -890,7 +978,11 @@ private func evaluateCalculation(_ calculation: String, with input: Double) -> D
     return ExpressionEvaluator.evaluate(formula)
 }
 
+/// Find the input value that produces a target output using root-finding.
+///
+/// Exposed to clients as the `goal_seek` tool.
 public struct GoalSeekTool: MCPToolHandler, Sendable {
+    /// The `goal_seek` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "goal_seek",
         description: """
@@ -981,8 +1073,13 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `goal_seek` handler.
     public init() {}
 
+    /// Runs `goal_seek` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1075,7 +1172,11 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 13: Data Table
 
+/// Generate a data table showing how output varies with one or two input variables. Similar to Excel's Data Table feature.
+///
+/// Exposed to clients as the `data_table` tool.
 public struct DataTableTool: MCPToolHandler, Sendable {
+    /// The `data_table` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "data_table",
         description: """
@@ -1142,6 +1243,10 @@ public struct DataTableTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Runs `data_table` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1263,15 +1368,15 @@ public struct DataTableTool: MCPToolHandler, Sendable {
         case "loan_payment":
             // Get parameters
             let principal = variable1.0 == "principal" ? variable1.1 :
-                            variable2?.0 == "principal" ? variable2!.1 :
+                            variable2?.0 == "principal" ? (variable2?.1 ?? 0) :
                             try args.getDoubleFromObject("fixed_params", key: "principal")
 
             let rate = variable1.0 == "rate" ? variable1.1 :
-                       variable2?.0 == "rate" ? variable2!.1 :
+                       variable2?.0 == "rate" ? (variable2?.1 ?? 0) :
                        try args.getDoubleFromObject("fixed_params", key: "rate")
 
             let years = variable1.0 == "years" ? variable1.1 :
-                        variable2?.0 == "years" ? variable2!.1 :
+                        variable2?.0 == "years" ? (variable2?.1 ?? 0) :
                         try args.getDoubleFromObject("fixed_params", key: "years")
 
             // Calculate monthly payment
@@ -1283,15 +1388,15 @@ public struct DataTableTool: MCPToolHandler, Sendable {
 
         case "future_value", "compound_growth":
             let principal = variable1.0 == "principal" ? variable1.1 :
-                            variable2?.0 == "principal" ? variable2!.1 :
+                            variable2?.0 == "principal" ? (variable2?.1 ?? 0) :
                             try args.getDoubleFromObject("fixed_params", key: "principal")
 
             let rate = variable1.0 == "rate" ? variable1.1 :
-                       variable2?.0 == "rate" ? variable2!.1 :
+                       variable2?.0 == "rate" ? (variable2?.1 ?? 0) :
                        try args.getDoubleFromObject("fixed_params", key: "rate")
 
             let years = variable1.0 == "years" ? variable1.1 :
-                        variable2?.0 == "years" ? variable2!.1 :
+                        variable2?.0 == "years" ? (variable2?.1 ?? 0) :
                         try args.getDoubleFromObject("fixed_params", key: "years")
 
             // FV = PV * (1 + r)^t
@@ -1305,6 +1410,7 @@ public struct DataTableTool: MCPToolHandler, Sendable {
 
 // MARK: - Export All Advanced Statistics Tools
 
+/// Every advanced statistics tool this server exposes.
 public func getAdvancedStatisticsTools() -> [any MCPToolHandler] {
     return [
         // Probability distributions

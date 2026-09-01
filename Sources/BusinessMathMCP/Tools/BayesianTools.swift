@@ -34,7 +34,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Bayes' Theorem
 
+/// Calculate posterior probability using Bayes' Theorem.
+///
+/// Exposed to clients as the `calculate_bayes_theorem` tool.
 public struct BayesTheoremTool: MCPToolHandler, Sendable {
+    /// The `calculate_bayes_theorem` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_bayes_theorem",
         description: """
@@ -99,8 +103,13 @@ public struct BayesTheoremTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_bayes_theorem` handler.
     public init() {}
 
+    /// Runs `calculate_bayes_theorem` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -129,7 +138,13 @@ public struct BayesTheoremTool: MCPToolHandler, Sendable {
 
         // Calculate supporting statistics
         let priorOdds = prior / (1 - prior)
-        let posteriorOdds = posterior / (1 - posterior)
+        // A posterior of exactly 1 has infinite odds; that is a degenerate input, not
+        // a number to print.
+        let posteriorComplement = 1 - posterior
+        guard posteriorComplement > 0 else {
+            throw ToolError.invalidArguments("Posterior probability must be below 1 for odds")
+        }
+        let posteriorOdds = posterior / posteriorComplement
         let likelihoodRatio = truePositive / falsePositive
         let oddsMultiplier = posteriorOdds / priorOdds
 

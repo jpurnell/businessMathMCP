@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Create Amortization Schedule Tool
 
+/// Generate a complete amortization schedule for a loan showing payment breakdown by period (payment, principal, interest, remaining balance). Supports monthly, quarterly, and annual payments.
+///
+/// Exposed to clients as the `create_amortization_schedule` tool.
 public struct CreateAmortizationScheduleTool: MCPToolHandler, Sendable {
+    /// The `create_amortization_schedule` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_amortization_schedule",
         description: "Generate a complete amortization schedule for a loan showing payment breakdown by period (payment, principal, interest, remaining balance). Supports monthly, quarterly, and annual payments.",
@@ -37,8 +41,13 @@ public struct CreateAmortizationScheduleTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_amortization_schedule` handler.
     public init() {}
 
+    /// Runs `create_amortization_schedule` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -153,7 +162,11 @@ public struct CreateAmortizationScheduleTool: MCPToolHandler, Sendable {
 
 // MARK: - Debt Service Coverage Ratio Tool
 
+/// Calculate the Debt Service Coverage Ratio (DSCR). DSCR measures ability to pay debt obligations. Lenders typically require DSCR ≥ 1.25. DSCR = Net Operating Income / Total Debt Service.
+///
+/// Exposed to clients as the `calculate_dscr` tool.
 public struct DebtServiceCoverageRatioTool: MCPToolHandler, Sendable {
+    /// The `calculate_dscr` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_dscr",
         description: "Calculate the Debt Service Coverage Ratio (DSCR). DSCR measures ability to pay debt obligations. Lenders typically require DSCR ≥ 1.25. DSCR = Net Operating Income / Total Debt Service",
@@ -172,8 +185,13 @@ public struct DebtServiceCoverageRatioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_dscr` handler.
     public init() {}
 
+    /// Runs `calculate_dscr` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -239,7 +257,11 @@ public struct DebtServiceCoverageRatioTool: MCPToolHandler, Sendable {
 
 // MARK: - Altman Z-Score Tool
 
+/// Calculate the Altman Z-Score for bankruptcy prediction. Z-Score uses financial ratios to predict probability of bankruptcy within 2 years. Z > 2.99 = Safe, 1.81-2.99 = Gray, < 1.81 = Distress.
+///
+/// Exposed to clients as the `calculate_altman_z_score` tool.
 public struct AltmanZScoreTool: MCPToolHandler, Sendable {
+    /// The `calculate_altman_z_score` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_altman_z_score",
         description: "Calculate the Altman Z-Score for bankruptcy prediction. Z-Score uses financial ratios to predict probability of bankruptcy within 2 years. Z > 2.99 = Safe, 1.81-2.99 = Gray, < 1.81 = Distress",
@@ -278,8 +300,13 @@ public struct AltmanZScoreTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_altman_z_score` handler.
     public init() {}
 
+    /// Runs `calculate_altman_z_score` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -357,7 +384,11 @@ public struct AltmanZScoreTool: MCPToolHandler, Sendable {
 
 // MARK: - Compare Financing Options Tool
 
+/// Compare multiple financing options (loans, leases, equity) side-by-side based on total cost, monthly payment, and effective annual rate. Helps choose the best financing method.
+///
+/// Exposed to clients as the `compare_financing_options` tool.
 public struct CompareFinancingOptionsTool: MCPToolHandler, Sendable {
+    /// The `compare_financing_options` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "compare_financing_options",
         description: "Compare multiple financing options (loans, leases, equity) side-by-side based on total cost, monthly payment, and effective annual rate. Helps choose the best financing method.",
@@ -408,8 +439,13 @@ public struct CompareFinancingOptionsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `compare_financing_options` handler.
     public init() {}
 
+    /// Runs `compare_financing_options` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -497,8 +533,12 @@ public struct CompareFinancingOptionsTool: MCPToolHandler, Sendable {
             """
         }
 
-        let bestOption = sortedOptions[0]
-        let savings = sortedOptions.last!.totalInterest - bestOption.totalInterest
+        // `sortedOptions[0]` already assumes non-empty; saying it once, out loud, covers
+        // both ends and makes the assumption checkable.
+        guard let bestOption = sortedOptions.first, let worstOption = sortedOptions.last else {
+            throw ToolError.invalidArguments("No financing options to compare")
+        }
+        let savings = worstOption.totalInterest - bestOption.totalInterest
 
         let result = """
         Financing Options Comparison:

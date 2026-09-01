@@ -140,6 +140,7 @@ public actor PromptProvider: MCPPromptProvider {
         }
     }
 
+    /// Creates the prompt handler.
     public init() {}
 }
 

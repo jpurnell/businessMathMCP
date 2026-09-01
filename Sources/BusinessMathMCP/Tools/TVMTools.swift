@@ -5,7 +5,11 @@ import SwiftMCPServer
 
 // MARK: - Present Value Tool
 
+/// Calculate the present value of a future amount given an interest rate and number of periods. PV = FV / (1 + r)^n.
+///
+/// Exposed to clients as the `calculate_present_value` tool.
 public struct PresentValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_present_value` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_present_value",
         description: "Calculate the present value of a future amount given an interest rate and number of periods. PV = FV / (1 + r)^n",
@@ -28,8 +32,13 @@ public struct PresentValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_present_value` handler.
     public init() {}
 
+    /// Runs `calculate_present_value` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -55,7 +64,11 @@ public struct PresentValueTool: MCPToolHandler, Sendable {
 
 // MARK: - Future Value Tool
 
+/// Calculate the future value of a present amount given an interest rate and number of periods. FV = PV × (1 + r)^n.
+///
+/// Exposed to clients as the `calculate_future_value` tool.
 public struct FutureValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_future_value` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_future_value",
         description: "Calculate the future value of a present amount given an interest rate and number of periods. FV = PV × (1 + r)^n",
@@ -78,8 +91,13 @@ public struct FutureValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_future_value` handler.
     public init() {}
 
+    /// Runs `calculate_future_value` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -105,7 +123,11 @@ public struct FutureValueTool: MCPToolHandler, Sendable {
 
 // MARK: - NPV Tool
 
+/// Calculate Net Present Value for a series of cash flows. NPV = Σ(CF_t / (1 + r)^t) - Initial Investment.
+///
+/// Exposed to clients as the `calculate_npv` tool.
 public struct NPVTool: MCPToolHandler, Sendable {
+    /// The `calculate_npv` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_npv",
         description: "Calculate Net Present Value for a series of cash flows. NPV = Σ(CF_t / (1 + r)^t) - Initial Investment",
@@ -125,8 +147,13 @@ public struct NPVTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_npv` handler.
     public init() {}
 
+    /// Runs `calculate_npv` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -164,7 +191,11 @@ public struct NPVTool: MCPToolHandler, Sendable {
 
 // MARK: - IRR Tool
 
+/// Calculate Internal Rate of Return for a series of cash flows. IRR is the discount rate that makes NPV = 0.
+///
+/// Exposed to clients as the `calculate_irr` tool.
 public struct IRRTool: MCPToolHandler, Sendable {
+    /// The `calculate_irr` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_irr",
         description: "Calculate Internal Rate of Return for a series of cash flows. IRR is the discount rate that makes NPV = 0",
@@ -184,8 +215,13 @@ public struct IRRTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_irr` handler.
     public init() {}
 
+    /// Runs `calculate_irr` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -224,7 +260,11 @@ public struct IRRTool: MCPToolHandler, Sendable {
 
 // MARK: - Payment Tool
 
+/// Calculate the periodic payment for a loan or annuity given present value, interest rate, and number of periods.
+///
+/// Exposed to clients as the `calculate_payment` tool.
 public struct PaymentTool: MCPToolHandler, Sendable {
+    /// The `calculate_payment` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_payment",
         description: "Calculate the periodic payment for a loan or annuity given present value, interest rate, and number of periods",
@@ -256,8 +296,13 @@ public struct PaymentTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_payment` handler.
     public init() {}
 
+    /// Runs `calculate_payment` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -300,7 +345,11 @@ public struct PaymentTool: MCPToolHandler, Sendable {
 
 // MARK: - Annuity Present Value Tool
 
+/// Calculate the present value of an annuity (series of equal payments).
+///
+/// Exposed to clients as the `calculate_annuity_pv` tool.
 public struct AnnuityPresentValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_annuity_pv` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_annuity_pv",
         description: "Calculate the present value of an annuity (series of equal payments)",
@@ -328,8 +377,13 @@ public struct AnnuityPresentValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_annuity_pv` handler.
     public init() {}
 
+    /// Runs `calculate_annuity_pv` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -368,7 +422,11 @@ public struct AnnuityPresentValueTool: MCPToolHandler, Sendable {
 
 // MARK: - Annuity Future Value Tool
 
+/// Calculate the future value of an annuity (series of equal payments).
+///
+/// Exposed to clients as the `calculate_annuity_fv` tool.
 public struct AnnuityFutureValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_annuity_fv` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_annuity_fv",
         description: "Calculate the future value of an annuity (series of equal payments)",
@@ -396,8 +454,13 @@ public struct AnnuityFutureValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_annuity_fv` handler.
     public init() {}
 
+    /// Runs `calculate_annuity_fv` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -438,7 +501,11 @@ public struct AnnuityFutureValueTool: MCPToolHandler, Sendable {
 
 // MARK: - XNPV Tool
 
+/// Calculate Net Present Value for irregular cash flows with specific dates.
+///
+/// Exposed to clients as the `calculate_xnpv` tool.
 public struct XNPVTool: MCPToolHandler, Sendable {
+    /// The `calculate_xnpv` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_xnpv",
         description: """
@@ -490,8 +557,13 @@ public struct XNPVTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_xnpv` handler.
     public init() {}
 
+    /// Runs `calculate_xnpv` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -564,7 +636,11 @@ public struct XNPVTool: MCPToolHandler, Sendable {
 
 // MARK: - XIRR Tool
 
+/// Calculate Internal Rate of Return for irregular cash flows with specific dates.
+///
+/// Exposed to clients as the `calculate_xirr` tool.
 public struct XIRRTool: MCPToolHandler, Sendable {
+    /// The `calculate_xirr` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_xirr",
         description: """
@@ -618,8 +694,13 @@ public struct XIRRTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_xirr` handler.
     public init() {}
 
+    /// Runs `calculate_xirr` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

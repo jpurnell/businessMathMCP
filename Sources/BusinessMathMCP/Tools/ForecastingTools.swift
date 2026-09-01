@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Fit Linear Trend Tool
 
+/// Fit a linear trend model to time series data. Linear trends assume constant rate of change (straight line). Returns slope, intercept, and R-squared.
+///
+/// Exposed to clients as the `fit_linear_trend` tool.
 public struct FitLinearTrendTool: MCPToolHandler, Sendable {
+    /// The `fit_linear_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "fit_linear_trend",
         description: "Fit a linear trend model to time series data. Linear trends assume constant rate of change (straight line). Returns slope, intercept, and R-squared.",
@@ -21,8 +25,13 @@ public struct FitLinearTrendTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `fit_linear_trend` handler.
     public init() {}
 
+    /// Runs `fit_linear_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -34,7 +43,9 @@ public struct FitLinearTrendTool: MCPToolHandler, Sendable {
         try model.fit(to: ts)
 
         // Project one period to demonstrate the fitted model
-		let sampleProjection = try? model.project(periods: 1)
+		// A failed projection used to become 0 here, which the report then presented as
+		// the next value — a real number the model never produced. It propagates now.
+		let sampleProjection = try model.project(periods: 1)
 		let nextValue = sampleProjection?.valuesArray.first ?? 0
         let lastValue = ts.valuesArray.last ?? 0
         let periodChange = nextValue - lastValue
@@ -61,7 +72,11 @@ public struct FitLinearTrendTool: MCPToolHandler, Sendable {
 
 // MARK: - Fit Exponential Trend Tool
 
+/// Fit an exponential trend model to time series data. Exponential trends capture accelerating or decelerating growth. Best for viral growth, compound returns.
+///
+/// Exposed to clients as the `fit_exponential_trend` tool.
 public struct FitExponentialTrendTool: MCPToolHandler, Sendable {
+    /// The `fit_exponential_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "fit_exponential_trend",
         description: "Fit an exponential trend model to time series data. Exponential trends capture accelerating or decelerating growth. Best for viral growth, compound returns.",
@@ -77,8 +92,13 @@ public struct FitExponentialTrendTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `fit_exponential_trend` handler.
     public init() {}
 
+    /// Runs `fit_exponential_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -111,7 +131,11 @@ public struct FitExponentialTrendTool: MCPToolHandler, Sendable {
 
 // MARK: - Fit Logistic Trend Tool
 
+/// Fit a logistic (S-curve) trend model to time series data. Logistic trends model growth that approaches a maximum capacity. Best for market penetration, user adoption.
+///
+/// Exposed to clients as the `fit_logistic_trend` tool.
 public struct FitLogisticTrendTool: MCPToolHandler, Sendable {
+    /// The `fit_logistic_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "fit_logistic_trend",
         description: "Fit a logistic (S-curve) trend model to time series data. Logistic trends model growth that approaches a maximum capacity. Best for market penetration, user adoption.",
@@ -131,8 +155,13 @@ public struct FitLogisticTrendTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `fit_logistic_trend` handler.
     public init() {}
 
+    /// Runs `fit_logistic_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -161,7 +190,11 @@ public struct FitLogisticTrendTool: MCPToolHandler, Sendable {
 
 // MARK: - Forecast Trend Tool
 
+/// Project a fitted trend model forward for specified periods. Must fit a trend model first using fit_linear_trend, fit_exponential_trend, or fit_logistic_trend.
+///
+/// Exposed to clients as the `forecast_trend` tool.
 public struct ForecastTrendTool: MCPToolHandler, Sendable {
+    /// The `forecast_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "forecast_trend",
         description: "Project a fitted trend model forward for specified periods. Must fit a trend model first using fit_linear_trend, fit_exponential_trend, or fit_logistic_trend.",
@@ -190,8 +223,13 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `forecast_trend` handler.
     public init() {}
 
+    /// Runs `forecast_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -207,32 +245,40 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: ts)
-			guard let result = try? model.project(periods: periods) else {
-				throw ToolError.invalidArguments("Failed to project forecast")
-			}
-			forecast = result
-
-        case "exponential":
+            // `project` both throws and returns an optional. The former `try?`
+            // collapsed the two into one message; a thrown error now propagates
+            // with its own reason, and only a nil result is reported here.
+            guard let result = try model.project(periods: periods) else {
+                throw ToolError.invalidArguments(
+                    "Trend model \(trendType) produced no forecast for \(periods) periods")
+            }
+            forecast = result
+case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: ts)
-			guard let result = try? model.project(periods: periods) else {
-				throw ToolError.invalidArguments("Failed to project forecast")
-			}
+            // `project` both throws and returns an optional. The former `try?`
+            // collapsed the two into one message; a thrown error now propagates
+            // with its own reason, and only a nil result is reported here.
+            guard let result = try model.project(periods: periods) else {
+                throw ToolError.invalidArguments(
+                    "Trend model \(trendType) produced no forecast for \(periods) periods")
+            }
             forecast = result
-
-        case "logistic":
+case "logistic":
             guard let capacity = args.getDoubleOptional("capacity") else {
                 throw ToolError.missingRequiredArgument("capacity (required for logistic trend)")
             }
             var model = LogisticTrend<Double>(capacity: capacity)
             try model.fit(to: ts)
-			guard let result = try? model.project(periods: periods) else {
-				throw ToolError.invalidArguments("Failed to project forecast")
-			}
-			forecast = result
-		
-
-        default:
+            // `project` both throws and returns an optional. The former `try?`
+            // collapsed the two into one message; a thrown error now propagates
+            // with its own reason, and only a nil result is reported here.
+            guard let result = try model.project(periods: periods) else {
+                throw ToolError.invalidArguments(
+                    "Trend model \(trendType) produced no forecast for \(periods) periods")
+            }
+            forecast = result
+default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType). Must be linear, exponential, or logistic")
         }
 
@@ -260,7 +306,11 @@ public struct ForecastTrendTool: MCPToolHandler, Sendable {
 
 // MARK: - Calculate Seasonal Indices Tool
 
+/// Calculate seasonal indices from time series data. Indices show the typical pattern for each season (e.g., each month of the year). Values >1 indicate above-average periods, <1 indicate below-average.
+///
+/// Exposed to clients as the `calculate_seasonal_indices` tool.
 public struct CalculateSeasonalIndicesTool: MCPToolHandler, Sendable {
+    /// The `calculate_seasonal_indices` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_seasonal_indices",
         description: "Calculate seasonal indices from time series data. Indices show the typical pattern for each season (e.g., each month of the year). Values >1 indicate above-average periods, <1 indicate below-average.",
@@ -280,8 +330,13 @@ public struct CalculateSeasonalIndicesTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_seasonal_indices` handler.
     public init() {}
 
+    /// Runs `calculate_seasonal_indices` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -328,7 +383,11 @@ public struct CalculateSeasonalIndicesTool: MCPToolHandler, Sendable {
 
 // MARK: - Seasonally Adjust Tool
 
+/// Remove seasonal patterns from time series data using seasonal indices. This reveals the underlying trend by normalizing seasonal fluctuations.
+///
+/// Exposed to clients as the `seasonally_adjust` tool.
 public struct SeasonallyAdjustTool: MCPToolHandler, Sendable {
+    /// The `seasonally_adjust` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "seasonally_adjust",
         description: "Remove seasonal patterns from time series data using seasonal indices. This reveals the underlying trend by normalizing seasonal fluctuations.",
@@ -349,8 +408,13 @@ public struct SeasonallyAdjustTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `seasonally_adjust` handler.
     public init() {}
 
+    /// Runs `seasonally_adjust` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -388,7 +452,11 @@ public struct SeasonallyAdjustTool: MCPToolHandler, Sendable {
 
 // MARK: - Decompose Time Series Tool
 
+/// Decompose time series into trend, seasonal, and residual components. This separates the long-term pattern, seasonal effects, and random variation.
+///
+/// Exposed to clients as the `decompose_time_series` tool.
 public struct DecomposeTimeSeriesTo: MCPToolHandler, Sendable {
+    /// The `decompose_time_series` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "decompose_time_series",
         description: "Decompose time series into trend, seasonal, and residual components. This separates the long-term pattern, seasonal effects, and random variation.",
@@ -413,8 +481,13 @@ public struct DecomposeTimeSeriesTo: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `decompose_time_series` handler.
     public init() {}
 
+    /// Runs `decompose_time_series` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -487,7 +560,11 @@ public struct DecomposeTimeSeriesTo: MCPToolHandler, Sendable {
 
 // MARK: - Forecast with Seasonality Tool
 
+/// Create a complete forecast combining trend projection and seasonal patterns. This provides the most accurate forecasts for data with both trend and seasonality.
+///
+/// Exposed to clients as the `forecast_with_seasonality` tool.
 public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
+    /// The `forecast_with_seasonality` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "forecast_with_seasonality",
         description: "Create a complete forecast combining trend projection and seasonal patterns. This provides the most accurate forecasts for data with both trend and seasonality.",
@@ -516,8 +593,13 @@ public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `forecast_with_seasonality` handler.
     public init() {}
 
+    /// Runs `forecast_with_seasonality` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -540,18 +622,26 @@ public struct ForecastWithSeasonalityTool: MCPToolHandler, Sendable {
         case "linear":
             var model = LinearTrend<Double>()
             try model.fit(to: deseasonalized)
-			guard let result = try? model.project(periods: periods) else {
-				throw ToolError.invalidArguments("Failed to project forecast")
-			}
+            // `project` both throws and returns an optional. The former `try?`
+            // collapsed the two into one message; a thrown error now propagates
+            // with its own reason, and only a nil result is reported here.
+            guard let result = try model.project(periods: periods) else {
+                throw ToolError.invalidArguments(
+                    "Trend model \(trendType) produced no forecast for \(periods) periods")
+            }
             trendForecast = result
-        case "exponential":
+case "exponential":
             var model = ExponentialTrend<Double>()
             try model.fit(to: deseasonalized)
-			guard let result = try? model.project(periods: periods) else {
-				throw ToolError.invalidArguments("Failed to project forecast")
-			}
+            // `project` both throws and returns an optional. The former `try?`
+            // collapsed the two into one message; a thrown error now propagates
+            // with its own reason, and only a nil result is reported here.
+            guard let result = try model.project(periods: periods) else {
+                throw ToolError.invalidArguments(
+                    "Trend model \(trendType) produced no forecast for \(periods) periods")
+            }
             trendForecast = result
-        default:
+default:
             throw ToolError.invalidArguments("Invalid trend type: \(trendType)")
         }
 

@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Multi-Period Optimization Tool
 
+/// Optimize decisions across multiple time periods with inter-temporal constraints.
+///
+/// Exposed to clients as the `optimize_multiperiod` tool.
 public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
+    /// The `optimize_multiperiod` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_multiperiod",
         description: """
@@ -60,8 +64,13 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_multiperiod` handler.
     public init() {}
 
+    /// Runs `optimize_multiperiod` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -73,7 +82,11 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
         let dimensions = try args.getInt("dimensions")
         let hasInterdependence = args.getBoolOptional("hasInterdependence") ?? false
 
-        let discountFactor = 1.0 / (1.0 + discountRate)
+        let discountDenominator = 1.0 + discountRate
+        guard discountDenominator > 0 else {
+            throw ToolError.invalidArguments("Discount rate of -100% leaves nothing to discount by")
+        }
+        let discountFactor = 1.0 / discountDenominator
 
         let guide = """
         📅 **Multi-Period Optimization Guide**
@@ -277,7 +290,11 @@ public struct MultiPeriodOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Stochastic Optimization Tool
 
+/// Optimize decisions under uncertainty using Sample Average Approximation (SAA).
+///
+/// Exposed to clients as the `optimize_stochastic` tool.
 public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
+    /// The `optimize_stochastic` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_stochastic",
         description: """
@@ -327,8 +344,13 @@ public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_stochastic` handler.
     public init() {}
 
+    /// Runs `optimize_stochastic` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -337,6 +359,12 @@ public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
         let numberOfSamples = try args.getInt("numberOfSamples")
         let problemType = try args.getString("problemType")
         let dimensions = try args.getInt("dimensions")
+        // `uncertainParameters` is advertised in the schema and in this tool's own example,
+        // so the guidance has to name them; without this the caller's ω was silently dropped.
+        let uncertainParameters = try args.getStringArrayIfPresent("uncertainParameters") ?? []
+        let uncertainDescription = uncertainParameters.isEmpty
+            ? "not specified — describe them in `uncertainParameters` for tailored guidance"
+            : uncertainParameters.joined(separator: ", ")
 
         let guide = """
         🎲 **Stochastic Optimization Guide**
@@ -345,6 +373,7 @@ public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
         - Monte Carlo samples: \(numberOfSamples) scenarios
         - Problem type: \(problemType)
         - Decision variables: \(dimensions)
+        - Uncertain parameters (ω): \(uncertainDescription)
 
         **What This Optimizes:**
         ```
@@ -352,7 +381,7 @@ public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
 
         where:
         - x = decision variables (same for all scenarios)
-        - ω = uncertain parameters (different each scenario)
+        - ω = \(uncertainDescription) (different each scenario)
         - N = \(numberOfSamples) scenarios
         ```
 
@@ -561,7 +590,11 @@ public struct StochasticOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Robust Optimization Tool
 
+/// Optimize for worst-case performance across uncertainty scenarios (min-max optimization).
+///
+/// Exposed to clients as the `optimize_robust` tool.
 public struct RobustOptimizeTool: MCPToolHandler, Sendable {
+    /// The `optimize_robust` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_robust",
         description: """
@@ -610,8 +643,13 @@ public struct RobustOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_robust` handler.
     public init() {}
 
+    /// Runs `optimize_robust` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -846,7 +884,11 @@ public struct RobustOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Scenario-Based Optimization Tool
 
+/// Optimize decisions across multiple discrete future scenarios with probabilities.
+///
+/// Exposed to clients as the `optimize_scenarios` tool.
 public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
+    /// The `optimize_scenarios` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_scenarios",
         description: """
@@ -891,8 +933,13 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_scenarios` handler.
     public init() {}
 
+    /// Runs `optimize_scenarios` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -903,7 +950,11 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
         let dimensions = try args.getInt("dimensions")
         let hasProbabilities = args.getBoolOptional("hasProbabilities") ?? true
 
-        let equalProb = 1.0 / Double(numberOfScenarios)
+        let scenarioCount = Double(numberOfScenarios)
+        guard scenarioCount > 0 else {
+            throw ToolError.invalidArguments("At least one scenario is required")
+        }
+        let equalProb = 1.0 / scenarioCount
 
         let guide = """
         🌲 **Scenario-Based Optimization Guide**
@@ -1034,9 +1085,12 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func getExampleScenarios(problemType: String, numberOfScenarios: Int, hasProbabilities: Bool) -> String {
+        // Equal probability across scenarios; with none there is nothing to spread.
+        let scenarioProbabilityCount = Double(numberOfScenarios)
+        let equalScenarioProbability = scenarioProbabilityCount > 0 ? 1.0 / scenarioProbabilityCount : 0.0
         let probs = hasProbabilities ?
             ["0.2", "0.5", "0.3"] :
-            Array(repeating: (1.0/Double(numberOfScenarios)).digits(2), count: numberOfScenarios)
+            Array(repeating: equalScenarioProbability.digits(2), count: numberOfScenarios)
 
         switch problemType {
         case "capacity_planning", "strategic_planning":
@@ -1165,6 +1219,7 @@ public struct ScenarioOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every advanced optimization tool this server exposes.
 public func getAdvancedOptimizationTools() -> [MCPToolHandler] {
     return [
         MultiPeriodOptimizeTool(),

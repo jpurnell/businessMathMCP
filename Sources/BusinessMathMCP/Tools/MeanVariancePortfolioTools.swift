@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Mean-Variance Portfolio Optimization Tool
 
+/// Optimize portfolio allocation using mean-variance optimization (Markowitz framework).
+///
+/// Exposed to clients as the `optimize_mean_variance_portfolio` tool.
 public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
+    /// The `optimize_mean_variance_portfolio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_mean_variance_portfolio",
         description: """
@@ -110,8 +114,13 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_mean_variance_portfolio` handler.
     public init() {}
 
+    /// Runs `optimize_mean_variance_portfolio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -262,10 +271,18 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
 
         // Optimize
         let result: MultivariateOptimizationResult<VectorN<Double>>
+        // An equal split across assets is the optimizer's starting point; with no assets
+        // there is nothing to split.
+        let assetCount = Double(n)
+        guard assetCount > 0 else {
+            throw ToolError.invalidArguments("At least one asset is required")
+        }
+        let equalStartingWeight = budget / assetCount
+
         do {
             result = try optimizer.minimize(
                 objective,
-                from: VectorN(Array(repeating: budget / Double(n), count: n)),
+                from: VectorN(Array(repeating: equalStartingWeight, count: n)),
                 constraints: constraints
             )
         } catch {
@@ -352,7 +369,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
         - Convergence: \(result.converged ? "✓ Yes" : "⚠️ No") in \(result.iterations) iterations
 
         **Risk-Return Tradeoff:**
-        - Without risk penalty: Would invest 100% in highest return asset (\((expectedReturns.max()! * 100).percentDigits(0)))
+        - Without risk penalty: Would invest 100% in highest return asset (\(((expectedReturns.max() ?? 0) * 100).percentDigits(0)))
         - With risk aversion λ=\(riskAversion.digits(1)): Diversified across \(optimalWeights.filter { $0 > 0.01 }.count) assets
         - Diversification benefit: Lower volatility (\((portfolioVolatility * 100).percentDigits(2))) vs. single-asset risk
 
@@ -370,6 +387,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every mean variance portfolio tool this server exposes.
 public func getMeanVariancePortfolioTools() -> [MCPToolHandler] {
     return [
         MeanVariancePortfolioTool()

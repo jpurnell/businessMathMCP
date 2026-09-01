@@ -17,14 +17,14 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
     return value.formatDecimal(decimals: decimals)
 }
 
-private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
-    return formatNumber(value, decimals: decimals) + "x"
-}
-
 
 // MARK: - Days Inventory Outstanding (DIO)
 
+/// Calculate Days Inventory Outstanding (DIO).
+///
+/// Exposed to clients as the `calculate_days_inventory_outstanding` tool.
 public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
+    /// The `calculate_days_inventory_outstanding` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_days_inventory_outstanding",
         description: """
@@ -64,8 +64,13 @@ public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_days_inventory_outstanding` handler.
     public init() {}
 
+    /// Runs `calculate_days_inventory_outstanding` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -91,6 +96,8 @@ public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
             interpretation = "Slow - Consider inventory optimization strategies"
         }
 
+        // Zero days outstanding has no annual turnover to express as a multiple.
+        let annualTurnoverText = dio > 0 ? "\(formatNumber(365.0 / dio, decimals: 1))x" : "n/a (zero days)"
         let output = """
         Days Inventory Outstanding (DIO) Analysis:
 
@@ -100,7 +107,7 @@ public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
 
         Result:
         • Days Inventory Outstanding: \(formatNumber(dio, decimals: 1)) days
-        • Annual Turnover: \(formatNumber(365.0 / dio, decimals: 1))x
+        • Annual Turnover: \(annualTurnoverText)
         • Interpretation: \(interpretation)
 
         The company holds inventory for an average of \(formatNumber(dio, decimals: 0)) days before sale.
@@ -112,7 +119,11 @@ public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
 
 // MARK: - Days Sales Outstanding (DSO)
 
+/// Calculate Days Sales Outstanding (DSO).
+///
+/// Exposed to clients as the `calculate_days_sales_outstanding` tool.
 public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
+    /// The `calculate_days_sales_outstanding` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_days_sales_outstanding",
         description: """
@@ -152,8 +163,13 @@ public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_days_sales_outstanding` handler.
     public init() {}
 
+    /// Runs `calculate_days_sales_outstanding` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -179,6 +195,8 @@ public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
             interpretation = "Slow - Review collection practices and customer creditworthiness"
         }
 
+        // Likewise for collections: zero days outstanding has no rate to report.
+        let collectionRateText = dso > 0 ? formatNumber(365.0 / dso, decimals: 1) : "n/a"
         let output = """
         Days Sales Outstanding (DSO) Analysis:
 
@@ -188,7 +206,7 @@ public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
 
         Result:
         • Days Sales Outstanding: \(formatNumber(dso, decimals: 1)) days
-        • Collection Rate: \(formatNumber(365.0 / dso, decimals: 1))x per year
+        • Collection Rate: \(collectionRateText)x per year
         • Interpretation: \(interpretation)
 
         The company takes an average of \(formatNumber(dso, decimals: 0)) days to collect payment after a sale.
@@ -200,7 +218,11 @@ public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
 
 // MARK: - Days Payable Outstanding (DPO)
 
+/// Calculate Days Payable Outstanding (DPO).
+///
+/// Exposed to clients as the `calculate_days_payable_outstanding` tool.
 public struct DaysPayableOutstandingTool: MCPToolHandler, Sendable {
+    /// The `calculate_days_payable_outstanding` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_days_payable_outstanding",
         description: """
@@ -240,8 +262,13 @@ public struct DaysPayableOutstandingTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_days_payable_outstanding` handler.
     public init() {}
 
+    /// Runs `calculate_days_payable_outstanding` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -290,7 +317,11 @@ public struct DaysPayableOutstandingTool: MCPToolHandler, Sendable {
 
 // MARK: - Cash Conversion Cycle
 
+/// Calculate the Cash Conversion Cycle (CCC).
+///
+/// Exposed to clients as the `calculate_cash_conversion_cycle` tool.
 public struct CashConversionCycleTool: MCPToolHandler, Sendable {
+    /// The `calculate_cash_conversion_cycle` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cash_conversion_cycle",
         description: """
@@ -339,8 +370,13 @@ public struct CashConversionCycleTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cash_conversion_cycle` handler.
     public init() {}
 
+    /// Runs `calculate_cash_conversion_cycle` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

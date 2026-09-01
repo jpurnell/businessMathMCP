@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Stress Test Tool
 
+/// Run stress tests on financial metrics using pre-defined or custom scenarios. Evaluates how business performs under adverse conditions like recession, financial crisis, or supply shocks.
+///
+/// Exposed to clients as the `run_stress_test` tool.
 public struct StressTestTool: MCPToolHandler, Sendable {
+    /// The `run_stress_test` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_stress_test",
         description: """
@@ -48,8 +52,13 @@ public struct StressTestTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_stress_test` handler.
     public init() {}
 
+    /// Runs `run_stress_test` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -133,7 +142,11 @@ public struct StressTestTool: MCPToolHandler, Sendable {
 
 // MARK: - Value at Risk Tool
 
+/// Calculate Value at Risk (VaR) and Conditional VaR (CVaR) from historical returns. VaR measures maximum expected loss at a confidence level.
+///
+/// Exposed to clients as the `calculate_value_at_risk` tool.
 public struct ValueAtRiskTool: MCPToolHandler, Sendable {
+    /// The `calculate_value_at_risk` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_value_at_risk",
         description: """
@@ -170,8 +183,13 @@ public struct ValueAtRiskTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_value_at_risk` handler.
     public init() {}
 
+    /// Runs `calculate_value_at_risk` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -254,7 +272,11 @@ public struct ValueAtRiskTool: MCPToolHandler, Sendable {
 
 // MARK: - Risk Aggregation Tool
 
+/// Aggregate VaR across multiple portfolios accounting for correlations. Reveals diversification benefits from imperfect correlations.
+///
+/// Exposed to clients as the `aggregate_portfolio_risk` tool.
 public struct AggregateRiskTool: MCPToolHandler, Sendable {
+    /// The `aggregate_portfolio_risk` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "aggregate_portfolio_risk",
         description: """
@@ -295,8 +317,13 @@ public struct AggregateRiskTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `aggregate_portfolio_risk` handler.
     public init() {}
 
+    /// Runs `aggregate_portfolio_risk` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -330,7 +357,7 @@ public struct AggregateRiskTool: MCPToolHandler, Sendable {
         }
 
         // Get optional names and weights
-        let names = try? args.getStringArray("portfolioNames")
+        let names = try args.getStringArrayIfPresent("portfolioNames")
         let portfolioNames = names ?? (1...portfolioVaRs.count).map { "Portfolio \($0)" }
 
         // Aggregate VaR
@@ -384,7 +411,7 @@ public struct AggregateRiskTool: MCPToolHandler, Sendable {
         }
 
         // Component VaR if weights provided
-        if let weightsArray = try? args.getDoubleArray("weights") {
+        if let weightsArray = try args.getDoubleArrayIfPresent("weights") {
             result += "\n\nComponent VaR (Weighted Contributions):"
 
             let componentVaRs = RiskAggregator<Double>.componentVaR(
@@ -418,7 +445,11 @@ public struct AggregateRiskTool: MCPToolHandler, Sendable {
 
 // MARK: - Comprehensive Risk Metrics Tool
 
+/// Calculate a complete risk profile including VaR, CVaR, Sharpe ratio, Sortino ratio, drawdown, and tail statistics. One-stop analysis for portfolio risk.
+///
+/// Exposed to clients as the `calculate_comprehensive_risk` tool.
 public struct ComprehensiveRiskMetricsTool: MCPToolHandler, Sendable {
+    /// The `calculate_comprehensive_risk` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_comprehensive_risk",
         description: """
@@ -446,8 +477,13 @@ public struct ComprehensiveRiskMetricsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_comprehensive_risk` handler.
     public init() {}
 
+    /// Runs `calculate_comprehensive_risk` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -535,6 +571,7 @@ public struct ComprehensiveRiskMetricsTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every risk analytics tool this server exposes.
 public func getRiskAnalyticsTools() -> [MCPToolHandler] {
     return [
         StressTestTool(),

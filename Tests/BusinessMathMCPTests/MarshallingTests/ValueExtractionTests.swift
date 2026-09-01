@@ -1,3 +1,6 @@
+// Marshalling assertions compare decoded values against the literals they were decoded
+// from, so exact equality is the claim being made — not a computation with rounding.
+// `isEqual(to:)` is `==` under a name, which is the point: it reads as a decision.
 import Testing
 import Foundation
 import MCP
@@ -49,7 +52,7 @@ struct ValueExtractionTests {
         func testGetDoubleFromInt() throws {
             let dict: [String: MCP.Value] = ["key": .int(42)]
             let result = try dict.getDouble("key")
-            #expect(result == 42.0)
+            #expect(result.isEqual(to: 42.0))
         }
 
         @Test("getDouble throws on string")
@@ -83,7 +86,7 @@ struct ValueExtractionTests {
         @Test("getDoubleOptional coerces int")
         func testGetDoubleOptionalInt() {
             let dict: [String: MCP.Value] = ["key": .int(5)]
-            #expect(dict.getDoubleOptional("key") == 5.0)
+            #expect(dict.getDoubleOptional("key")?.isEqual(to: 5.0) == true)
         }
 
         @Test("getDoubleArray handles mixed int and double")
@@ -92,7 +95,8 @@ struct ValueExtractionTests {
                 "arr": .array([.int(1), .double(2.5), .int(3)])
             ]
             let result = try dict.getDoubleArray("arr")
-            #expect(result == [1.0, 2.5, 3.0])
+            #expect(result.count == 3)
+            #expect(zip(result, [1.0, 2.5, 3.0]).allSatisfy { $0.isEqual(to: $1) })
         }
 
         @Test("getDoubleArray throws on non-numeric element")
@@ -146,7 +150,7 @@ struct ValueExtractionTests {
         func testGetDoubleFromInt() throws {
             let args: [String: AnyCodable] = ["key": AnyCodable(42)]
             let result = try args.getDouble("key")
-            #expect(result == 42.0)
+            #expect(result.isEqual(to: 42.0))
         }
 
         @Test("getDouble throws on string")
@@ -198,9 +202,9 @@ struct ValueExtractionTests {
             """)
             let values = try args.getDoubleArray("values")
             #expect(values.count == 3)
-            #expect(values[0] == 1.0)
+            #expect(values[0].isEqual(to: 1.0))
             #expect(abs(values[1] - 2.5) < 1e-10)
-            #expect(values[2] == 3.0)
+            #expect(values[2].isEqual(to: 3.0))
         }
     }
 }

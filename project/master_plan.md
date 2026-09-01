@@ -71,11 +71,31 @@ authentication code lives here.
 - [x] Tool surface implemented and tested — 26 test files, 291 cases
 - [x] CI configured
 - [x] Built on `SwiftMCPServer` (verified 2026-08-05: builds clean, 291 tests pass)
+- [x] Quality gate at **0 errors / 2 warnings**, no overrides (2026-09-01) — from
+      111 / 1,206. Both remaining warnings are dependency branch pins, not code.
+- [x] Documentation coverage 5% → 89% — ~800 declarations documented
+- [ ] Dependency version pinning — see
+      [CURRENT_DependencyPinning.md](checklists/CURRENT_DependencyPinning.md)
+
+> **Correction (2026-09-01).** The Priorities note below claimed "nothing here is a
+> known defect." That was wrong, and wrong in a way worth preserving: the tool surface
+> was broad and green because the tests were green, not because the tools were right.
+> Driving the gate to zero surfaced seven behavioural defects, including
+> `ab_test_analysis` reporting a p-value that was always ≥ 0.5 — significance backwards,
+> in production, contradicting the verdict printed beside it. A green suite said nothing
+> about it because one test accepted "success or error, both fine" and so had never
+> executed the tool it named. Breadth was not the risk; unexercised breadth was.
 
 ### Priorities
-**[NEEDS INPUT]** — the tool surface is broad and green; nothing here is a known
-defect. The open question is scope: which of the 187+ tools are actually exercised
-by callers, and whether the long tail earns its maintenance.
+
+1. **Cut the two dependency releases** and pin to them — the only thing between here and
+   0 / 0, and a genuine reproducibility gap while it stands.
+2. **Find the other unexercised tools.** The seasonal-indices test passed for years
+   without ever running its tool. That pattern — a `catch` that accepts any outcome —
+   is what to grep for next; the `test-quality` checker now catches assertion-free tests
+   but not tests that assert nothing meaningful.
+3. **Scope.** Still open, and still the right question: which of the 187+ tools are
+   actually called, and whether the long tail earns its maintenance.
 
 ## Quality Standards
 
@@ -86,8 +106,14 @@ ambiguous will be called wrongly with confident-looking results.
 
 ## Roadmap
 
-**[NEEDS INPUT]**
+**[NEEDS INPUT]** — beyond the priorities above, no committed roadmap. One candidate
+recorded 2026-09-01: reconcile the `PeriodJSON` quarterly contract. Schema descriptions
+and tool examples document a `quarter` key, but `toPeriod` reads `month` and derives the
+quarter from it. Callers following the documentation are silently wrong; the tests now
+encode the decoder's actual behaviour rather than the documented one.
 
 ---
 
-**Last Updated:** 2026-08-05
+**Last Updated:** 2026-09-01 — reconciled Current Status against the quality-gate
+sweep: recorded the 0/2 state and doc coverage, added the dependency-pinning checklist,
+corrected the "no known defect" claim, and rewrote Priorities around what the sweep found.

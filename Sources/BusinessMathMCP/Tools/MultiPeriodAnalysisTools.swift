@@ -22,20 +22,8 @@ public func getMultiPeriodAnalysisTools() -> [any MCPToolHandler] {
 
 // MARK: - Helper Functions
 
-private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
-    return value.formatDecimal(decimals: decimals)
-}
-
 private func formatPercentage(_ value: Double, decimals: Int = 2) -> String {
     return (value * 100).formatDecimal(decimals: decimals) + "%"
-}
-
-private func formatCurrency(_ value: Double, decimals: Int = 0) -> String {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.minimumFractionDigits = decimals
-    formatter.maximumFractionDigits = decimals
-    return "$" + (formatter.string(from: NSNumber(value: value)) ?? "0")
 }
 
 private func separator(width: Int = 60) -> String {
@@ -44,7 +32,11 @@ private func separator(width: Int = 60) -> String {
 
 // MARK: - Analyze Financial Trends
 
+/// Analyze financial trends across multiple periods.
+///
+/// Exposed to clients as the `analyze_financial_trends` tool.
 public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
+    /// The `analyze_financial_trends` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_financial_trends",
         description: """
@@ -93,8 +85,13 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_financial_trends` handler.
     public init() {}
 
+    /// Runs `analyze_financial_trends` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -137,9 +134,15 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
             return pow(end / start, 1.0 / Double(years)) - 1.0
         }
 
+        // The loop above throws on a malformed entry rather than skipping it, so `periods`
+        // matches the input that was already checked for two or more. Binding the endpoints
+        // here keeps that invariant next to its use instead of twenty lines away.
+        guard let firstPeriod = periods.first, let lastPeriod = periods.last else {
+            throw ToolError.invalidArguments("At least 2 periods required for trend analysis")
+        }
         let numYears = periods.count - 1
-        let revenueCGR = calculateCAGR(start: periods.first!.revenue, end: periods.last!.revenue, years: numYears)
-        let netIncomeCGR = calculateCAGR(start: periods.first!.netIncome, end: periods.last!.netIncome, years: numYears)
+        let revenueCGR = calculateCAGR(start: firstPeriod.revenue, end: lastPeriod.revenue, years: numYears)
+        let netIncomeCGR = calculateCAGR(start: firstPeriod.netIncome, end: lastPeriod.netIncome, years: numYears)
 
         // Build output
         var output = """
@@ -191,7 +194,11 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
             output += formatPercentage(margin, decimals: 1).padding(toLength: 10, withPad: " ", startingAt: 0)
         }
 
-        let marginTrend = netMargins.last! > netMargins.first! ? "↗ Improving" : "↘ Declining"
+        let marginsRose: Bool = {
+            guard let first = netMargins.first, let last = netMargins.last else { return false }
+            return last > first
+        }()
+        let marginTrend = marginsRose ? "↗ Improving" : "↘ Declining"
         output += " \(marginTrend)"
 
         // ROE/ROA if available
@@ -202,20 +209,29 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
             output += "  ROE:        "
             var roes: [Double] = []
             for period in periods {
-                let roe = period.equity! > 0 ? period.netIncome / period.equity! : 0.0
+                let roe = period.equity.flatMap { $0 > 0 ? period.netIncome / $0 : nil } ?? 0.0
                 roes.append(roe)
                 output += formatPercentage(roe, decimals: 1).padding(toLength: 10, withPad: " ", startingAt: 0)
             }
-            let roeTrend = roes.last! > roes.first! ? "↗ Improving" : "↘ Declining"
+            let roesRose: Bool = {
+                guard let first = roes.first, let last = roes.last else { return false }
+                return last > first
+            }()
+            let roeTrend = roesRose ? "↗ Improving" : "↘ Declining"
             output += " \(roeTrend)"
 
             output += "\n  ROA:        "
             for period in periods {
-                let roa = period.assets! > 0 ? period.netIncome / period.assets! : 0.0
+                let roa = period.assets.flatMap { $0 > 0 ? period.netIncome / $0 : nil } ?? 0.0
                 output += formatPercentage(roa, decimals: 1).padding(toLength: 10, withPad: " ", startingAt: 0)
             }
-            output += " \(roes.last! > roes.first! ? "↗ Improving" : "↘ Declining")"
+            output += " \(roesRose ? "↗ Improving" : "↘ Declining")"
         }
+
+        let marginSummary: String = {
+            guard let first = netMargins.first, let last = netMargins.last, last > first else { return "stable" }
+            return "expanding (\(formatPercentage(first, decimals: 1)) → \(formatPercentage(last, decimals: 1)))"
+        }()
 
         output += """
 
@@ -226,7 +242,7 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
 
           ✅ Revenue growing at \(formatPercentage(revenueCGR, decimals: 0)) CAGR
           ✅ Profitability \(netIncomeCGR > revenueCGR ? "improving faster than revenue" : "growing at \(formatPercentage(netIncomeCGR, decimals: 0)) CAGR")
-          ✅ Net margins \(netMargins.last! > netMargins.first! ? "expanding (\(formatPercentage(netMargins.first!, decimals: 1)) → \(formatPercentage(netMargins.last!, decimals: 1)))" : "stable")
+          ✅ Net margins \(marginSummary)
         """
 
         let roes = periods.compactMap({ period -> Double? in
@@ -234,7 +250,9 @@ public struct AnalyzeFinancialTrendsTool: MCPToolHandler, Sendable {
             return period.netIncome / equity
         })
         if roes.count == periods.count {
-            output += "\n  ✅ Returns improving (ROE: \(formatPercentage(roes.first!, decimals: 1)) → \(formatPercentage(roes.last!, decimals: 1)))"
+            if let firstROE = roes.first, let lastROE = roes.last {
+                output += "\n  ✅ Returns improving (ROE: \(formatPercentage(firstROE, decimals: 1)) → \(formatPercentage(lastROE, decimals: 1)))"
+            }
         }
 
         return .success(text: output)

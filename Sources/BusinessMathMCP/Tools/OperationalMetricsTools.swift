@@ -39,13 +39,13 @@ private func formatCurrency(_ value: Double, decimals: Int = 0) -> String {
     return "$" + (formatter.string(from: NSNumber(value: value)) ?? "0")
 }
 
-private func separator(width: Int = 40) -> String {
-    return String(repeating: "─", count: width)
-}
-
 // MARK: - 1. Calculate SaaS Metrics
 
+/// Calculate comprehensive SaaS operational metrics and KPIs.
+///
+/// Exposed to clients as the `calculate_saas_metrics` tool.
 public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
+    /// The `calculate_saas_metrics` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_saas_metrics",
         description: """
@@ -141,8 +141,13 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_saas_metrics` handler.
     public init() {}
 
+    /// Runs `calculate_saas_metrics` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -155,21 +160,23 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
         let mrr = try args.getDouble("mrr")
 
         // Optional metrics
-        let newMRR = (try? args.getDouble("new_mrr")) ?? 0.0
-        let expansionMRR = (try? args.getDouble("expansion_mrr")) ?? 0.0
-        let churnedMRR = (try? args.getDouble("churned_mrr")) ?? 0.0
-        let contractionMRR = (try? args.getDouble("contraction_mrr")) ?? 0.0
-        let customers = try? args.getDouble("customers")
-        let newCustomers = (try? args.getDouble("new_customers")) ?? 0.0
-        let churnedCustomers = (try? args.getDouble("churned_customers")) ?? 0.0
-        let salesAndMarketing = try? args.getDouble("sales_and_marketing")
-        let acv = try? args.getDouble("average_contract_value")
+        let newMRR = (args.getDoubleOptional("new_mrr")) ?? 0.0
+        let expansionMRR = (args.getDoubleOptional("expansion_mrr")) ?? 0.0
+        let churnedMRR = (args.getDoubleOptional("churned_mrr")) ?? 0.0
+        let contractionMRR = (args.getDoubleOptional("contraction_mrr")) ?? 0.0
+        let customers = args.getDoubleOptional("customers")
+        let newCustomers = (args.getDoubleOptional("new_customers")) ?? 0.0
+        let churnedCustomers = (args.getDoubleOptional("churned_customers")) ?? 0.0
+        let salesAndMarketing = args.getDoubleOptional("sales_and_marketing")
+        let acv = args.getDoubleOptional("average_contract_value")
 
         // Calculate ARR
         let arr = mrr * 12
 
         // Calculate ARPU (Average Revenue Per User)
-        let arpu = customers != nil ? mrr / customers! : nil
+        // `flatMap` rather than `!`, and the zero check is new: a tenant with zero
+        // customers divided by zero and reported an infinite ARPU.
+        let arpu = customers.flatMap { $0 > 0 ? mrr / $0 : nil }
 
         // Calculate Net New MRR
         let netNewMRR = newMRR + expansionMRR - churnedMRR - contractionMRR
@@ -187,17 +194,14 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
         let grr = previousMRR > 0 ? (previousMRR - churnedMRR - contractionMRR) / previousMRR : nil
 
         // Calculate Logo Retention (customer retention)
-        let previousCustomers = customers != nil ? customers! - newCustomers + churnedCustomers : nil
-        let logoRetention = previousCustomers != nil && previousCustomers! > 0 ?
-            (previousCustomers! - churnedCustomers) / previousCustomers! : nil
+        let previousCustomers = customers.map { $0 - newCustomers + churnedCustomers }
+        let logoRetention = previousCustomers.flatMap { $0 > 0 ? ($0 - churnedCustomers) / $0 : nil }
 
         // Calculate Customer Churn Rate
-        let customerChurnRate = previousCustomers != nil && previousCustomers! > 0 ?
-            churnedCustomers / previousCustomers! : nil
+        let customerChurnRate = previousCustomers.flatMap { $0 > 0 ? churnedCustomers / $0 : nil }
 
         // Calculate CAC (Customer Acquisition Cost)
-        let cac = salesAndMarketing != nil && newCustomers > 0 ?
-            salesAndMarketing! / newCustomers : nil
+        let cac = salesAndMarketing.flatMap { newCustomers > 0 ? $0 / newCustomers : nil }
 
         // Estimate LTV (Lifetime Value)
         // LTV = ARPU / Churn Rate (simplified model)
@@ -209,20 +213,21 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
         }
 
         // Calculate LTV:CAC ratio
-        let ltvCacRatio = ltv != nil && cac != nil ? ltv! / cac! : nil
+        // The zero check is new: a zero CAC divided to infinity.
+        let ltvCacRatio = ltv.flatMap { l in cac.flatMap { $0 > 0 ? l / $0 : nil } }
 
         // Calculate CAC Payback Period (in months)
         // CAC Payback = CAC / (ARPU * Gross Margin)
         // Simplified: assuming 80% gross margin
         let grossMargin = 0.8
-        let cacPayback = cac != nil && arpu != nil && arpu! > 0 ?
-            cac! / (arpu! * grossMargin) : nil
+        let cacPayback = cac.flatMap { c in
+            arpu.flatMap { a in a > 0 && grossMargin > 0 ? c / (a * grossMargin) : nil }
+        }
 
         // Calculate Magic Number (Sales Efficiency)
         // Magic Number = Net New ARR / S&M Spend (quarterly)
         let netNewARR = netNewMRR * 12
-        let magicNumber = salesAndMarketing != nil && salesAndMarketing! > 0 ?
-            netNewARR / salesAndMarketing! : nil
+        let magicNumber = salesAndMarketing.flatMap { $0 > 0 ? netNewARR / $0 : nil }
 
         // Build output
         var output = """
@@ -391,7 +396,11 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. Calculate E-commerce Metrics
 
+/// Calculate comprehensive E-commerce operational metrics and KPIs.
+///
+/// Exposed to clients as the `calculate_ecommerce_metrics` tool.
 public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
+    /// The `calculate_ecommerce_metrics` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_ecommerce_metrics",
         description: """
@@ -487,8 +496,13 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_ecommerce_metrics` handler.
     public init() {}
 
+    /// Runs `calculate_ecommerce_metrics` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -502,36 +516,34 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         let gmv = try args.getDouble("gmv")
 
         // Optional
-        let revenue = (try? args.getDouble("revenue")) ?? gmv
-        let sessions = try? args.getDouble("sessions")
-        let newCustomers = try? args.getDouble("new_customers")
-        let repeatCustomers = try? args.getDouble("repeat_customers")
-        let totalCustomers = try? args.getDouble("total_customers")
-        let cogs = try? args.getDouble("cogs")
-        let inventory = try? args.getDouble("inventory")
-        let marketingSpend = try? args.getDouble("marketing_spend")
+        let revenue = (args.getDoubleOptional("revenue")) ?? gmv
+        let sessions = args.getDoubleOptional("sessions")
+        let newCustomers = args.getDoubleOptional("new_customers")
+        let repeatCustomers = args.getDoubleOptional("repeat_customers")
+        let totalCustomers = args.getDoubleOptional("total_customers")
+        let cogs = args.getDoubleOptional("cogs")
+        let inventory = args.getDoubleOptional("inventory")
+        let marketingSpend = args.getDoubleOptional("marketing_spend")
 
         // Calculate AOV (Average Order Value)
         let aov = gmv / orders
 
         // Calculate Conversion Rate
-        let conversionRate = sessions != nil ? orders / sessions! : nil
+        // Zero sessions divided to infinity before this check existed.
+        let conversionRate = sessions.flatMap { $0 > 0 ? orders / $0 : nil }
 
         // Calculate Gross Margin
-        let grossProfit = cogs != nil ? revenue - cogs! : nil
-        let grossMargin = grossProfit != nil && revenue > 0 ? grossProfit! / revenue : nil
+        let grossProfit = cogs.map { revenue - $0 }
+        let grossMargin = grossProfit.flatMap { revenue > 0 ? $0 / revenue : nil }
 
         // Calculate Inventory Turnover
-        let inventoryTurnover = inventory != nil && cogs != nil && inventory! > 0 ?
-            cogs! / inventory! : nil
+        let inventoryTurnover = inventory.flatMap { i in cogs.flatMap { i > 0 ? $0 / i : nil } }
 
         // Calculate Repeat Purchase Rate
-        let repeatRate = totalCustomers != nil && repeatCustomers != nil && totalCustomers! > 0 ?
-            repeatCustomers! / totalCustomers! : nil
+        let repeatRate = totalCustomers.flatMap { t in repeatCustomers.flatMap { t > 0 ? $0 / t : nil } }
 
         // Calculate CAC
-        let cac = marketingSpend != nil && newCustomers != nil && newCustomers! > 0 ?
-            marketingSpend! / newCustomers! : nil
+        let cac = newCustomers.flatMap { n in marketingSpend.flatMap { n > 0 ? $0 / n : nil } }
 
         // Estimate LTV (simplified: AOV * average orders per customer per year)
         // Assuming 3 orders per year on average
@@ -539,11 +551,10 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         let ltv = aov * estimatedOrdersPerYear
 
         // LTV:CAC ratio
-        let ltvCacRatio = cac != nil ? ltv / cac! : nil
+        let ltvCacRatio = cac.flatMap { $0 > 0 ? ltv / $0 : nil }
 
         // Revenue per Customer
-        let revenuePerCustomer = totalCustomers != nil && totalCustomers! > 0 ?
-            revenue / totalCustomers! : nil
+        let revenuePerCustomer = totalCustomers.flatMap { $0 > 0 ? revenue / $0 : nil }
 
         // Build output
         var output = """
@@ -558,10 +569,13 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
 
         """
 
-        if let conversion = conversionRate {
+        // `sessions` is bound here rather than force unwrapped on the strength of
+        // conversionRate being non-nil — that coupling is real today and invisible to
+        // anyone changing how conversionRate is derived.
+        if let conversion = conversionRate, let sessions {
             output += "CONVERSION METRICS\n"
             let conversionStatus = conversion > 0.02 ? "✅" : conversion > 0.01 ? "⚠️" : "❌"
-            output += "  Sessions                      \(formatNumber(sessions!, decimals: 0))\n"
+            output += "  Sessions                      \(formatNumber(sessions, decimals: 0))\n"
             output += "  Conversion Rate               \(formatPercentage(conversion, decimals: 2)) \(conversionStatus)\n\n"
         }
 
@@ -591,26 +605,26 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         if grossProfit != nil || inventory != nil {
             output += "OPERATIONS METRICS"
 
-            if let profit = grossProfit, let margin = grossMargin {
+            if let profit = grossProfit, let margin = grossMargin, let cogs {
                 let marginStatus = margin > 0.40 ? "✅" : margin > 0.25 ? "⚠️" : "❌"
-                output += "\n  COGS                          \(formatCurrency(cogs!, decimals: 0))"
+                output += "\n  COGS                          \(formatCurrency(cogs, decimals: 0))"
                 output += "\n  Gross Profit                  \(formatCurrency(profit, decimals: 0))"
                 output += "\n  Gross Margin                  \(formatPercentage(margin, decimals: 1)) \(marginStatus)"
             }
 
-            if let turnover = inventoryTurnover {
+            if let turnover = inventoryTurnover, let inventory {
                 // Annual turnover (if this is a quarterly/monthly period, multiply accordingly)
                 let turnoverStatus = turnover > 6.0 ? "✅" : turnover > 4.0 ? "⚠️" : "❌"
-                output += "\n  Average Inventory             \(formatCurrency(inventory!, decimals: 0))"
+                output += "\n  Average Inventory             \(formatCurrency(inventory, decimals: 0))"
                 output += "\n  Inventory Turnover            \(formatNumber(turnover, decimals: 1))× \(turnoverStatus)"
             }
 
             output += "\n\n"
         }
 
-        if cac != nil {
+        if let cac {
             output += "UNIT ECONOMICS"
-            output += "\n  CAC (Customer Acq Cost)       \(formatCurrency(cac!, decimals: 2))"
+            output += "\n  CAC (Customer Acq Cost)       \(formatCurrency(cac, decimals: 2))"
             output += "\n  Estimated LTV                 \(formatCurrency(ltv, decimals: 2))"
 
             if let ratio = ltvCacRatio {

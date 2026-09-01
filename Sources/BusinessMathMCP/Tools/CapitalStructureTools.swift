@@ -27,7 +27,11 @@ private func separator(width: Int = 40) -> String {
 
 // MARK: - 1. Calculate WACC
 
+/// Calculate the Weighted Average Cost of Capital (WACC).
+///
+/// Exposed to clients as the `calculate_wacc` tool.
 public struct CalculateWACCTool: MCPToolHandler, Sendable {
+    /// The `calculate_wacc` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_wacc",
         description: """
@@ -111,8 +115,13 @@ public struct CalculateWACCTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_wacc` handler.
     public init() {}
 
+    /// Runs `calculate_wacc` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -120,7 +129,7 @@ public struct CalculateWACCTool: MCPToolHandler, Sendable {
 
         let marketCap = try args.getDouble("market_cap")
         let totalDebt = try args.getDouble("total_debt")
-        let cash = (try? args.getDouble("cash")) ?? 0.0
+        let cash = (args.getDoubleOptional("cash")) ?? 0.0
         let riskFreeRate = try args.getDouble("risk_free_rate")
         let marketReturn = try args.getDouble("market_return")
         let beta = try args.getDouble("beta")
@@ -131,7 +140,7 @@ public struct CalculateWACCTool: MCPToolHandler, Sendable {
         let netDebt = totalDebt - cash
 
         // Calculate cost of equity (CAPM)
-        let costOfEquityProvided = try? args.getDouble("cost_of_equity")
+        let costOfEquityProvided = args.getDoubleOptional("cost_of_equity")
         let costOfEquity = costOfEquityProvided ?? capm(
             riskFreeRate: riskFreeRate,
             beta: beta,
@@ -235,7 +244,11 @@ public struct CalculateWACCTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. Calculate Cost of Equity
 
+/// Calculate the cost of equity using CAPM (Capital Asset Pricing Model).
+///
+/// Exposed to clients as the `calculate_cost_of_equity` tool.
 public struct CalculateCostOfEquityTool: MCPToolHandler, Sendable {
+    /// The `calculate_cost_of_equity` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cost_of_equity",
         description: """
@@ -298,8 +311,13 @@ public struct CalculateCostOfEquityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cost_of_equity` handler.
     public init() {}
 
+    /// Runs `calculate_cost_of_equity` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -308,8 +326,8 @@ public struct CalculateCostOfEquityTool: MCPToolHandler, Sendable {
         let riskFreeRate = try args.getDouble("risk_free_rate")
         let beta = try args.getDouble("beta")
         let marketReturn = try args.getDouble("market_return")
-        let deRatio = try? args.getDouble("debt_to_equity_ratio")
-        let taxRate = try? args.getDouble("tax_rate")
+        let deRatio = args.getDoubleOptional("debt_to_equity_ratio")
+        let taxRate = args.getDoubleOptional("tax_rate")
 
         // Calculate cost of equity
         let costOfEquity = capm(

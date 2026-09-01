@@ -35,7 +35,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Growth Rate
 
+/// Calculate simple period-over-period growth rate between two values.
+///
+/// Exposed to clients as the `calculate_growth_rate` tool.
 public struct GrowthRateTool: MCPToolHandler, Sendable {
+    /// The `calculate_growth_rate` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_growth_rate",
         description: """
@@ -109,8 +113,13 @@ public struct GrowthRateTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_growth_rate` handler.
     public init() {}
 
+    /// Runs `calculate_growth_rate` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -257,7 +266,11 @@ public struct GrowthRateTool: MCPToolHandler, Sendable {
 
 // MARK: - Apply Growth
 
+/// The `apply_growth_projection` MCP tool.
+///
+/// Exposed to clients as the `apply_growth_projection` tool.
 public struct ApplyGrowthTool: MCPToolHandler, Sendable {
+    /// The `apply_growth_projection` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "apply_growth_projection",
         description: """
@@ -360,8 +373,13 @@ public struct ApplyGrowthTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `apply_growth_projection` handler.
     public init() {}
 
+    /// Runs `apply_growth_projection` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -402,30 +420,30 @@ public struct ApplyGrowthTool: MCPToolHandler, Sendable {
         // Calculate summary statistics
         let finalValue = projection.last ?? baseValue
         let totalGrowth = (finalValue - baseValue) / baseValue
-        let averageValue = projection.reduce(0.0, +) / Double(projection.count)
+        guard let averageValue = projection.meanValue else {
+            throw ToolError.invalidArguments("Projection produced no values to average")
+        }
 
         // Calculate effective rate (what the growth actually works out to per period)
         let effectiveRate: Double
         let periodsPerYearCount: Double
+        // The switch chooses the compounding frequency; the rate is derived once from it.
+        // Written per-case, the same division appeared four times and each copy had to be
+        // re-read to see that the divisor was a literal set on the line above.
         switch compounding {
-        case .continuous:
+        case .continuous: periodsPerYearCount = Double.infinity
+        case .annual:     periodsPerYearCount = 1.0
+        case .semiannual: periodsPerYearCount = 2.0
+        case .quarterly:  periodsPerYearCount = 4.0
+        case .monthly:    periodsPerYearCount = 12.0
+        case .daily:      periodsPerYearCount = 365.0
+        }
+
+        if periodsPerYearCount > 0, periodsPerYearCount.isFinite {
+            effectiveRate = annualRate / periodsPerYearCount
+        } else {
+            // Continuous compounding has no discrete period to divide by.
             effectiveRate = annualRate
-            periodsPerYearCount = Double.infinity
-        case .annual:
-            periodsPerYearCount = 1.0
-            effectiveRate = annualRate
-        case .semiannual:
-            periodsPerYearCount = 2.0
-            effectiveRate = annualRate / periodsPerYearCount
-        case .quarterly:
-            periodsPerYearCount = 4.0
-            effectiveRate = annualRate / periodsPerYearCount
-        case .monthly:
-            periodsPerYearCount = 12.0
-            effectiveRate = annualRate / periodsPerYearCount
-        case .daily:
-            periodsPerYearCount = 365.0
-            effectiveRate = annualRate / periodsPerYearCount
         }
 
         // Format projection table (show first few, middle, and last few if long)
@@ -468,13 +486,15 @@ public struct ApplyGrowthTool: MCPToolHandler, Sendable {
         }
 
         // Compare with other compounding frequencies
-        let comparisonValues: [String: Double] = [
-            "Annual": applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .annual).last ?? 0,
-            "Quarterly": applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .quarterly).last ?? 0,
-            "Monthly": applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .monthly).last ?? 0,
-            "Daily": applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .daily).last ?? 0,
-            "Continuous": applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .continuous).last ?? 0
-        ]
+        // Named values rather than a dictionary keyed by string. Every read below used to
+        // be `comparisonValues["Monthly"]!`, which trusts the same key spelled correctly
+        // in two places and traps if it ever is not. These are five fixed quantities, so
+        // they are five bindings the compiler checks.
+        let annualFinal = applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .annual).last ?? 0
+        let quarterlyFinal = applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .quarterly).last ?? 0
+        let monthlyFinal = applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .monthly).last ?? 0
+        let dailyFinal = applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .daily).last ?? 0
+        let continuousFinal = applyGrowth(baseValue: baseValue, rate: annualRate, periods: periods, compounding: .continuous).last ?? 0
 
         let output = """
         Growth Projection: \(metricName)
@@ -497,12 +517,12 @@ public struct ApplyGrowthTool: MCPToolHandler, Sendable {
         • Growth Multiple: \(formatNumber(finalValue / baseValue, decimals: 2))x
 
         Compounding Frequency Comparison (Final Values):
-        • Annual: \(comparisonValues["Annual"]!.currency())
-        • Quarterly: \(comparisonValues["Quarterly"]!.currency())
-        • Monthly: \(comparisonValues["Monthly"]!.currency())
-        • Daily: \(comparisonValues["Daily"]!.currency())
-        • Continuous: \(comparisonValues["Continuous"]!.currency())
-        • Difference (Monthly vs Annual): \((comparisonValues["Monthly"]! - comparisonValues["Annual"]!).currency())
+        • Annual: \(annualFinal.currency())
+        • Quarterly: \(quarterlyFinal.currency())
+        • Monthly: \(monthlyFinal.currency())
+        • Daily: \(dailyFinal.currency())
+        • Continuous: \(continuousFinal.currency())
+        • Difference (Monthly vs Annual): \((monthlyFinal - annualFinal).currency())
 
         Interpretation:
         \(annualRate > 0 ? """

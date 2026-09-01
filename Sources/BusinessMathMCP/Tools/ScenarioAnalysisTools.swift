@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Scenario Analysis Tool
 
+/// The `analyze_scenarios` MCP tool.
+///
+/// Exposed to clients as the `analyze_scenarios` tool.
 public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
+    /// The `analyze_scenarios` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_scenarios",
         description: """
@@ -132,8 +136,13 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_scenarios` handler.
     public init() {}
 
+    /// Runs `analyze_scenarios` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -204,34 +213,50 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("Scenario '\(scenarioName)' must have an 'inputs' field")
             }
 
-            let scenario = Scenario(name: scenarioName) { config in
-                for inputName in inputNames {
-                    guard let inputConfig = inputsDict[inputName]?.value as? [String: AnyCodable] else {
-                        // Will be caught by ScenarioAnalysis validation
-                        return
-                    }
+            // Resolve every input before building the Scenario. The closure below cannot
+            // throw, so a malformed distribution used to `return` from it — abandoning the
+            // scenario's *remaining* inputs, not just the bad one — and a distribution of an
+            // unsupported type was dropped with no error at all. Resolving here lets both
+            // report themselves.
+            var resolvedInputs: [(name: String, value: ResolvedScenarioInput)] = []
+            for inputName in inputNames {
+                guard let inputConfig = inputsDict[inputName]?.value as? [String: AnyCodable] else {
+                    // Absent from this scenario; ScenarioAnalysis validation names it.
+                    continue
+                }
 
-                    // Check if it's a fixed value or distribution
-                    if let fixedValue = inputConfig["value"]?.value as? Double {
-                        config.setValue(fixedValue, forInput: inputName)
-                    } else if let fixedValue = inputConfig["value"]?.value as? Int {
-                        config.setValue(Double(fixedValue), forInput: inputName)
-                    } else if let distDict = inputConfig["distribution"]?.value as? [String: AnyCodable] {
-                        // Parse distribution
-                        do {
-                            let distribution = try parseDistribution(distDict)
-                            // Type-erase the distribution to match setDistribution's generic constraint
-                            if let normalDist = distribution as? DistributionNormal {
-                                config.setDistribution(normalDist, forInput: inputName)
-                            } else if let uniformDist = distribution as? DistributionUniform {
-                                config.setDistribution(uniformDist, forInput: inputName)
-                            } else if let triangularDist = distribution as? DistributionTriangular {
-                                config.setDistribution(triangularDist, forInput: inputName)
-                            }
-                        } catch {
-                            // Error will be caught later
-                            return
-                        }
+                // Check if it's a fixed value or distribution
+                if let fixedValue = inputConfig["value"]?.value as? Double {
+                    resolvedInputs.append((inputName, .fixed(fixedValue)))
+                } else if let fixedValue = inputConfig["value"]?.value as? Int {
+                    resolvedInputs.append((inputName, .fixed(Double(fixedValue))))
+                } else if let distDict = inputConfig["distribution"]?.value as? [String: AnyCodable] {
+                    let distribution = try parseDistribution(distDict)
+                    // Type-erase the distribution to match setDistribution's generic constraint
+                    if let normalDist = distribution as? DistributionNormal {
+                        resolvedInputs.append((inputName, .normal(normalDist)))
+                    } else if let uniformDist = distribution as? DistributionUniform {
+                        resolvedInputs.append((inputName, .uniform(uniformDist)))
+                    } else if let triangularDist = distribution as? DistributionTriangular {
+                        resolvedInputs.append((inputName, .triangular(triangularDist)))
+                    } else {
+                        throw ToolError.invalidArguments(
+                            "Scenario '\(scenarioName)' input '\(inputName)': unsupported distribution type — use normal, uniform, or triangular")
+                    }
+                }
+            }
+
+            let scenario = Scenario(name: scenarioName) { config in
+                for (inputName, resolved) in resolvedInputs {
+                    switch resolved {
+                    case .fixed(let value):
+                        config.setValue(value, forInput: inputName)
+                    case .normal(let distribution):
+                        config.setDistribution(distribution, forInput: inputName)
+                    case .uniform(let distribution):
+                        config.setDistribution(distribution, forInput: inputName)
+                    case .triangular(let distribution):
+                        config.setDistribution(distribution, forInput: inputName)
                     }
                 }
             }
@@ -380,6 +405,21 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
 // MARK: - Helper Functions
 
 /// Parse a distribution from JSON configuration
+/// One scenario input, resolved to a concrete value or distribution.
+///
+/// `Scenario`'s configuration closure is non-throwing, so inputs are resolved before it
+/// runs and the closure only applies what is already known to be valid.
+private enum ResolvedScenarioInput: Sendable {
+    /// A deterministic value held constant across iterations.
+    case fixed(Double)
+    /// A normally distributed input.
+    case normal(DistributionNormal)
+    /// A uniformly distributed input.
+    case uniform(DistributionUniform)
+    /// A triangularly distributed input.
+    case triangular(DistributionTriangular)
+}
+
 private func parseDistribution(_ dict: [String: AnyCodable]) throws -> any DistributionRandom & Sendable {
     guard let typeStr = dict["type"]?.value as? String else {
         throw ToolError.invalidArguments("Distribution must have 'type' field")
@@ -487,6 +527,7 @@ private func evaluateExpression(_ expr: String) -> Double {
 
 // MARK: - Tool Registration
 
+/// Every scenario analysis tool this server exposes.
 public func getScenarioAnalysisTools() -> [MCPToolHandler] {
     return [
         ScenarioAnalysisTool()

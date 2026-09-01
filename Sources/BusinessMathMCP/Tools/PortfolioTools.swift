@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Portfolio Optimization Tool
 
+/// Find the optimal portfolio allocation using Modern Portfolio Theory (Markowitz optimization). Maximizes the Sharpe ratio to get the best risk-adjusted returns.
+///
+/// Exposed to clients as the `optimize_portfolio` tool.
 public struct OptimizePortfolioTool: MCPToolHandler, Sendable {
+    /// The `optimize_portfolio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_portfolio",
         description: """
@@ -39,8 +43,13 @@ public struct OptimizePortfolioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_portfolio` handler.
     public init() {}
 
+    /// Runs `optimize_portfolio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -90,10 +99,23 @@ public struct OptimizePortfolioTool: MCPToolHandler, Sendable {
             timeSeriesArray.append(TimeSeries(periods: periods, values: returns))
         }
 
+        // A mean needs at least one observation and a sample covariance at least two;
+        // `count` and `count - 1` are the divisors below, and an asset with a single
+        // return used to fill the matrix with infinities rather than say anything.
+        guard returnsData.allSatisfy({ $0.count >= 2 }) else {
+            throw ToolError.invalidArguments("Each asset needs at least two return observations")
+        }
+
         // Calculate expected returns (mean of each asset's returns)
-        let expectedReturns = VectorN(returnsData.map { returns in
-            returns.reduce(0, +) / Double(returns.count)
-        })
+        var meanReturns: [Double] = []
+        for returns in returnsData {
+            let observationCount = Double(returns.count)
+            guard observationCount > 0 else {
+                throw ToolError.invalidArguments("Each asset needs at least one return observation")
+            }
+            meanReturns.append(returns.reduce(0, +) / observationCount)
+        }
+        let expectedReturns = VectorN(meanReturns)
 
         // Calculate covariance matrix
         let n = returnsData.count
@@ -107,7 +129,11 @@ public struct OptimizePortfolioTool: MCPToolHandler, Sendable {
                 for k in 0..<returnsData[i].count {
                     covariance += (returnsData[i][k] - meanI) * (returnsData[j][k] - meanJ)
                 }
-                covarianceMatrix[i][j] = covariance / Double(returnsData[i].count - 1)
+                let degreesOfFreedom = Double(returnsData[i].count - 1)
+                guard degreesOfFreedom > 0 else {
+                    throw ToolError.invalidArguments("A sample covariance needs at least two observations per asset")
+                }
+                covarianceMatrix[i][j] = covariance / degreesOfFreedom
             }
         }
 
@@ -153,7 +179,11 @@ public struct OptimizePortfolioTool: MCPToolHandler, Sendable {
 
 // MARK: - Efficient Frontier Tool
 
+/// Generate the efficient frontier showing all optimal risk-return combinations. Each point represents a portfolio with maximum return for its risk level.
+///
+/// Exposed to clients as the `calculate_efficient_frontier` tool.
 public struct EfficientFrontierTool: MCPToolHandler, Sendable {
+    /// The `calculate_efficient_frontier` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_efficient_frontier",
         description: """
@@ -192,8 +222,13 @@ public struct EfficientFrontierTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_efficient_frontier` handler.
     public init() {}
 
+    /// Runs `calculate_efficient_frontier` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -229,9 +264,15 @@ public struct EfficientFrontierTool: MCPToolHandler, Sendable {
         }
 
         // Calculate expected returns and covariance matrix
-        let expectedReturns = VectorN(returnsData.map { returns in
-            returns.reduce(0, +) / Double(returns.count)
-        })
+        var meanReturns: [Double] = []
+        for returns in returnsData {
+            let observationCount = Double(returns.count)
+            guard observationCount > 0 else {
+                throw ToolError.invalidArguments("Each asset needs at least one return observation")
+            }
+            meanReturns.append(returns.reduce(0, +) / observationCount)
+        }
+        let expectedReturns = VectorN(meanReturns)
 
         let n = returnsData.count
         var covarianceMatrix: [[Double]] = Array(repeating: Array(repeating: 0.0, count: n), count: n)
@@ -244,7 +285,11 @@ public struct EfficientFrontierTool: MCPToolHandler, Sendable {
                 for k in 0..<returnsData[i].count {
                     covariance += (returnsData[i][k] - meanI) * (returnsData[j][k] - meanJ)
                 }
-                covarianceMatrix[i][j] = covariance / Double(returnsData[i].count - 1)
+                let degreesOfFreedom = Double(returnsData[i].count - 1)
+                guard degreesOfFreedom > 0 else {
+                    throw ToolError.invalidArguments("A sample covariance needs at least two observations per asset")
+                }
+                covarianceMatrix[i][j] = covariance / degreesOfFreedom
             }
         }
 
@@ -298,7 +343,11 @@ public struct EfficientFrontierTool: MCPToolHandler, Sendable {
 
 // MARK: - Risk Parity Tool
 
+/// Calculate risk parity allocation where each asset contributes equally to portfolio risk. Alternative to mean-variance optimization that doesn't rely on return forecasts.
+///
+/// Exposed to clients as the `calculate_risk_parity` tool.
 public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
+    /// The `calculate_risk_parity` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_risk_parity",
         description: """
@@ -327,8 +376,13 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_risk_parity` handler.
     public init() {}
 
+    /// Runs `calculate_risk_parity` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -362,9 +416,15 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
         }
 
         // Calculate expected returns and covariance matrix
-        let expectedReturns = VectorN(returnsData.map { returns in
-            returns.reduce(0, +) / Double(returns.count)
-        })
+        var meanReturns: [Double] = []
+        for returns in returnsData {
+            let observationCount = Double(returns.count)
+            guard observationCount > 0 else {
+                throw ToolError.invalidArguments("Each asset needs at least one return observation")
+            }
+            meanReturns.append(returns.reduce(0, +) / observationCount)
+        }
+        let expectedReturns = VectorN(meanReturns)
 
         let n = returnsData.count
         var covarianceMatrix: [[Double]] = Array(repeating: Array(repeating: 0.0, count: n), count: n)
@@ -377,7 +437,11 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
                 for k in 0..<returnsData[i].count {
                     covariance += (returnsData[i][k] - meanI) * (returnsData[j][k] - meanJ)
                 }
-                covarianceMatrix[i][j] = covariance / Double(returnsData[i].count - 1)
+                let degreesOfFreedom = Double(returnsData[i].count - 1)
+                guard degreesOfFreedom > 0 else {
+                    throw ToolError.invalidArguments("A sample covariance needs at least two observations per asset")
+                }
+                covarianceMatrix[i][j] = covariance / degreesOfFreedom
             }
         }
 
@@ -390,8 +454,11 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
 
         // Calculate risk contributions for display
         let weights = portfolio.weights.toArray()
-        let numAssets = assetNames.count
-        let targetContribution = 1.0 / Double(numAssets)
+        let assetCount = Double(assetNames.count)
+        guard assetCount > 0 else {
+            throw ToolError.invalidArguments("At least one asset is required")
+        }
+        let targetContribution = 1.0 / assetCount
 
         var result = """
         Risk Parity Allocation
@@ -415,7 +482,13 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
             for j in 0..<n {
                 marginalRisk += covarianceMatrix[i][j] * weights[j]
             }
-            let riskContribution = weights[i] * marginalRisk / portfolio.volatility
+            // A zero-volatility portfolio has no risk to attribute; dividing by it gave
+            // every asset an infinite contribution.
+            let portfolioVolatility = portfolio.volatility
+            guard portfolioVolatility > 0 else {
+                throw ToolError.invalidArguments("Portfolio volatility is zero; risk contributions are undefined")
+            }
+            let riskContribution = weights[i] * marginalRisk / portfolioVolatility
             actualRiskContributions.append(riskContribution)
         }
 
@@ -448,6 +521,7 @@ public struct RiskParityAllocationTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every portfolio tool this server exposes.
 public func getPortfolioTools() -> [MCPToolHandler] {
     return [
         OptimizePortfolioTool(),

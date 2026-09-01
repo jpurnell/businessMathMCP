@@ -28,6 +28,19 @@ extension Dictionary where Key == String, Value == AnyCodable {
         switch periodType {
         case .millisecond, .second, .minute, .hourly:
             throw ToolError.invalidArguments("Sub-daily periods not yet supported in MCP interface")
+        case .semiannual:
+            // `month` carries the half here, as it does for a quarter: 1-6 is the first
+            // half, 7-12 the second.
+            guard let monthValue = dict["month"],
+                  let month = monthValue.value as? Int else {
+                throw ToolError.invalidArguments("\(key) semiannual period must have month")
+            }
+            let half = month <= 6 ? 1 : 2
+            return Period.semiannual(year: year, half: half)
+        case .custom:
+            // A custom period is an arbitrary date range, which this JSON shape — a year
+            // and an optional month/day — cannot express. Saying so beats guessing.
+            throw ToolError.invalidArguments("\(key): custom periods need explicit start and end dates, which this interface does not accept")
         case .annual:
             return Period.year(year)
         case .quarterly:
@@ -75,12 +88,18 @@ extension Dictionary where Key == String, Value == AnyCodable {
         let jsonData = try JSONSerialization.data(withJSONObject: value.jsonValue)
         let decoder = JSONDecoder()
 
-        // Try wrapped format first: {"data": [...], "metadata": {...}}
-        if let timeSeriesJSON = try? decoder.decode(TimeSeriesJSON.self, from: jsonData) {
-            return try timeSeriesJSON.toTimeSeries()
+        // Two shapes are accepted: the wrapped object {"data": [...], "metadata": {...}}
+        // and the flat array [{period: {...}, value: 100}, ...]. JSON says which one
+        // arrived — an object opens with `{`, an array with `[` — so the shape is decided
+        // before decoding rather than by decoding and catching. That matters for error
+        // quality: a malformed *wrapped* series used to fall through to the array decode
+        // and report "expected an array", hiding the field that was actually wrong.
+        let openingToken = jsonData.first { !jsonWhitespace.contains($0) }
+
+        guard openingToken == UInt8(ascii: "[") else {
+            return try decoder.decode(TimeSeriesJSON.self, from: jsonData).toTimeSeries()
         }
 
-        // Fall back to flat array: [{period: {...}, value: 100}, ...]
         let points = try decoder.decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: jsonData)
         var periods: [Period] = []
         var values: [Double] = []

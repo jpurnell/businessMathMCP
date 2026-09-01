@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Profile Optimizer Tool
 
+/// Profile the performance of a single optimization algorithm with statistical analysis.
+///
+/// Exposed to clients as the `profile_optimizer` tool.
 public struct ProfileOptimizerTool: MCPToolHandler, Sendable {
+    /// The `profile_optimizer` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "profile_optimizer",
         description: """
@@ -55,8 +59,13 @@ public struct ProfileOptimizerTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `profile_optimizer` handler.
     public init() {}
 
+    /// Runs `profile_optimizer` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -305,7 +314,11 @@ public struct ProfileOptimizerTool: MCPToolHandler, Sendable {
 
 // MARK: - Compare Optimizers Tool
 
+/// Compare performance of multiple optimization algorithms side-by-side.
+///
+/// Exposed to clients as the `compare_optimizers` tool.
 public struct CompareOptimizersTool: MCPToolHandler, Sendable {
+    /// The `compare_optimizers` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "compare_optimizers",
         description: """
@@ -350,8 +363,13 @@ public struct CompareOptimizersTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `compare_optimizers` handler.
     public init() {}
 
+    /// Runs `compare_optimizers` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -588,7 +606,11 @@ public struct CompareOptimizersTool: MCPToolHandler, Sendable {
 
 // MARK: - Benchmark Guide Tool
 
+/// Get comprehensive guidance on performance benchmarking and optimization profiling.
+///
+/// Exposed to clients as the `benchmark_guide` tool.
 public struct BenchmarkGuideTool: MCPToolHandler, Sendable {
+    /// The `benchmark_guide` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "benchmark_guide",
         description: """
@@ -614,10 +636,15 @@ public struct BenchmarkGuideTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `benchmark_guide` handler.
     public init() {}
 
+    /// Runs `benchmark_guide` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
-        let topic = (try? arguments?.getString("topic")) ?? "getting_started"
+        let topic = arguments?.getStringOptional("topic") ?? "getting_started"
 
         let guide: String
 
@@ -1086,6 +1113,7 @@ public struct BenchmarkGuideTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every performance benchmark tool this server exposes.
 public func getPerformanceBenchmarkTools() -> [MCPToolHandler] {
     return [
         ProfileOptimizerTool(),

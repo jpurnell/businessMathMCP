@@ -20,7 +20,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Post-Money Valuation
 
+/// Calculate post-money valuation after a financing round.
+///
+/// Exposed to clients as the `calculate_post_money_valuation` tool.
 public struct PostMoneyValuationTool: MCPToolHandler, Sendable {
+    /// The `calculate_post_money_valuation` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_post_money_valuation",
         description: """
@@ -55,8 +59,13 @@ public struct PostMoneyValuationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_post_money_valuation` handler.
     public init() {}
 
+    /// Runs `calculate_post_money_valuation` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -93,7 +102,11 @@ public struct PostMoneyValuationTool: MCPToolHandler, Sendable {
 
 // MARK: - Dilution Calculation
 
+/// Calculate shareholder dilution from new financing.
+///
+/// Exposed to clients as the `calculate_dilution_percentage` tool.
 public struct DilutionCalculationTool: MCPToolHandler, Sendable {
+    /// The `calculate_dilution_percentage` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_dilution_percentage",
         description: """
@@ -132,8 +145,13 @@ public struct DilutionCalculationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_dilution_percentage` handler.
     public init() {}
 
+    /// Runs `calculate_dilution_percentage` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -170,7 +188,11 @@ public struct DilutionCalculationTool: MCPToolHandler, Sendable {
 
 // MARK: - SAFE Conversion Modeling
 
+/// Model the conversion of a SAFE (Simple Agreement for Future Equity) into equity.
+///
+/// Exposed to clients as the `model_safe_conversion` tool.
 public struct SAFEConversionTool: MCPToolHandler, Sendable {
+    /// The `model_safe_conversion` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "model_safe_conversion",
         description: """
@@ -218,8 +240,13 @@ public struct SAFEConversionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `model_safe_conversion` handler.
     public init() {}
 
+    /// Runs `model_safe_conversion` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -281,7 +308,11 @@ public struct SAFEConversionTool: MCPToolHandler, Sendable {
 
 // MARK: - Liquidation Waterfall
 
+/// Analyze capital distribution in a liquidation or exit event.
+///
+/// Exposed to clients as the `run_liquidation_waterfall` tool.
 public struct LiquidationWaterfallTool: MCPToolHandler, Sendable {
+    /// The `run_liquidation_waterfall` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_liquidation_waterfall",
         description: """
@@ -335,8 +366,13 @@ public struct LiquidationWaterfallTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_liquidation_waterfall` handler.
     public init() {}
 
+    /// Runs `run_liquidation_waterfall` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -384,6 +420,9 @@ public struct LiquidationWaterfallTool: MCPToolHandler, Sendable {
         let preferredReturn = preferredInv > 0 ? preferredPayout / preferredInv : 0
         let participationType = participating ? "Participating" : "Non-Participating"
 
+        // A zero-proceeds liquidation distributes nothing; there is no share to express.
+        let preferredShareText = proceeds > 0 ? (preferredPayout / proceeds).percent() : "n/a"
+        let commonShareText = proceeds > 0 ? (commonPayout / proceeds).percent() : "n/a"
         let output = """
         Liquidation Waterfall Analysis:
 
@@ -401,8 +440,8 @@ public struct LiquidationWaterfallTool: MCPToolHandler, Sendable {
         • Common Ownership: \(commonOwn.percent())
 
         Distribution:
-        • To Preferred Shareholders: $\(formatNumber(preferredPayout, decimals: 0)) (\((preferredPayout / proceeds).percent()))
-        • To Common Shareholders: $\(formatNumber(commonPayout, decimals: 0)) (\((commonPayout / proceeds).percent()))
+        • To Preferred Shareholders: $\(formatNumber(preferredPayout, decimals: 0)) (\(preferredShareText))
+        • To Common Shareholders: $\(formatNumber(commonPayout, decimals: 0)) (\(commonShareText))
 
         Return Analysis:
         • Preferred Multiple on Invested Capital: \(formatNumber(preferredReturn, decimals: 2))x

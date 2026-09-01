@@ -34,7 +34,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Linear Trend Forecast
 
+/// Forecast future values using linear trend analysis (straight-line projection).
+///
+/// Exposed to clients as the `forecast_linear_trend` tool.
 public struct LinearTrendForecastTool: MCPToolHandler, Sendable {
+    /// The `forecast_linear_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "forecast_linear_trend",
         description: """
@@ -73,8 +77,13 @@ public struct LinearTrendForecastTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `forecast_linear_trend` handler.
     public init() {}
 
+    /// Runs `forecast_linear_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -135,7 +144,11 @@ public struct LinearTrendForecastTool: MCPToolHandler, Sendable {
 
 // MARK: - Exponential Trend Forecast
 
+/// Forecast future values using exponential trend analysis (accelerating/decelerating growth).
+///
+/// Exposed to clients as the `forecast_exponential_trend` tool.
 public struct ExponentialTrendForecastTool: MCPToolHandler, Sendable {
+    /// The `forecast_exponential_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "forecast_exponential_trend",
         description: """
@@ -174,8 +187,13 @@ public struct ExponentialTrendForecastTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `forecast_exponential_trend` handler.
     public init() {}
 
+    /// Runs `forecast_exponential_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -243,7 +261,11 @@ public struct ExponentialTrendForecastTool: MCPToolHandler, Sendable {
 
 // MARK: - Logistic Trend Forecast
 
+/// Forecast future values using logistic trend (S-curve with saturation).
+///
+/// Exposed to clients as the `forecast_logistic_trend` tool.
 public struct LogisticTrendForecastTool: MCPToolHandler, Sendable {
+    /// The `forecast_logistic_trend` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "forecast_logistic_trend",
         description: """
@@ -289,8 +311,13 @@ public struct LogisticTrendForecastTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `forecast_logistic_trend` handler.
     public init() {}
 
+    /// Runs `forecast_logistic_trend` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -363,7 +390,11 @@ public struct LogisticTrendForecastTool: MCPToolHandler, Sendable {
 
 // MARK: - Time Series Decomposition
 
+/// Decompose time series into Trend, Seasonal, and Residual components.
+///
+/// Exposed to clients as the `decompose_time_series` tool.
 public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
+    /// The `decompose_time_series` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "decompose_time_series",
         description: """
@@ -412,8 +443,13 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `decompose_time_series` handler.
     public init() {}
 
+    /// Runs `decompose_time_series` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -440,7 +476,7 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
             let start = max(0, i - halfWindow)
             let end = min(values.count, i + halfWindow + 1)
             let window = values[start..<end]
-            let avg = window.reduce(0.0, +) / Double(window.count)
+            guard let avg = window.meanValue else { continue }
             trend.append(avg)
         }
 
@@ -481,6 +517,13 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
             residuals.append(residual)
         }
 
+        let trendDirection: String = {
+            guard let first = trend.first, let last = trend.last else { return "Stable" }
+            if last > first { return "Increasing" }
+            if last < first { return "Decreasing" }
+            return "Stable"
+        }()
+
         let output = """
         Time Series Decomposition
 
@@ -501,7 +544,7 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
         \(residuals.prefix(10).enumerated().map { "  [\($0)]: \(formatNumber($1))" }.joined(separator: "\n"))
 
         Analysis:
-        • Trend: \(trend.last! > trend.first! ? "Increasing" : trend.last! < trend.first! ? "Decreasing" : "Stable")
+        • Trend: \(trendDirection)
         • Seasonality: \(periodicity)-period cycle detected
         • Method: \(isMultiplicative ? "Multiplicative (proportional seasonality)" : "Additive (constant seasonality)")
 
@@ -526,7 +569,11 @@ public struct TimeSeriesDecomposeTool: MCPToolHandler, Sendable {
 
 // MARK: - Holt-Winters Forecast
 
+/// Forecast future values using Holt-Winters triple exponential smoothing.
+///
+/// Exposed to clients as the `holt_winters_forecast` tool.
 public struct HoltWintersForecastTool: MCPToolHandler, Sendable {
+    /// The `holt_winters_forecast` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "holt_winters_forecast",
         description: """
@@ -589,8 +636,13 @@ public struct HoltWintersForecastTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `holt_winters_forecast` handler.
     public init() {}
 
+    /// Runs `holt_winters_forecast` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -692,7 +744,11 @@ public struct HoltWintersForecastTool: MCPToolHandler, Sendable {
 
 // MARK: - Anomaly Detection
 
+/// Detect anomalies in time series data using rolling z-score method.
+///
+/// Exposed to clients as the `detect_anomalies` tool.
 public struct DetectAnomaliesTool: MCPToolHandler, Sendable {
+    /// The `detect_anomalies` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "detect_anomalies",
         description: """
@@ -737,8 +793,13 @@ public struct DetectAnomaliesTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `detect_anomalies` handler.
     public init() {}
 
+    /// Runs `detect_anomalies` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

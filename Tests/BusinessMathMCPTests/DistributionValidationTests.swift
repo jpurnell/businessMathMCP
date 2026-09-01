@@ -12,13 +12,19 @@ struct DistributionParameterValidationTests {
     // MARK: - Normal
 
     @Test("Normal: valid params don't throw")
-    func normalValid() throws {
-        try validateDistributionParameters(type: "normal", params: ["mean": 100, "stdDev": 20])
+        func normalValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "normal", params: ["mean": 100, "stdDev": 20])
+        }
     }
 
     @Test("Normal: zero stdDev is valid (degenerate)")
-    func normalZeroStdDev() throws {
-        try validateDistributionParameters(type: "normal", params: ["mean": 0, "stdDev": 0])
+        func normalZeroStdDev() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "normal", params: ["mean": 0, "stdDev": 0])
+        }
     }
 
     @Test("Normal: negative stdDev throws")
@@ -31,8 +37,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Uniform
 
     @Test("Uniform: valid params don't throw")
-    func uniformValid() throws {
-        try validateDistributionParameters(type: "uniform", params: ["min": 0, "max": 100])
+        func uniformValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "uniform", params: ["min": 0, "max": 100])
+        }
     }
 
     @Test("Uniform: min >= max throws")
@@ -52,18 +61,27 @@ struct DistributionParameterValidationTests {
     // MARK: - Triangular
 
     @Test("Triangular: valid params don't throw")
-    func triangularValid() throws {
-        try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 50])
+        func triangularValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 50])
+        }
     }
 
     @Test("Triangular: mode at min is valid")
-    func triangularModeAtMin() throws {
-        try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 0])
+        func triangularModeAtMin() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 0])
+        }
     }
 
     @Test("Triangular: mode at max is valid")
-    func triangularModeAtMax() throws {
-        try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 100])
+        func triangularModeAtMax() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "triangular", params: ["min": 0, "max": 100, "mode": 100])
+        }
     }
 
     @Test("Triangular: min >= max throws")
@@ -90,8 +108,11 @@ struct DistributionParameterValidationTests {
     // MARK: - LogNormal
 
     @Test("LogNormal: valid params don't throw")
-    func lognormalValid() throws {
-        try validateDistributionParameters(type: "lognormal", params: ["mean": 250000, "stdDev": 400000])
+        func lognormalValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "lognormal", params: ["mean": 250000, "stdDev": 400000])
+        }
     }
 
     @Test("LogNormal: zero mean throws")
@@ -118,8 +139,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Exponential
 
     @Test("Exponential: valid rate doesn't throw")
-    func exponentialValid() throws {
-        try validateDistributionParameters(type: "exponential", params: ["rate": 0.5])
+        func exponentialValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "exponential", params: ["rate": 0.5])
+        }
     }
 
     @Test("Exponential: zero rate throws")
@@ -139,8 +163,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Beta
 
     @Test("Beta: valid params don't throw")
-    func betaValid() throws {
-        try validateDistributionParameters(type: "beta", params: ["alpha": 2, "beta": 5])
+        func betaValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "beta", params: ["alpha": 2, "beta": 5])
+        }
     }
 
     @Test("Beta: zero alpha throws")
@@ -160,8 +187,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Gamma
 
     @Test("Gamma: valid params don't throw")
-    func gammaValid() throws {
-        try validateDistributionParameters(type: "gamma", params: ["shape": 3, "scale": 2])
+        func gammaValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "gamma", params: ["shape": 3, "scale": 2])
+        }
     }
 
     @Test("Gamma: shape < 1 throws")
@@ -181,8 +211,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Weibull
 
     @Test("Weibull: valid params don't throw")
-    func weibullValid() throws {
-        try validateDistributionParameters(type: "weibull", params: ["shape": 1.5, "scale": 100])
+        func weibullValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "weibull", params: ["shape": 1.5, "scale": 100])
+        }
     }
 
     @Test("Weibull: zero shape throws")
@@ -202,8 +235,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Chi-Squared
 
     @Test("ChiSquared: valid df doesn't throw")
-    func chiSquaredValid() throws {
-        try validateDistributionParameters(type: "chisquared", params: ["degreesOfFreedom": 5])
+        func chiSquaredValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "chisquared", params: ["degreesOfFreedom": 5])
+        }
     }
 
     @Test("ChiSquared: zero df throws")
@@ -223,8 +259,11 @@ struct DistributionParameterValidationTests {
     // MARK: - F Distribution
 
     @Test("F: valid params don't throw")
-    func fValid() throws {
-        try validateDistributionParameters(type: "f", params: ["df1": 5, "df2": 10])
+        func fValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "f", params: ["df1": 5, "df2": 10])
+        }
     }
 
     @Test("F: zero df1 throws")
@@ -244,8 +283,11 @@ struct DistributionParameterValidationTests {
     // MARK: - T Distribution
 
     @Test("T: valid df doesn't throw")
-    func tValid() throws {
-        try validateDistributionParameters(type: "t", params: ["degreesOfFreedom": 30])
+        func tValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "t", params: ["degreesOfFreedom": 30])
+        }
     }
 
     @Test("T: zero df throws")
@@ -258,8 +300,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Pareto
 
     @Test("Pareto: valid params don't throw")
-    func paretoValid() throws {
-        try validateDistributionParameters(type: "pareto", params: ["scale": 1, "shape": 2])
+        func paretoValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "pareto", params: ["scale": 1, "shape": 2])
+        }
     }
 
     @Test("Pareto: zero scale throws")
@@ -279,8 +324,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Logistic
 
     @Test("Logistic: valid params don't throw")
-    func logisticValid() throws {
-        try validateDistributionParameters(type: "logistic", params: ["mean": 0, "stdDev": 1])
+        func logisticValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "logistic", params: ["mean": 0, "stdDev": 1])
+        }
     }
 
     @Test("Logistic: zero stdDev throws")
@@ -300,13 +348,19 @@ struct DistributionParameterValidationTests {
     // MARK: - Geometric
 
     @Test("Geometric: valid p doesn't throw")
-    func geometricValid() throws {
-        try validateDistributionParameters(type: "geometric", params: ["p": 0.5])
+        func geometricValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "geometric", params: ["p": 0.5])
+        }
     }
 
     @Test("Geometric: p = 1 is valid")
-    func geometricPOne() throws {
-        try validateDistributionParameters(type: "geometric", params: ["p": 1.0])
+        func geometricPOne() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "geometric", params: ["p": 1.0])
+        }
     }
 
     @Test("Geometric: p = 0 throws")
@@ -333,8 +387,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Rayleigh
 
     @Test("Rayleigh: valid mean doesn't throw")
-    func rayleighValid() throws {
-        try validateDistributionParameters(type: "rayleigh", params: ["mean": 10])
+        func rayleighValid() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "rayleigh", params: ["mean": 10])
+        }
     }
 
     @Test("Rayleigh: zero mean throws")
@@ -354,8 +411,11 @@ struct DistributionParameterValidationTests {
     // MARK: - Unknown type passes through
 
     @Test("Unknown distribution type doesn't throw from validator")
-    func unknownTypePassesThrough() throws {
-        try validateDistributionParameters(type: "unknown_dist", params: [:])
+        func unknownTypePassesThrough() throws {
+        // Asserted explicitly: the call not throwing is the whole test.
+        #expect(throws: Never.self) {
+            try validateDistributionParameters(type: "unknown_dist", params: [:])
+        }
     }
 }
 

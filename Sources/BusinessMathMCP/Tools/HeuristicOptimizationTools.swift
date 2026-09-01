@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Particle Swarm Optimization Tool
 
+/// Global optimization using Particle Swarm Optimization (PSO). Inspired by bird flocking behavior, PSO excels at finding global optima in non-convex, multi-modal landscapes where gradient-based methods fail.
+///
+/// Exposed to clients as the `particle_swarm_optimize` tool.
 public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
+    /// The `particle_swarm_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "particle_swarm_optimize",
         description: """
@@ -81,8 +85,13 @@ public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `particle_swarm_optimize` handler.
     public init() {}
 
+    /// Runs `particle_swarm_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -564,7 +573,11 @@ public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Genetic Algorithm Tool
 
+/// Evolutionary optimization using Genetic Algorithm (GA). Inspired by natural selection, GA excels at combinatorial and discrete optimization where traditional methods struggle.
+///
+/// Exposed to clients as the `genetic_algorithm_optimize` tool.
 public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
+    /// The `genetic_algorithm_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "genetic_algorithm_optimize",
         description: """
@@ -649,8 +662,13 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `genetic_algorithm_optimize` handler.
     public init() {}
 
+    /// Runs `genetic_algorithm_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -661,11 +679,15 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         let populationSize = args.getIntOptional("populationSize") ?? max(50, dimensions * 5)
         let generations = args.getIntOptional("generations") ?? 100
         let crossoverRate = args.getDoubleOptional("crossoverRate") ?? 0.8
-        let mutationRate = args.getDoubleOptional("mutationRate") ?? (1.0 / Double(dimensions))
+        let defaultMutationRate = dimensions > 0 ? 1.0 / Double(dimensions) : 0.01
+        let mutationRate = args.getDoubleOptional("mutationRate") ?? defaultMutationRate
         let elitismCount = args.getIntOptional("elitismCount") ?? 2
         let selectionMethod = args.getStringOptional("selectionMethod") ?? "tournament"
         let tournamentSize = args.getIntOptional("tournamentSize") ?? 3
         let problemType = args.getStringOptional("problemType") ?? "general"
+        // Continuous and mixed encodings are meaningless without bounds, and the schema
+        // advertises `searchRegion` for exactly that — so the guidance has to report it.
+        let searchRegionDescription = describeSearchRegion(args["searchRegion"], encoding: encoding)
 
         let guide = """
         🧬 **Genetic Algorithm (GA) Optimization**
@@ -673,6 +695,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         **Problem Configuration:**
         - Variables: \(dimensions)
         - Encoding: \(encoding.uppercased())
+        - Search region: \(searchRegionDescription)
         - Population size: \(populationSize) individuals
         - Generations: \(generations)
 
@@ -973,6 +996,51 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
     // MARK: - Helper Functions
 
+    /// Describes the caller's search region for the guidance output.
+    ///
+    /// - Parameters:
+    ///   - value: The raw `searchRegion` argument, if the caller supplied one.
+    ///   - encoding: The chromosome encoding, which decides whether bounds are required.
+    /// - Returns: A human-readable summary of the bounds, or a note explaining what is
+    ///   missing when the region is absent or malformed.
+    private func describeSearchRegion(_ value: AnyCodable?, encoding: String) -> String {
+        let needsBounds = encoding == "continuous" || encoding == "mixed"
+        guard let value else {
+            return needsBounds
+                ? "not supplied — \(encoding) encoding needs {\"lower\": [...], \"upper\": [...]}"
+                : "not applicable for \(encoding) encoding"
+        }
+        guard let region = value.value as? [String: AnyCodable],
+              let lower = numericArray(region["lower"]),
+              let upper = numericArray(region["upper"]) else {
+            return "supplied but unreadable — expected {\"lower\": [...], \"upper\": [...]}"
+        }
+        guard lower.count == upper.count else {
+            return "mismatched bounds — \(lower.count) lower vs \(upper.count) upper"
+        }
+        let pairs = zip(lower, upper).map { "[\($0.digits(2)), \($1.digits(2))]" }
+        return pairs.joined(separator: ", ")
+    }
+
+    /// Converts an `AnyCodable` array of JSON numbers to `Double`s.
+    ///
+    /// - Parameter value: The value to convert; may be `nil` or a non-array.
+    /// - Returns: The numbers, or `nil` if the value is not an array of numbers.
+    private func numericArray(_ value: AnyCodable?) -> [Double]? {
+        guard let elements = value?.value as? [AnyCodable] else { return nil }
+        var numbers: [Double] = []
+        for element in elements {
+            if let number = element.value as? Double {
+                numbers.append(number)
+            } else if let integer = element.value as? Int {
+                numbers.append(Double(integer))
+            } else {
+                return nil
+            }
+        }
+        return numbers
+    }
+
     private func getSelectionExplanation(method: String, tournamentSize: Int) -> String {
         switch method {
         case "tournament":
@@ -1228,20 +1296,26 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func getMutationGuidance(mutationRate: Double, dimensions: Int) -> String {
-        let recommended = 1.0 / Double(dimensions)
+        // Guidance text, not a computation the caller can act on being wrong: a
+        // zero-dimension problem has no 1/L rule to quote, so the line says so.
+        let dimensionCount = Double(dimensions)
+        let recommended: Double? = dimensionCount > 0 ? 1.0 / dimensionCount : nil
+        let recommendedText = recommended?.digits(4) ?? "n/a (no dimensions)"
 
         var guidance = """
         **Mutation Rate Analysis:**
         - Current: \(mutationRate.digits(4)) (\((mutationRate * 100).digits(2))%)
-        - Rule of thumb: 1/L = \(recommended.digits(4)) where L=chromosome length
+        - Rule of thumb: 1/L = \(recommendedText) where L=chromosome length
         """
 
-        if mutationRate < recommended * 0.5 {
-            guidance += "\n⚠️ Low mutation rate may cause premature convergence"
-        } else if mutationRate > recommended * 2 {
-            guidance += "\n⚠️ High mutation rate may prevent convergence"
-        } else {
-            guidance += "\n✓ Mutation rate in recommended range"
+        if let recommended {
+            if mutationRate < recommended * 0.5 {
+                guidance += "\n⚠️ Low mutation rate may cause premature convergence"
+            } else if mutationRate > recommended * 2 {
+                guidance += "\n⚠️ High mutation rate may prevent convergence"
+            } else {
+                guidance += "\n✓ Mutation rate in recommended range"
+            }
         }
 
         guidance += """
@@ -1378,6 +1452,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every heuristic optimization tool this server exposes.
 public func getHeuristicOptimizationTools() -> [any MCPToolHandler] {
     return [
         ParticleSwarmOptimizeTool(),

@@ -12,7 +12,11 @@ import SwiftMCPServer
 
 // MARK: - Tool 1: Hypothesis T-Test
 
+/// Perform a t-test to compare means and determine statistical significance.
+///
+/// Exposed to clients as the `hypothesis_t_test` tool.
 public struct HypothesisTTestTool: MCPToolHandler, Sendable {
+    /// The `hypothesis_t_test` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "hypothesis_t_test",
         description: """
@@ -92,8 +96,13 @@ public struct HypothesisTTestTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `hypothesis_t_test` handler.
     public init() {}
 
+    /// Runs `hypothesis_t_test` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -139,12 +148,13 @@ public struct HypothesisTTestTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("sample2 must contain at least 2 values")
             }
 
-            // Calculate two-sample t-test
-            let mean1 = sample1.reduce(0, +) / Double(sample1.count)
-            let mean2 = sample2.reduce(0, +) / Double(sample2.count)
-
-            let var1 = sample1.map { pow($0 - mean1, 2) }.reduce(0, +) / Double(sample1.count - 1)
-            let var2 = sample2.map { pow($0 - mean2, 2) }.reduce(0, +) / Double(sample2.count - 1)
+            // Calculate two-sample t-test. The counts are already checked above, so these
+            // cannot be nil; going through the guarded helpers keeps that true if the
+            // checks above ever move.
+            guard let mean1 = sample1.meanValue, let mean2 = sample2.meanValue,
+                  let var1 = sample1.sampleVarianceValue, let var2 = sample2.sampleVarianceValue else {
+                throw ToolError.invalidArguments("Both samples need at least 2 values")
+            }
 
             let n1 = Double(sample1.count)
             let n2 = Double(sample2.count)
@@ -190,8 +200,9 @@ public struct HypothesisTTestTool: MCPToolHandler, Sendable {
 
         } else if let populationMean = args.getDoubleOptional("populationMean") {
             // One-sample t-test
-            let sampleMean = sample1.reduce(0, +) / Double(sample1.count)
-            let variance = sample1.map { pow($0 - sampleMean, 2) }.reduce(0, +) / Double(sample1.count - 1)
+            guard let sampleMean = sample1.meanValue, let variance = sample1.sampleVarianceValue else {
+                throw ToolError.invalidArguments("sample1 needs at least 2 values")
+            }
             let stdDev = sqrt(variance)
             let n = Double(sample1.count)
 
@@ -238,7 +249,11 @@ public struct HypothesisTTestTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 2: Chi-Square Test
 
+/// Perform chi-square test for independence or goodness-of-fit.
+///
+/// Exposed to clients as the `hypothesis_chi_square` tool.
 public struct HypothesisChiSquareTool: MCPToolHandler, Sendable {
+    /// The `hypothesis_chi_square` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "hypothesis_chi_square",
         description: """
@@ -292,8 +307,13 @@ public struct HypothesisChiSquareTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `hypothesis_chi_square` handler.
     public init() {}
 
+    /// Runs `hypothesis_chi_square` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -398,7 +418,11 @@ public struct HypothesisChiSquareTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 3: Calculate Sample Size
 
+/// Calculate required sample size for statistical significance.
+///
+/// Exposed to clients as the `calculate_sample_size` tool.
 public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
+    /// The `calculate_sample_size` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_sample_size",
         description: """
@@ -463,8 +487,13 @@ public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_sample_size` handler.
     public init() {}
 
+    /// Runs `calculate_sample_size` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -491,7 +520,23 @@ public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("populationSize must be positive")
         }
 
-        let requiredSize: Double = sampleSize(ci: confidence, proportion: proportion, n: populationSize, error: marginOfError)
+        // Cochran's formula with the finite-population correction, written out here rather
+        // than calling BusinessMath's `sampleSize(ci:proportion:n:error:)`, which is now
+        // deprecated. The deprecation is aimed at a misuse — reaching for this when sizing
+        // a two-arm A/B test, where it understates by ~4.1x because it has no power term
+        // and no second arm. This tool answers the question the formula is actually for:
+        // how many observations a survey needs for a given margin of error on a
+        // proportion. The suggested replacement, `Experiment.sampleSizePerArm`, computes
+        // something different and would be the wrong answer here.
+        let z = zScore(ci: confidence)
+        let zSquared = z * z
+        let pq = proportion * (1 - proportion)
+        let marginSquared = marginOfError * marginOfError
+        guard marginSquared > 0, populationSize > 0 else {
+            throw ToolError.invalidArguments("marginOfError and populationSize must be greater than zero")
+        }
+        let unadjusted = (zSquared * pq) / marginSquared
+        let requiredSize: Double = unadjusted / (1 + (zSquared * pq) / (marginSquared * populationSize))
 
         let responseRate = requiredSize / populationSize
         let isLargePopulation = populationSize > 100000
@@ -525,7 +570,11 @@ public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 4: Calculate Margin of Error
 
+/// Calculate margin of error for confidence intervals.
+///
+/// Exposed to clients as the `calculate_margin_of_error` tool.
 public struct CalculateMarginOfErrorTool: MCPToolHandler, Sendable {
+    /// The `calculate_margin_of_error` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_margin_of_error",
         description: """
@@ -577,8 +626,13 @@ public struct CalculateMarginOfErrorTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_margin_of_error` handler.
     public init() {}
 
+    /// Runs `calculate_margin_of_error` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -636,7 +690,11 @@ public struct CalculateMarginOfErrorTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 5: AB Test Analysis
 
+/// Complete A/B test analysis with statistical significance testing.
+///
+/// Exposed to clients as the `ab_test_analysis` tool.
 public struct ABTestAnalysisTool: MCPToolHandler, Sendable {
+    /// The `ab_test_analysis` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "ab_test_analysis",
         description: """
@@ -715,8 +773,13 @@ public struct ABTestAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `ab_test_analysis` handler.
     public init() {}
 
+    /// Runs `ab_test_analysis` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -766,10 +829,29 @@ public struct ABTestAnalysisTool: MCPToolHandler, Sendable {
         let rateA = Double(convA) / Double(obsA)
         let rateB = Double(convB) / Double(obsB)
 
-        // Calculate p-value using existing function
-        let pValueResult: Double = pValue(obsA: obsA, convA: convA, obsB: obsB, convB: convB)
+        // This reported the wrong number for as long as it existed. The old
+        // `pValue(obsA:convA:obsB:convB:)` returns `normSDist(|z|)` — the *complement* of
+        // a one-sided p-value, so it is always >= 0.5 — and the result was printed under
+        // the label "P-Value". Every A/B test this server answered showed something like
+        // 0.9750 where the p-value was 0.05. The significance verdict happened to be
+        // right, because the comparison was inverted to match (`>= 1 - alpha`), but the
+        // number a reader acted on was not a p-value at all.
+        //
+        // `Experiment.analyze` returns a genuine two-sided p-value, so the test below is
+        // the ordinary one. `minimumDetectableEffect` is only used for sizing, not for
+        // analysis, so the observed difference is passed for it.
+        let observedArms = ArmResults<Double>(
+            controlObservations: obsA, controlConversions: convA,
+            treatmentObservations: obsB, treatmentConversions: convB
+        )
+        let experiment = Experiment<Double>.twoProportion(
+            baseline: rateA,
+            minimumDetectableEffect: Swift.max(abs(rateB - rateA), 0.0001)
+        )
+        let analysis = try experiment.analyze(observedArms, alpha: alpha)
+        let pValueResult = analysis.pValue
 
-        let isSignificant = pValueResult >= (1.0 - alpha)
+        let isSignificant = pValueResult < alpha
         let lift = ((rateB - rateA) / rateA) * 100.0
         let absoluteDiff = (rateB - rateA) * 100.0
 
@@ -812,7 +894,11 @@ public struct ABTestAnalysisTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 6: Calculate P-Value
 
+/// Calculate p-value from test statistic (z-score or t-statistic).
+///
+/// Exposed to clients as the `calculate_p_value` tool.
 public struct CalculatePValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_p_value` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_p_value",
         description: """
@@ -861,8 +947,13 @@ public struct CalculatePValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_p_value` handler.
     public init() {}
 
+    /// Runs `calculate_p_value` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -932,6 +1023,7 @@ public struct CalculatePValueTool: MCPToolHandler, Sendable {
 
 // MARK: - Get All Hypothesis Testing Tools
 
+/// Every hypothesis testing tool this server exposes.
 public func getHypothesisTestingTools() -> [any MCPToolHandler] {
     return [
         HypothesisTTestTool(),

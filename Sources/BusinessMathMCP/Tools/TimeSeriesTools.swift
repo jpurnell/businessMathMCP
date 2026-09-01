@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Create Time Series Tool
 
+/// Create a time series from periods and values for analysis.
+///
+/// Exposed to clients as the `create_time_series` tool.
 public struct CreateTimeSeriesTool: MCPToolHandler, Sendable {
+    /// The `create_time_series` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_time_series",
         description: """
@@ -92,8 +96,13 @@ public struct CreateTimeSeriesTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_time_series` handler.
     public init() {}
 
+    /// Runs `create_time_series` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -140,7 +149,11 @@ public struct CreateTimeSeriesTool: MCPToolHandler, Sendable {
 
 // MARK: - Calculate Growth Rate Tool
 
+/// Calculate the simple growth rate between two values.
+///
+/// Exposed to clients as the `calculate_simple_growth_rate` tool.
 public struct CalculateGrowthRateTool: MCPToolHandler, Sendable {
+    /// The `calculate_simple_growth_rate` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_simple_growth_rate",
         description: "Calculate the simple growth rate between two values",
@@ -159,8 +172,13 @@ public struct CalculateGrowthRateTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_simple_growth_rate` handler.
     public init() {}
 
+    /// Runs `calculate_simple_growth_rate` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -186,7 +204,11 @@ public struct CalculateGrowthRateTool: MCPToolHandler, Sendable {
 
 // MARK: - Calculate CAGR Tool
 
+/// Calculate the Compound Annual Growth Rate (CAGR) between two values over a period.
+///
+/// Exposed to clients as the `calculate_cagr` tool.
 public struct CalculateCAGRTool: MCPToolHandler, Sendable {
+    /// The `calculate_cagr` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cagr",
         description: "Calculate the Compound Annual Growth Rate (CAGR) between two values over a period",
@@ -209,8 +231,13 @@ public struct CalculateCAGRTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cagr` handler.
     public init() {}
 
+    /// Runs `calculate_cagr` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -226,14 +253,24 @@ public struct CalculateCAGRTool: MCPToolHandler, Sendable {
             years: Double(periods)
         )
 
-		let totalGrowth = try? growthRate(from: beginningValue, to: endingValue)
+		// `try?` then `!` two lines later was the same trap with an extra step: a zero
+		// beginning value makes growthRate throw, and the report crashed rather than
+		// saying the growth was not computable. A zero divisor is the only way that
+		// function fails, so the condition is tested here instead of caught.
+		let totalGrowthText: String
+		if beginningValue == 0 {
+			// A zero beginning value has no growth rate; saying so beats reporting a number.
+			totalGrowthText = "n/a (beginning value is zero)"
+		} else {
+			totalGrowthText = try growthRate(from: beginningValue, to: endingValue).percent()
+		}
 
         let result = """
         Compound Annual Growth Rate (CAGR):
         • Beginning Value: \(beginningValue.formatDecimal())
         • Ending Value: \(endingValue.formatDecimal())
         • Number of Periods: \(periods)
-        • Total Growth: \((totalGrowth!).percent())
+        • Total Growth: \(totalGrowthText)
         • CAGR: \(cagrValue.percent())
         """
 
@@ -243,7 +280,11 @@ public struct CalculateCAGRTool: MCPToolHandler, Sendable {
 
 // MARK: - Time Series Statistics Tool
 
+/// Calculate descriptive statistics for a time series (mean, median, std dev, min, max).
+///
+/// Exposed to clients as the `time_series_statistics` tool.
 public struct TimeSeriesStatisticsTool: MCPToolHandler, Sendable {
+    /// The `time_series_statistics` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "time_series_statistics",
         description: "Calculate descriptive statistics for a time series (mean, median, std dev, min, max)",
@@ -259,8 +300,13 @@ public struct TimeSeriesStatisticsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `time_series_statistics` handler.
     public init() {}
 
+    /// Runs `time_series_statistics` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -296,7 +342,11 @@ public struct TimeSeriesStatisticsTool: MCPToolHandler, Sendable {
 
 // MARK: - Moving Average Tool
 
+/// Calculate a moving average for a time series.
+///
+/// Exposed to clients as the `calculate_moving_average` tool.
 public struct MovingAverageTool: MCPToolHandler, Sendable {
+    /// The `calculate_moving_average` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_moving_average",
         description: "Calculate a moving average for a time series",
@@ -316,8 +366,13 @@ public struct MovingAverageTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_moving_average` handler.
     public init() {}
 
+    /// Runs `calculate_moving_average` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -355,7 +410,11 @@ public struct MovingAverageTool: MCPToolHandler, Sendable {
 
 // MARK: - Time Series Aggregation Tool
 
+/// Aggregate time series data (sum, mean, min, max).
+///
+/// Exposed to clients as the `aggregate_time_series` tool.
 public struct TimeSeriesAggregationTool: MCPToolHandler, Sendable {
+    /// The `aggregate_time_series` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "aggregate_time_series",
         description: "Aggregate time series data (sum, mean, min, max)",
@@ -376,8 +435,13 @@ public struct TimeSeriesAggregationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `aggregate_time_series` handler.
     public init() {}
 
+    /// Runs `aggregate_time_series` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

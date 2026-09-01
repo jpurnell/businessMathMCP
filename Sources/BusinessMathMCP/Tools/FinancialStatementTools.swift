@@ -34,7 +34,11 @@ private func separator(width: Int = 40, char: Character = "─") -> String {
 
 // MARK: - 1. Create Income Statement
 
+/// Create a comprehensive Income Statement from account-level data.
+///
+/// Exposed to clients as the `create_income_statement` tool.
 public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
+    /// The `create_income_statement` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_income_statement",
         description: """
@@ -114,8 +118,13 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_income_statement` handler.
     public init() {}
 
+    /// Runs `create_income_statement` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -123,7 +132,7 @@ public struct CreateIncomeStatementTool: MCPToolHandler, Sendable {
 
         let entityName = try args.getString("entity")
         let periodString = try args.getString("period")
-        let currency = try? args.getString("currency")
+        let currency = args.getStringOptional("currency")
 
         // Parse accounts array
         guard let accountsAnyCodable = args["accounts"]?.value as? [AnyCodable] else {
@@ -412,7 +421,11 @@ private func mapStringToBalanceSheetRole(_ roleString: String) -> BalanceSheetRo
 
 // MARK: - 2. Create Balance Sheet
 
+/// The `create_balance_sheet` MCP tool.
+///
+/// Exposed to clients as the `create_balance_sheet` tool.
 public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
+    /// The `create_balance_sheet` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_balance_sheet",
         description: """
@@ -500,8 +513,13 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_balance_sheet` handler.
     public init() {}
 
+    /// Runs `create_balance_sheet` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -509,7 +527,7 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
 
         let entityName = try args.getString("entity")
         let periodString = try args.getString("period")
-        let currency = try? args.getString("currency")
+        let currency = args.getStringOptional("currency")
 
         // Parse accounts
         guard let accountsAnyCodable = args["accounts"]?.value as? [AnyCodable] else {
@@ -708,7 +726,11 @@ public struct CreateBalanceSheetTool: MCPToolHandler, Sendable {
 
 // MARK: - 3. Create Cash Flow Statement
 
+/// Create a Cash Flow Statement from account-level data.
+///
+/// Exposed to clients as the `create_cash_flow_statement` tool.
 public struct CreateCashFlowStatementTool: MCPToolHandler, Sendable {
+    /// The `create_cash_flow_statement` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_cash_flow_statement",
         description: """
@@ -774,8 +796,13 @@ public struct CreateCashFlowStatementTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_cash_flow_statement` handler.
     public init() {}
 
+    /// Runs `create_cash_flow_statement` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -784,7 +811,7 @@ public struct CreateCashFlowStatementTool: MCPToolHandler, Sendable {
         let entityName = try args.getString("entity")
         let periodString = try args.getString("period")
 		var currencyValue = "USD"
-		if let cv = try? args.getString("currency") {
+		if let cv = args.getStringOptional("currency") {
 			currencyValue = cv
 		}
         let currency = currencyValue
@@ -946,7 +973,11 @@ public struct CreateCashFlowStatementTool: MCPToolHandler, Sendable {
 
 // MARK: - 4. Validate Financial Statements
 
+/// Validate financial statements for consistency and completeness.
+///
+/// Exposed to clients as the `validate_financial_statements` tool.
 public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
+    /// The `validate_financial_statements` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "validate_financial_statements",
         description: """
@@ -986,8 +1017,13 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `validate_financial_statements` handler.
     public init() {}
 
+    /// Runs `validate_financial_statements` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1086,7 +1122,11 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
 
 // MARK: - Lease vs Buy Analysis Tool
 
+/// Compare leasing vs purchasing an asset using NPV analysis.
+///
+/// Exposed to clients as the `analyze_lease_vs_buy` tool.
 public struct LeaseVsBuyTool: MCPToolHandler, Sendable {
+    /// The `analyze_lease_vs_buy` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_lease_vs_buy",
         description: """
@@ -1143,8 +1183,13 @@ public struct LeaseVsBuyTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_lease_vs_buy` handler.
     public init() {}
 
+    /// Runs `analyze_lease_vs_buy` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1225,7 +1270,11 @@ public struct LeaseVsBuyTool: MCPToolHandler, Sendable {
 
 // MARK: - Financial Ratio Summary Tool
 
+/// Compute all key financial ratios from statement data in a single call.
+///
+/// Exposed to clients as the `calculate_ratio_summary` tool.
 public struct RatioSummaryTool: MCPToolHandler, Sendable {
+    /// The `calculate_ratio_summary` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_ratio_summary",
         description: """
@@ -1263,28 +1312,33 @@ public struct RatioSummaryTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_ratio_summary` handler.
     public init() {}
 
+    /// Runs `calculate_ratio_summary` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
         let revenue = try args.getDoubleArray("revenue")
-        let cogs = (try? args.getDoubleArray("cogs")) ?? revenue.map { _ in 0.0 }
-        let opex = (try? args.getDoubleArray("operatingExpenses")) ?? revenue.map { _ in 0.0 }
-        let interest = (try? args.getDoubleArray("interestExpense")) ?? revenue.map { _ in 0.0 }
-        let tax = (try? args.getDoubleArray("taxExpense")) ?? revenue.map { _ in 0.0 }
+        let cogs = (try args.getDoubleArrayIfPresent("cogs")) ?? revenue.map { _ in 0.0 }
+        let opex = (try args.getDoubleArrayIfPresent("operatingExpenses")) ?? revenue.map { _ in 0.0 }
+        let interest = (try args.getDoubleArrayIfPresent("interestExpense")) ?? revenue.map { _ in 0.0 }
+        let tax = (try args.getDoubleArrayIfPresent("taxExpense")) ?? revenue.map { _ in 0.0 }
         let totalAssets = try args.getDoubleArray("totalAssets")
-        let totalLiabilities = (try? args.getDoubleArray("totalLiabilities")) ?? totalAssets.map { _ in 0.0 }
+        let totalLiabilities = (try args.getDoubleArrayIfPresent("totalLiabilities")) ?? totalAssets.map { _ in 0.0 }
         let totalEquity = try args.getDoubleArray("totalEquity")
-        let currentAssets = (try? args.getDoubleArray("currentAssets")) ?? totalAssets
-        let currentLiabilities = (try? args.getDoubleArray("currentLiabilities")) ?? totalLiabilities
-        let cash = (try? args.getDoubleArray("cash")) ?? currentAssets.map { _ in 0.0 }
-        let inventory = (try? args.getDoubleArray("inventory")) ?? currentAssets.map { _ in 0.0 }
-        let ar = (try? args.getDoubleArray("accountsReceivable")) ?? currentAssets.map { _ in 0.0 }
+        let currentAssets = (try args.getDoubleArrayIfPresent("currentAssets")) ?? totalAssets
+        let currentLiabilities = (try args.getDoubleArrayIfPresent("currentLiabilities")) ?? totalLiabilities
+        let cash = (try args.getDoubleArrayIfPresent("cash")) ?? currentAssets.map { _ in 0.0 }
+        let inventory = (try args.getDoubleArrayIfPresent("inventory")) ?? currentAssets.map { _ in 0.0 }
+        let ar = (try args.getDoubleArrayIfPresent("accountsReceivable")) ?? currentAssets.map { _ in 0.0 }
 
-        let categoryStrs = (try? args.getStringArray("categories")) ?? ["profitability", "liquidity", "solvency", "efficiency"]
+        let categoryStrs = (try args.getStringArrayIfPresent("categories")) ?? ["profitability", "liquidity", "solvency", "efficiency"]
         let categories = Set(categoryStrs.map { $0.lowercased() })
 
         let periods = revenue.count
@@ -1365,7 +1419,11 @@ public struct RatioSummaryTool: MCPToolHandler, Sendable {
 
 // MARK: - Cap Table Tool
 
+/// Model startup capitalization table — ownership, funding rounds, and liquidation waterfall.
+///
+/// Exposed to clients as the `model_cap_table` tool.
 public struct CapTableTool: MCPToolHandler, Sendable {
+    /// The `model_cap_table` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "model_cap_table",
         description: """
@@ -1415,8 +1473,13 @@ public struct CapTableTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `model_cap_table` handler.
     public init() {}
 
+    /// Runs `model_cap_table` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

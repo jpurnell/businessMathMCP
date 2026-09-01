@@ -34,7 +34,11 @@ private func formatRate(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Principal Payment (PPMT)
 
+/// Calculate the principal portion of a specific loan payment (Excel PPMT equivalent).
+///
+/// Exposed to clients as the `calculate_principal_payment` tool.
 public struct PrincipalPaymentTool: MCPToolHandler, Sendable {
+    /// The `calculate_principal_payment` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_principal_payment",
         description: """
@@ -115,8 +119,13 @@ public struct PrincipalPaymentTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_principal_payment` handler.
     public init() {}
 
+    /// Runs `calculate_principal_payment` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -175,7 +184,11 @@ public struct PrincipalPaymentTool: MCPToolHandler, Sendable {
         // Lifetime context
         let lifetimePayments = totalPayment * Double(totalPeriods) + balloonPayment
         let totalInterest = lifetimePayments - loanAmount
-        let progressPct = Double(period) / Double(totalPeriods)
+        let periodCountForProgress = Double(totalPeriods)
+        guard periodCountForProgress > 0 else {
+            throw ToolError.invalidArguments("totalPeriods must be greater than zero")
+        }
+        let progressPct = Double(period) / periodCountForProgress
 
         let output = """
         Principal Payment Analysis (Period \(period) of \(totalPeriods))
@@ -232,7 +245,11 @@ public struct PrincipalPaymentTool: MCPToolHandler, Sendable {
 
 // MARK: - Interest Payment (IPMT)
 
+/// The `calculate_interest_payment` MCP tool.
+///
+/// Exposed to clients as the `calculate_interest_payment` tool.
 public struct InterestPaymentTool: MCPToolHandler, Sendable {
+    /// The `calculate_interest_payment` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_interest_payment",
         description: """
@@ -324,8 +341,13 @@ public struct InterestPaymentTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_interest_payment` handler.
     public init() {}
 
+    /// Runs `calculate_interest_payment` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -455,7 +477,11 @@ public struct InterestPaymentTool: MCPToolHandler, Sendable {
 
 // MARK: - Cumulative Interest
 
+/// Calculate total interest paid over a range of loan payments (Excel CUMIPMT).
+///
+/// Exposed to clients as the `calculate_cumulative_interest` tool.
 public struct CumulativeInterestTool: MCPToolHandler, Sendable {
+    /// The `calculate_cumulative_interest` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cumulative_interest",
         description: """
@@ -544,8 +570,13 @@ public struct CumulativeInterestTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cumulative_interest` handler.
     public init() {}
 
+    /// Runs `calculate_cumulative_interest` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -605,6 +636,20 @@ public struct CumulativeInterestTool: MCPToolHandler, Sendable {
         // Calculate percentage of range
         let interestPct = cumInterest / totalPaid
 
+        // Averages over the window, and the loan's progress, computed once with their
+        // divisors checked — `periodCount` is a span that can be a single period, and
+        // `totalPeriods` comes straight from the caller.
+        let periodsInWindow = Double(periodCount)
+        guard periodsInWindow > 0 else {
+            throw ToolError.invalidArguments("endPeriod must not precede startPeriod")
+        }
+        let averageInterestPerPeriod = cumInterest / periodsInWindow
+        let totalPeriodCount = Double(totalPeriods)
+        guard totalPeriodCount > 0 else {
+            throw ToolError.invalidArguments("totalPeriods must be greater than zero")
+        }
+        let loanProgressFraction = Double(startPeriod) / totalPeriodCount
+
         let output = """
         Cumulative Interest Analysis (Periods \(startPeriod) to \(endPeriod))
 
@@ -623,7 +668,7 @@ public struct CumulativeInterestTool: MCPToolHandler, Sendable {
         • Total Interest Paid: \(cumInterest.currency())
         • Total Principal Paid: \(cumPrincipal.currency())
         • Total Payments Made: \(totalPaid.currency())
-        • Average Interest per Period: \((cumInterest / Double(periodCount)).currency())
+        • Average Interest per Period: \(averageInterestPerPeriod.currency())
 
         Interest Breakdown:
         • Interest as % of Payments: \(interestPct.percent())
@@ -652,10 +697,10 @@ public struct CumulativeInterestTool: MCPToolHandler, Sendable {
         """ : "")
 
         Strategic Insight:
-        \(Double(startPeriod) / Double(totalPeriods) < 0.33 ? """
+        \(loanProgressFraction < 0.33 ? """
         Early loan stage - interest is highest here. Extra principal payments
         made now will save the most interest over the loan life.
-        """ : Double(startPeriod) / Double(totalPeriods) < 0.67 ? """
+        """ : loanProgressFraction < 0.67 ? """
         Mid-loan stage - interest is moderate. Consider whether extra payments
         or other investments offer better returns.
         """ : """
@@ -670,7 +715,11 @@ public struct CumulativeInterestTool: MCPToolHandler, Sendable {
 
 // MARK: - Cumulative Principal
 
+/// The `calculate_cumulative_principal` MCP tool.
+///
+/// Exposed to clients as the `calculate_cumulative_principal` tool.
 public struct CumulativePrincipalTool: MCPToolHandler, Sendable {
+    /// The `calculate_cumulative_principal` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cumulative_principal",
         description: """
@@ -773,8 +822,13 @@ public struct CumulativePrincipalTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cumulative_principal` handler.
     public init() {}
 
+    /// Runs `calculate_cumulative_principal` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -854,6 +908,14 @@ public struct CumulativePrincipalTool: MCPToolHandler, Sendable {
         let paidOffPct = (loanAmount - balanceAfterEnd) / loanAmount
         let remainingPct = balanceAfterEnd / loanAmount
 
+        // Same average, second tool: the window can be a single period, so the divisor
+        // is checked rather than assumed.
+        let periodsInWindow = Double(periodCount)
+        guard periodsInWindow > 0 else {
+            throw ToolError.invalidArguments("endPeriod must not precede startPeriod")
+        }
+        let averagePrincipalPerPeriod = cumPrincipal / periodsInWindow
+
         let output = """
         Cumulative Principal Analysis (Periods \(startPeriod) to \(endPeriod))
 
@@ -872,7 +934,7 @@ public struct CumulativePrincipalTool: MCPToolHandler, Sendable {
         • Total Principal Paid: \(cumPrincipal.currency())
         • Total Interest Paid: \(cumInterest.currency())
         • Total Payments Made: \(totalPaid.currency())
-        • Average Principal per Period: \((cumPrincipal / Double(periodCount)).currency())
+        • Average Principal per Period: \(averagePrincipalPerPeriod.currency())
 
         Principal Breakdown:
         • Principal as % of Payments: \(principalPct.percent())

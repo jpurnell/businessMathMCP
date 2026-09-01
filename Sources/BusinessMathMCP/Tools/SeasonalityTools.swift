@@ -285,7 +285,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Apply Seasonal
 
+/// Add seasonal patterns to trend data or forecasts.
+///
+/// Exposed to clients as the `apply_seasonal_pattern` tool.
 public struct ApplySeasonalTool: MCPToolHandler, Sendable {
+    /// The `apply_seasonal_pattern` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "apply_seasonal_pattern",
         description: """
@@ -327,8 +331,13 @@ public struct ApplySeasonalTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `apply_seasonal_pattern` handler.
     public init() {}
 
+    /// Runs `apply_seasonal_pattern` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -350,7 +359,9 @@ public struct ApplySeasonalTool: MCPToolHandler, Sendable {
         }
 
         // Calculate summary statistics
-        let trendAvg = trendValues.reduce(0.0, +) / Double(trendValues.count)
+        guard let trendAvg = trendValues.meanValue else {
+            throw ToolError.invalidArguments("No trend values to average")
+        }
         let seasonalAvg = seasonalizedValues.reduce(0.0, +) / Double(seasonalizedValues.count)
         let periodicity = seasonalIndices.count
 

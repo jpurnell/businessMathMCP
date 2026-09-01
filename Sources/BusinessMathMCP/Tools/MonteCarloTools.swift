@@ -138,7 +138,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - 1. Create Distribution
 
+/// Create a probability distribution for Monte Carlo simulation.
+///
+/// Exposed to clients as the `create_distribution` tool.
 public struct CreateDistributionTool: MCPToolHandler, Sendable {
+    /// The `create_distribution` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "create_distribution",
         description: """
@@ -202,8 +206,13 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `create_distribution` handler.
     public init() {}
 
+    /// Runs `create_distribution` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -315,6 +324,9 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("Gamma distribution requires 'shape' and 'scale'")
             }
             distInfo = "Gamma(k=\(formatNumber(shape, decimals: 2)), θ=\(formatNumber(scale, decimals: 2)))"
+            guard scale > 0 else {
+                throw ToolError.invalidArguments("Gamma scale must be greater than zero")
+            }
             let dist = DistributionGamma(r: Int(shape), λ: 1.0 / scale)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
@@ -399,7 +411,10 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("Rayleigh distribution requires 'mean'")
             }
             distInfo = "Rayleigh(μ=\(formatNumber(mean, decimals: 2)))"
-            let dist = DistributionRayleigh(mean: mean)
+            // The library takes the scale parameter σ; this tool's published schema takes
+            // the mean, and a Rayleigh's mean is σ√(π/2). Converting here keeps the
+            // server's contract stable across the library's rename.
+            let dist = DistributionRayleigh(scale: mean / (Double.pi / 2).squareRoot())
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -439,7 +454,11 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. Run Monte Carlo Simulation
 
+/// Run a Monte Carlo simulation to model uncertainty and risk.
+///
+/// Exposed to clients as the `run_monte_carlo` tool.
 public struct RunMonteCarloTool: MCPToolHandler, Sendable {
+    /// The `run_monte_carlo` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_monte_carlo",
         description: """
@@ -557,8 +576,13 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_monte_carlo` handler.
     public init() {}
 
+    /// Runs `run_monte_carlo` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -656,6 +680,9 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                 guard let shape = params["shape"], let scale = params["scale"] else {
                     throw ToolError.invalidArguments("Gamma distribution requires 'shape' and 'scale'")
                 }
+                guard scale > 0 else {
+                    throw ToolError.invalidArguments("Gamma scale must be greater than zero")
+                }
                 simInput = SimulationInput(name: name, distribution: DistributionGamma(r: Int(shape), λ: 1.0 / scale))
 
             case "weibull":
@@ -704,7 +731,7 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                 guard let mean = params["mean"] else {
                     throw ToolError.invalidArguments("Rayleigh distribution requires 'mean'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionRayleigh(mean: mean))
+                simInput = SimulationInput(name: name, distribution: DistributionRayleigh(scale: mean / (Double.pi / 2).squareRoot()))
 
             default:
                 throw ToolError.invalidArguments("Unsupported distribution type for simulation: \(distType). Supported: normal, uniform, triangular, lognormal, exponential, beta, gamma, weibull, chisquared, f, t, pareto, logistic, geometric, rayleigh")
@@ -764,7 +791,11 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
 
 // MARK: - 3. Analyze Simulation Results
 
+/// Perform detailed analysis on simulation outcome values.
+///
+/// Exposed to clients as the `analyze_simulation_results` tool.
 public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
+    /// The `analyze_simulation_results` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_simulation_results",
         description: """
@@ -797,8 +828,13 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_simulation_results` handler.
     public init() {}
 
+    /// Runs `analyze_simulation_results` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -830,7 +866,9 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
 
         var histogramText = "\n\nDistribution Histogram (20 bins):\n"
         for bin in histogram {
-            let barLength = Int(Double(bin.count) / Double(maxCount) * 40)
+            // An empty histogram has no tallest bar to scale against.
+            let tallestBin = Double(maxCount)
+            let barLength = tallestBin > 0 ? Int(Double(bin.count) / tallestBin * 40) : 0
             let bar = String(repeating: "█", count: barLength)
 			let percentage = Double(bin.count) / Double(values.count)
 			
@@ -881,7 +919,11 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
 
 // MARK: - 4. Calculate Value at Risk (VaR)
 
+/// Calculate Value at Risk (VaR) from simulation results.
+///
+/// Exposed to clients as the `calculate_simulation_var` tool.
 public struct CalculateValueAtRiskTool: MCPToolHandler, Sendable {
+    /// The `calculate_simulation_var` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_simulation_var",
         description: """
@@ -917,8 +959,13 @@ public struct CalculateValueAtRiskTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_simulation_var` handler.
     public init() {}
 
+    /// Runs `calculate_simulation_var` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -984,7 +1031,11 @@ public struct CalculateValueAtRiskTool: MCPToolHandler, Sendable {
 
 // MARK: - 5. Calculate Probability
 
+/// Calculate probabilities from simulation results.
+///
+/// Exposed to clients as the `calculate_probability` tool.
 public struct CalculateProbabilityTool: MCPToolHandler, Sendable {
+    /// The `calculate_probability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_probability",
         description: """
@@ -1031,8 +1082,13 @@ public struct CalculateProbabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_probability` handler.
     public init() {}
 
+    /// Runs `calculate_probability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1050,19 +1106,27 @@ public struct CalculateProbabilityTool: MCPToolHandler, Sendable {
         var description: String
 
         switch probType {
+        // Each branch needs a different argument, so none of them can be unconditionally
+        // required. Reading optionally lets the error name the branch that needs the key.
         case "above":
-            let threshold = try args.getDouble("threshold")
+            guard let threshold = args.getDoubleOptional("threshold") else {
+                throw ToolError.invalidArguments("Probability type 'above' requires 'threshold'")
+            }
             probability = results.probabilityAbove(threshold)
             description = "P(X > \(formatNumber(threshold, decimals: 2)))"
 
         case "below":
-            let threshold = try args.getDouble("threshold")
+            guard let threshold = args.getDoubleOptional("threshold") else {
+                throw ToolError.invalidArguments("Probability type 'below' requires 'threshold'")
+            }
             probability = results.probabilityBelow(threshold)
             description = "P(X < \(formatNumber(threshold, decimals: 2)))"
 
         case "between":
-            let lower = try args.getDouble("lower")
-            let upper = try args.getDouble("upper")
+            guard let lower = args.getDoubleOptional("lower"),
+                  let upper = args.getDoubleOptional("upper") else {
+                throw ToolError.invalidArguments("Probability type 'between' requires 'lower' and 'upper'")
+            }
             probability = results.probabilityBetween(lower, upper)
             description = "P(\(formatNumber(lower, decimals: 2)) < X < \(formatNumber(upper, decimals: 2)))"
 
@@ -1102,7 +1166,11 @@ public struct CalculateProbabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - 6. Sensitivity Analysis
 
+/// Perform single-variable sensitivity analysis.
+///
+/// Exposed to clients as the `sensitivity_analysis` tool.
 public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
+    /// The `sensitivity_analysis` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "sensitivity_analysis",
         description: """
@@ -1177,8 +1245,13 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `sensitivity_analysis` handler.
     public init() {}
 
+    /// Runs `sensitivity_analysis` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1217,7 +1290,11 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         }
 
         // Generate test values
-        let stepSize = (maxValue - minValue) / Double(steps - 1)
+        let stepDivisor = Double(steps - 1)
+        guard stepDivisor > 0 else {
+            throw ToolError.invalidArguments("At least two steps are required to sweep a range")
+        }
+        let stepSize = (maxValue - minValue) / stepDivisor
         var results: [(input: Double, output: Double)] = []
 
         for i in 0..<steps {
@@ -1230,7 +1307,12 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         let baseOutput = evaluateCalculation(calculation, with: [baseValue])
 
         // Calculate sensitivity metrics
-        let outputRange = results.map { $0.output }.max()! - results.map { $0.output }.min()!
+        // `results` is built from the trial loop; an empty run would have trapped here.
+        let outputs = results.map { $0.output }
+        guard let maxOutput = outputs.max(), let minOutput = outputs.min() else {
+            throw ToolError.invalidArguments("Sensitivity analysis produced no results")
+        }
+        let outputRange = maxOutput - minOutput
         let inputRange = maxValue - minValue
         let sensitivity = outputRange / inputRange
 
@@ -1247,8 +1329,8 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         • Input Range: \(formatNumber(inputRange, decimals: 2))
 
         Output Response:
-        • Min Output: \(formatNumber(results.map { $0.output }.min()!, decimals: 2))
-        • Max Output: \(formatNumber(results.map { $0.output }.max()!, decimals: 2))
+        • Min Output: \(formatNumber(minOutput, decimals: 2))
+        • Max Output: \(formatNumber(maxOutput, decimals: 2))
         • Output Range: \(formatNumber(outputRange, decimals: 2))
 
         Sensitivity:
@@ -1269,7 +1351,11 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
 
 // MARK: - 7. Tornado Analysis
 
+/// Perform tornado (sensitivity) analysis across multiple variables.
+///
+/// Exposed to clients as the `tornado_analysis` tool.
 public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
+    /// The `tornado_analysis` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "tornado_analysis",
         description: """
@@ -1336,8 +1422,13 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `tornado_analysis` handler.
     public init() {}
 
+    /// Runs `tornado_analysis` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1452,32 +1543,6 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
 
 // MARK: - Helper Functions
 
-/// Create a distribution from type and parameters
-private func createDistribution(type: String, parameters: [String: Double]) throws -> any DistributionRandom {
-    switch type {
-    case "normal":
-        guard let mean = parameters["mean"], let stdDev = parameters["stdDev"] else {
-            throw ToolError.invalidArguments("Normal distribution requires 'mean' and 'stdDev'")
-        }
-        return DistributionNormal(mean, stdDev)
-
-    case "uniform":
-        guard let min = parameters["min"], let max = parameters["max"] else {
-            throw ToolError.invalidArguments("Uniform distribution requires 'min' and 'max'")
-        }
-        return DistributionUniform(min, max)
-
-    case "triangular":
-        guard let min = parameters["min"], let max = parameters["max"], let mode = parameters["mode"] else {
-            throw ToolError.invalidArguments("Triangular distribution requires 'min', 'max', and 'mode'")
-        }
-        return DistributionTriangular(low: min, high: max, base: mode)
-
-    default:
-        throw ToolError.invalidArguments("Unsupported distribution type: \(type)")
-    }
-}
-
 /// Evaluate a simple calculation string with input values
 private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -> Double {
     var formula = calculation
@@ -1493,7 +1558,11 @@ private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -
 
 // MARK: - 8. Scenario Analysis
 
+/// The `run_scenario_analysis` MCP tool.
+///
+/// Exposed to clients as the `run_scenario_analysis` tool.
 public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
+    /// The `run_scenario_analysis` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_scenario_analysis",
         description: """
@@ -1596,8 +1665,13 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_scenario_analysis` handler.
     public init() {}
 
+    /// Runs `run_scenario_analysis` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

@@ -25,7 +25,11 @@ private func evaluateMultivariateExpression(_ expression: String, withVariables 
 
 // MARK: - Newton-Raphson Optimizer Tool
 
+/// Find the value where a function equals zero using Newton-Raphson method (root-finding). Perfect for break-even analysis, yield calculations, or any equation solving.
+///
+/// Exposed to clients as the `newton_raphson_optimize` tool.
 public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
+    /// The `newton_raphson_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "newton_raphson_optimize",
         description: """
@@ -109,8 +113,13 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `newton_raphson_optimize` handler.
     public init() {}
 
+    /// Runs `newton_raphson_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -200,7 +209,11 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Gradient Descent Optimizer Tool
 
+/// Find minimum/maximum of a multi-variable function using gradient descent. Perfect for profit maximization, cost minimization, or optimization with multiple inputs.
+///
+/// Exposed to clients as the `gradient_descent_optimize` tool.
 public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
+    /// The `gradient_descent_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "gradient_descent_optimize",
         description: """
@@ -283,8 +296,13 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `gradient_descent_optimize` handler.
     public init() {}
 
+    /// Runs `gradient_descent_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -408,7 +426,11 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Capital Allocation Tool
 
+/// Allocate limited capital across investment opportunities to maximize total NPV. Uses greedy algorithm (highest profitability index first) or optimal integer programming (0-1 knapsack via dynamic programming).
+///
+/// Exposed to clients as the `optimize_capital_allocation` tool.
 public struct CapitalAllocationTool: MCPToolHandler, Sendable {
+    /// The `optimize_capital_allocation` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_capital_allocation",
         description: """
@@ -446,8 +468,13 @@ public struct CapitalAllocationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_capital_allocation` handler.
     public init() {}
 
+    /// Runs `optimize_capital_allocation` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -550,7 +577,11 @@ public struct CapitalAllocationTool: MCPToolHandler, Sendable {
 
 // MARK: - Linear Programming Tool
 
+/// Solve a linear programming problem using the Simplex method. Minimize or maximize a linear objective function subject to linear inequality and equality constraints.
+///
+/// Exposed to clients as the `solve_linear_program` tool.
 public struct LinearProgramTool: MCPToolHandler, Sendable {
+    /// The `solve_linear_program` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "solve_linear_program",
         description: """
@@ -588,8 +619,13 @@ public struct LinearProgramTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `solve_linear_program` handler.
     public init() {}
 
+    /// Runs `solve_linear_program` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -707,6 +743,7 @@ public struct LinearProgramTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every optimization tool this server exposes.
 public func getOptimizationTools() -> [MCPToolHandler] {
     return [
         NewtonRaphsonOptimizeTool(),

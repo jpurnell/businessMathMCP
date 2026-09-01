@@ -5,7 +5,11 @@ import SwiftMCPServer
 
 // MARK: - Correlated Monte Carlo Tool
 
+/// The `run_correlated_monte_carlo` MCP tool.
+///
+/// Exposed to clients as the `run_correlated_monte_carlo` tool.
 public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
+    /// The `run_correlated_monte_carlo` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_correlated_monte_carlo",
         description: """
@@ -145,8 +149,13 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_correlated_monte_carlo` handler.
     public init() {}
 
+    /// Runs `run_correlated_monte_carlo` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -388,7 +397,11 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
 
 // MARK: - GPU-Accelerated Monte Carlo Tool
 
+/// The `run_monte_carlo_gpu` MCP tool.
+///
+/// Exposed to clients as the `run_monte_carlo_gpu` tool.
 public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
+    /// The `run_monte_carlo_gpu` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_monte_carlo_gpu",
         description: """
@@ -522,8 +535,13 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_monte_carlo_gpu` handler.
     public init() {}
 
+    /// Runs `run_monte_carlo_gpu` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -756,6 +774,7 @@ private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -
 
 // MARK: - Tool Registration
 
+/// Every advanced simulation tool this server exposes.
 public func getAdvancedSimulationTools() -> [MCPToolHandler] {
     return [
         RunCorrelatedMonteCarloTool(),

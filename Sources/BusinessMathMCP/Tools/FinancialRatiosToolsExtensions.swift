@@ -24,7 +24,11 @@ private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - 10. Return on Assets (ROA)
 
+/// Calculate Return on Assets (ROA).
+///
+/// Exposed to clients as the `calculate_return_on_assets` tool.
 public struct ROATool: MCPToolHandler, Sendable {
+    /// The `calculate_return_on_assets` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_return_on_assets",
         description: """
@@ -64,8 +68,13 @@ public struct ROATool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_return_on_assets` handler.
     public init() {}
 
+    /// Runs `calculate_return_on_assets` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -114,7 +123,11 @@ public struct ROATool: MCPToolHandler, Sendable {
 
 // MARK: - 11. Return on Invested Capital (ROIC)
 
+/// Calculate Return on Invested Capital (ROIC).
+///
+/// Exposed to clients as the `calculate_return_on_invested_capital` tool.
 public struct ROICTool: MCPToolHandler, Sendable {
+    /// The `calculate_return_on_invested_capital` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_return_on_invested_capital",
         description: """
@@ -156,8 +169,13 @@ public struct ROICTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_return_on_invested_capital` handler.
     public init() {}
 
+    /// Runs `calculate_return_on_invested_capital` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -208,7 +226,11 @@ public struct ROICTool: MCPToolHandler, Sendable {
 
 // MARK: - 12. Receivables Turnover
 
+/// Calculate the receivables turnover ratio.
+///
+/// Exposed to clients as the `calculate_receivables_turnover` tool.
 public struct ReceivablesTurnoverTool: MCPToolHandler, Sendable {
+    /// The `calculate_receivables_turnover` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_receivables_turnover",
         description: """
@@ -250,8 +272,13 @@ public struct ReceivablesTurnoverTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_receivables_turnover` handler.
     public init() {}
 
+    /// Runs `calculate_receivables_turnover` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -265,6 +292,11 @@ public struct ReceivablesTurnoverTool: MCPToolHandler, Sendable {
         }
 
         let turnover = sales / avgReceivables
+        // A zero turnover has no days-sales-outstanding; dividing gave an infinity
+        // that was then formatted as a number of days.
+        guard turnover > 0 else {
+            throw ToolError.invalidArguments("Receivables turnover must be greater than zero")
+        }
         let dso = 365.0 / turnover
 
         let interpretation: String
@@ -300,7 +332,11 @@ public struct ReceivablesTurnoverTool: MCPToolHandler, Sendable {
 
 // MARK: - 13. Cash Ratio
 
+/// Calculate the cash ratio (most conservative liquidity ratio).
+///
+/// Exposed to clients as the `calculate_cash_ratio` tool.
 public struct CashRatioTool: MCPToolHandler, Sendable {
+    /// The `calculate_cash_ratio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_cash_ratio",
         description: """
@@ -340,8 +376,13 @@ public struct CashRatioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_cash_ratio` handler.
     public init() {}
 
+    /// Runs `calculate_cash_ratio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -393,7 +434,11 @@ public struct CashRatioTool: MCPToolHandler, Sendable {
 
 // MARK: - 14. Debt Ratio
 
+/// Calculate the debt ratio.
+///
+/// Exposed to clients as the `calculate_debt_ratio` tool.
 public struct DebtRatioTool: MCPToolHandler, Sendable {
+    /// The `calculate_debt_ratio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_debt_ratio",
         description: """
@@ -433,8 +478,13 @@ public struct DebtRatioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_debt_ratio` handler.
     public init() {}
 
+    /// Runs `calculate_debt_ratio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

@@ -9,6 +9,7 @@ import Foundation
 import SwiftMCPServer
 
 extension BinaryFloatingPoint {
+	/// The value as a currency string, in the given ISO code.
 	public func currency(_ currency: String = "usd") -> String {
 		let code = currency.uppercased()
 		let value = Double(self)

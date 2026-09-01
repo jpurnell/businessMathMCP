@@ -17,14 +17,14 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
     return value.formatDecimal(decimals: decimals)
 }
 
-private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
-    return formatNumber(value, decimals: decimals) + "x"
-}
-
 
 // MARK: - Beta Levering
 
+/// Calculate levered beta from unlevered beta.
+///
+/// Exposed to clients as the `calculate_beta_levering` tool.
 public struct BetaLeveringTool: MCPToolHandler, Sendable {
+    /// The `calculate_beta_levering` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_beta_levering",
         description: """
@@ -67,8 +67,13 @@ public struct BetaLeveringTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_beta_levering` handler.
     public init() {}
 
+    /// Runs `calculate_beta_levering` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -110,7 +115,11 @@ public struct BetaLeveringTool: MCPToolHandler, Sendable {
 
 // MARK: - Beta Unlevering
 
+/// Calculate unlevered beta from levered beta.
+///
+/// Exposed to clients as the `calculate_beta_unlevering` tool.
 public struct BetaUnleveringTool: MCPToolHandler, Sendable {
+    /// The `calculate_beta_unlevering` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_beta_unlevering",
         description: """
@@ -153,8 +162,13 @@ public struct BetaUnleveringTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_beta_unlevering` handler.
     public init() {}
 
+    /// Runs `calculate_beta_unlevering` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -203,7 +217,11 @@ public struct BetaUnleveringTool: MCPToolHandler, Sendable {
 
 // MARK: - Optimal Capital Structure
 
+/// Find the optimal debt-to-equity ratio that minimizes WACC.
+///
+/// Exposed to clients as the `optimize_capital_structure` tool.
 public struct OptimalCapitalStructureTool: MCPToolHandler, Sendable {
+    /// The `optimize_capital_structure` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "optimize_capital_structure",
         description: """
@@ -263,8 +281,13 @@ public struct OptimalCapitalStructureTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `optimize_capital_structure` handler.
     public init() {}
 
+    /// Runs `optimize_capital_structure` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -295,7 +318,11 @@ public struct OptimalCapitalStructureTool: MCPToolHandler, Sendable {
             let costOfDebt = baseDebtCost * (1 + de * 0.2)
 
             // Calculate weights
-            let equityWeight = 1.0 / (1.0 + de)
+            let equityDenominator = 1.0 + de
+        guard equityDenominator > 0 else {
+            throw ToolError.invalidArguments("Debt-to-equity of -1 leaves no equity weight to compute")
+        }
+        let equityWeight = 1.0 / equityDenominator
             let debtWeight = de / (1.0 + de)
 
             // Calculate WACC

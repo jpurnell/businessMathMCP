@@ -48,12 +48,14 @@ struct SchemaSmokeTests {
 
     @Test("Every tool handles auto-generated minimal valid arguments without crashing")
     func testMinimalValidArguments() async {
+        var exercised = 0
         for handler in handlers {
             let schema = extractSchema(handler)
             // Skip tools with no required params — already tested by nil args test
             guard !schema.requiredParams.isEmpty else { continue }
 
             let args = generateMinimalValidArgs(schema)
+            exercised += 1
             do {
                 let result = try await handler.execute(arguments: args)
                 // Either success or isError=true — both acceptable.
@@ -68,6 +70,9 @@ struct SchemaSmokeTests {
                 // not domain validation errors.
             }
         }
+        // The assertion that makes this a test: the sweep actually ran. Without it a
+        // registry that silently returned no handlers would pass as "nothing crashed".
+        #expect(exercised > 0, "no handler with required params was exercised")
     }
 
     @Test("Tool count matches expected registration total")

@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Simulated Annealing Tool
 
+/// Global optimization using Simulated Annealing (SA). Inspired by the metallurgical annealing process, SA probabilistically accepts worse solutions to escape local minima.
+///
+/// Exposed to clients as the `simulated_annealing_optimize` tool.
 public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
+    /// The `simulated_annealing_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "simulated_annealing_optimize",
         description: """
@@ -80,8 +84,13 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `simulated_annealing_optimize` handler.
     public init() {}
 
+    /// Runs `simulated_annealing_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -733,7 +742,11 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Differential Evolution Tool
 
+/// Global optimization using Differential Evolution (DE). Simple yet powerful population-based method for continuous optimization.
+///
+/// Exposed to clients as the `differential_evolution_optimize` tool.
 public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
+    /// The `differential_evolution_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "differential_evolution_optimize",
         description: """
@@ -803,8 +816,13 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `differential_evolution_optimize` handler.
     public init() {}
 
+    /// Runs `differential_evolution_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -1334,6 +1352,7 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every metaheuristic optimization tool this server exposes.
 public func getMetaheuristicOptimizationTools() -> [any MCPToolHandler] {
     return [
         SimulatedAnnealingOptimizeTool(),

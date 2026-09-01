@@ -24,7 +24,11 @@ private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - DuPont 3-Way Analysis
 
+/// Perform DuPont 3-Way Analysis to decompose ROE.
+///
+/// Exposed to clients as the `calculate_dupont_3way` tool.
 public struct DuPont3WayTool: MCPToolHandler, Sendable {
+    /// The `calculate_dupont_3way` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_dupont_3way",
         description: """
@@ -69,8 +73,13 @@ public struct DuPont3WayTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_dupont_3way` handler.
     public init() {}
 
+    /// Runs `calculate_dupont_3way` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -132,7 +141,11 @@ public struct DuPont3WayTool: MCPToolHandler, Sendable {
 
 // MARK: - DuPont 5-Way Analysis
 
+/// Perform DuPont 5-Way Analysis to decompose ROE with additional detail.
+///
+/// Exposed to clients as the `calculate_dupont_5way` tool.
 public struct DuPont5WayTool: MCPToolHandler, Sendable {
+    /// The `calculate_dupont_5way` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_dupont_5way",
         description: """
@@ -187,8 +200,13 @@ public struct DuPont5WayTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_dupont_5way` handler.
     public init() {}
 
+    /// Runs `calculate_dupont_5way` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -265,7 +283,11 @@ public struct DuPont5WayTool: MCPToolHandler, Sendable {
 
 // MARK: - Piotroski F-Score
 
+/// Calculate the Piotroski F-Score for fundamental strength assessment.
+///
+/// Exposed to clients as the `calculate_piotroski_f_score` tool.
 public struct PiotroskiFScoreTool: MCPToolHandler, Sendable {
+    /// The `calculate_piotroski_f_score` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_piotroski_f_score",
         description: """
@@ -371,8 +393,13 @@ public struct PiotroskiFScoreTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_piotroski_f_score` handler.
     public init() {}
 
+    /// Runs `calculate_piotroski_f_score` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

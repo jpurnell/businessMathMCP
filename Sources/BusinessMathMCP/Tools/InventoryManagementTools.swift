@@ -14,6 +14,7 @@ import SwiftMCPServer
 
 // MARK: - Tool Registration
 
+/// Every inventory management tool this server exposes.
 public func getInventoryManagementTools() -> [any MCPToolHandler] {
     return [
         CalculateSafetyStockTool(),
@@ -41,7 +42,11 @@ private func divider(_ width: Int = 45) -> String {
 
 // MARK: - 1. Safety Stock
 
+/// Calculate safety stock using standard operations management formulas.
+///
+/// Exposed to clients as the `calculate_safety_stock` tool.
 public struct CalculateSafetyStockTool: MCPToolHandler, Sendable {
+    /// The `calculate_safety_stock` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_safety_stock",
         description: """
@@ -96,8 +101,13 @@ public struct CalculateSafetyStockTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_safety_stock` handler.
     public init() {}
 
+    /// Runs `calculate_safety_stock` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -163,7 +173,11 @@ public struct CalculateSafetyStockTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. EOQ
 
+/// Calculate the Economic Order Quantity (EOQ) and total inventory cost.
+///
+/// Exposed to clients as the `calculate_eoq` tool.
 public struct CalculateEOQTool: MCPToolHandler, Sendable {
+    /// The `calculate_eoq` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_eoq",
         description: """
@@ -201,8 +215,13 @@ public struct CalculateEOQTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_eoq` handler.
     public init() {}
 
+    /// Runs `calculate_eoq` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -260,7 +279,11 @@ public struct CalculateEOQTool: MCPToolHandler, Sendable {
 
 // MARK: - 3. Newsvendor
 
+/// Calculate the optimal order quantity for perishable or single-period items.
+///
+/// Exposed to clients as the `calculate_newsvendor` tool.
 public struct CalculateNewsvendorTool: MCPToolHandler, Sendable {
+    /// The `calculate_newsvendor` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_newsvendor",
         description: """
@@ -314,8 +337,13 @@ public struct CalculateNewsvendorTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_newsvendor` handler.
     public init() {}
 
+    /// Runs `calculate_newsvendor` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -381,7 +409,11 @@ public struct CalculateNewsvendorTool: MCPToolHandler, Sendable {
 
 // MARK: - 4. Reorder Point
 
+/// Calculate the reorder point from demand history.
+///
+/// Exposed to clients as the `calculate_reorder_point` tool.
 public struct CalculateReorderPointTool: MCPToolHandler, Sendable {
+    /// The `calculate_reorder_point` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_reorder_point",
         description: """
@@ -429,8 +461,13 @@ public struct CalculateReorderPointTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_reorder_point` handler.
     public init() {}
 
+    /// Runs `calculate_reorder_point` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -497,7 +534,11 @@ public struct CalculateReorderPointTool: MCPToolHandler, Sendable {
 
 // MARK: - 5. Inventory Simulation
 
+/// Run a Monte Carlo inventory simulation to estimate reorder point and safety stock.
+///
+/// Exposed to clients as the `run_inventory_simulation` tool.
 public struct RunInventorySimulationTool: MCPToolHandler, Sendable {
+    /// The `run_inventory_simulation` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "run_inventory_simulation",
         description: """
@@ -550,8 +591,13 @@ public struct RunInventorySimulationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `run_inventory_simulation` handler.
     public init() {}
 
+    /// Runs `run_inventory_simulation` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -617,7 +663,11 @@ public struct RunInventorySimulationTool: MCPToolHandler, Sendable {
 
 // MARK: - 6. Inventory Advisor
 
+/// Analyze available data and recommend the appropriate inventory model.
+///
+/// Exposed to clients as the `recommend_inventory_model` tool.
 public struct RecommendInventoryModelTool: MCPToolHandler, Sendable {
+    /// The `recommend_inventory_model` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "recommend_inventory_model",
         description: """
@@ -689,8 +739,13 @@ public struct RecommendInventoryModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `recommend_inventory_model` handler.
     public init() {}
 
+    /// Runs `recommend_inventory_model` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

@@ -27,7 +27,11 @@ public func getEquityValuationTools() -> [any MCPToolHandler] {
 
 // MARK: - FCFE Model Tool
 
+/// Value equity using Free Cash Flow to Equity (FCFE) Model.
+///
+/// Exposed to clients as the `value_equity_fcfe` tool.
 public struct FCFEModelTool: MCPToolHandler, Sendable {
+    /// The `value_equity_fcfe` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_fcfe",
         description: """
@@ -74,6 +78,14 @@ public struct FCFEModelTool: MCPToolHandler, Sendable {
                 "costOfEquity": MCPSchemaProperty(
                     type: "number",
                     description: "Required return/discount rate (as decimal)"
+                ),
+                // `execute` reads this and appends a "Value Per Share" section when it is
+                // supplied, but the schema never declared it — so no client could know to
+                // send it, and that section was unreachable in practice. The sibling
+                // equity tools declare the same argument in the same words.
+                "sharesOutstanding": MCPSchemaProperty(
+                    type: "number",
+                    description: "Shares outstanding (optional for per-share value)"
                 )
             ],
             required: ["currentFCFE", "highGrowthRate", "highGrowthPeriods",
@@ -81,8 +93,13 @@ public struct FCFEModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_fcfe` handler.
     public init() {}
 
+    /// Runs `value_equity_fcfe` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -112,7 +129,7 @@ public struct FCFEModelTool: MCPToolHandler, Sendable {
         let equityValue = pvHighGrowth + pvTerminalValue
 
         // Calculate value per share if shares provided
-        let sharesOutstanding = try? args.getDouble("sharesOutstanding")
+        let sharesOutstanding = args.getDoubleOptional("sharesOutstanding")
 
         var result = """
         FCFE Valuation Results
@@ -154,7 +171,11 @@ public struct FCFEModelTool: MCPToolHandler, Sendable {
 
 // MARK: - Gordon Growth Model Tool
 
+/// Value equity using Gordon Growth Model (Constant Growth DDM).
+///
+/// Exposed to clients as the `value_equity_gordon_growth` tool.
 public struct GordonGrowthModelTool: MCPToolHandler, Sendable {
+    /// The `value_equity_gordon_growth` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_gordon_growth",
         description: """
@@ -200,8 +221,13 @@ public struct GordonGrowthModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_gordon_growth` handler.
     public init() {}
 
+    /// Runs `value_equity_gordon_growth` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -255,7 +281,11 @@ public struct GordonGrowthModelTool: MCPToolHandler, Sendable {
 
 // MARK: - Two-Stage DDM Tool
 
+/// Value equity using Two-Stage Dividend Discount Model.
+///
+/// Exposed to clients as the `value_equity_two_stage_ddm` tool.
 public struct TwoStageDDMTool: MCPToolHandler, Sendable {
+    /// The `value_equity_two_stage_ddm` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_two_stage_ddm",
         description: """
@@ -306,8 +336,13 @@ public struct TwoStageDDMTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_two_stage_ddm` handler.
     public init() {}
 
+    /// Runs `value_equity_two_stage_ddm` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -356,7 +391,11 @@ public struct TwoStageDDMTool: MCPToolHandler, Sendable {
 
 // MARK: - Enterprise Value Bridge Tool
 
+/// Calculate equity value from enterprise value.
+///
+/// Exposed to clients as the `value_equity_ev_bridge` tool.
 public struct EnterpriseValueBridgeTool: MCPToolHandler, Sendable {
+    /// The `value_equity_ev_bridge` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_ev_bridge",
         description: """
@@ -413,8 +452,13 @@ public struct EnterpriseValueBridgeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_ev_bridge` handler.
     public init() {}
 
+    /// Runs `value_equity_ev_bridge` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -423,9 +467,9 @@ public struct EnterpriseValueBridgeTool: MCPToolHandler, Sendable {
         let enterpriseValue = try args.getDouble("enterpriseValue")
         let totalDebt = try args.getDouble("totalDebt")
         let cash = try args.getDouble("cash")
-        let nonOperatingAssets = (try? args.getDouble("nonOperatingAssets")) ?? 0.0
-        let minorityInterest = (try? args.getDouble("minorityInterest")) ?? 0.0
-        let preferredStock = (try? args.getDouble("preferredStock")) ?? 0.0
+        let nonOperatingAssets = (args.getDoubleOptional("nonOperatingAssets")) ?? 0.0
+        let minorityInterest = (args.getDoubleOptional("minorityInterest")) ?? 0.0
+        let preferredStock = (args.getDoubleOptional("preferredStock")) ?? 0.0
 
         let bridge = EnterpriseValueBridge(
             enterpriseValue: enterpriseValue,
@@ -461,7 +505,7 @@ public struct EnterpriseValueBridgeTool: MCPToolHandler, Sendable {
         Equity Value              \(equityValue.currency())
         """
 
-        if let shares = try? args.getDouble("sharesOutstanding") {
+        if let shares = args.getDoubleOptional("sharesOutstanding") {
             let valuePerShare = equityValue / shares
             result += """
 
@@ -494,7 +538,11 @@ public struct EnterpriseValueBridgeTool: MCPToolHandler, Sendable {
 
 // MARK: - Residual Income Model Tool
 
+/// Value equity using Residual Income Model.
+///
+/// Exposed to clients as the `value_equity_residual_income` tool.
 public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
+    /// The `value_equity_residual_income` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_residual_income",
         description: """
@@ -553,8 +601,13 @@ public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_residual_income` handler.
     public init() {}
 
+    /// Runs `value_equity_residual_income` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -606,7 +659,7 @@ public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
           Equity Value: \(equityValue.currency())
         """
 
-        if let shares = try? args.getDouble("sharesOutstanding") {
+        if let shares = args.getDoubleOptional("sharesOutstanding") {
             let valuePerShare = equityValue / shares
             let bookValuePerShare = currentBookValue / shares
             let priceToBook = valuePerShare / bookValuePerShare
@@ -636,7 +689,11 @@ public struct ResidualIncomeModelTool: MCPToolHandler, Sendable {
 
 // MARK: - H-Model (Fuller-Hsia) Tool
 
+/// Value equity using the H-Model (Fuller-Hsia) dividend discount model.
+///
+/// Exposed to clients as the `value_equity_h_model` tool.
 public struct HModelTool: MCPToolHandler, Sendable {
+    /// The `value_equity_h_model` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_equity_h_model",
         description: """
@@ -692,8 +749,13 @@ public struct HModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_equity_h_model` handler.
     public init() {}
 
+    /// Runs `value_equity_h_model` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

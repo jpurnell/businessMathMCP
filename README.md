@@ -1,7 +1,7 @@
 # BusinessMathMCP
 
 [![CI](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/jpurnell/businessMathMCP/actions/workflows/ci.yml)
-[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Swift 6.2+](https://img.shields.io/badge/Swift-6.2+-orange.svg)](https://swift.org)
 [![Swift 6 Compliant](https://img.shields.io/badge/Swift%206-Compliant-brightgreen.svg)](https://www.swift.org/blog/announcing-swift-6/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -75,14 +75,17 @@ import BusinessMathMCP
 
 ## Requirements
 
-- macOS 13.0+
-- Swift 5.9+ (Swift 6.0 compliant)
+- macOS 14.0+ (the MCP SDK's floor; Linux is supported implicitly)
+- Swift 6.2+ — `Package.swift` declares `swift-tools-version: 6.2`, and the package
+  builds under strict concurrency
 
 ## Dependencies
 
 - [BusinessMath](https://github.com/jpurnell/BusinessMath) - Core financial calculation library
-- [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk) - MCP Swift SDK
+- [SwiftMCPServer](https://github.com/jpurnell/SwiftMCPServer) - Transport, authentication, session management. `main.swift` is a single `MCPServer.builder()` chain; no transport or framing code lives here
+- [swift-sdk](https://github.com/modelcontextprotocol/swift-sdk) - MCP Swift SDK (fork, 0.11.x — 2025-11-25 spec)
 - [swift-numerics](https://github.com/apple/swift-numerics) - Advanced numerical types
+- [swift-docc-plugin](https://github.com/apple/swift-docc-plugin) - Documentation
 
 ## Contributing
 

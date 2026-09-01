@@ -25,9 +25,9 @@ struct ToolErrorHandlingTests {
         }
 
         @Test("calculate_present_value rejects wrong type for number param")
-        func testWrongTypeForNumber() async {
+        func testWrongTypeForNumber() async throws {
             let tool = PresentValueTool()
-            let args = try! decodeArguments("""
+            let args = try decodeArguments("""
                 {"futureValue": "not a number", "rate": 0.05, "periods": 10}
             """)
             do {
@@ -81,9 +81,9 @@ struct ToolErrorHandlingTests {
     struct EnumErrors {
 
         @Test("create_distribution rejects invalid distribution type")
-        func testInvalidEnum() async {
+        func testInvalidEnum() async throws {
             let tool = CreateDistributionTool()
-            let args = try! decodeArguments("""
+            let args = try decodeArguments("""
                 {
                     "type": "invalid_distribution",
                     "parameters": {"mean": 0.0, "stdDev": 1.0}

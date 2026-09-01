@@ -41,35 +41,35 @@ struct TypeMarshallingTests {
 
         @Test("String type 'annual' decodes to type 7")
         func testStringTypeAnnual() throws {
-            let data = #"{"year": 2024, "type": "annual"}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "type": "annual"}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(periodJSON.type == 7)
         }
 
         @Test("String type 'monthly' decodes to type 5")
         func testStringTypeMonthly() throws {
-            let data = #"{"year": 2024, "month": 6, "type": "monthly"}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "month": 6, "type": "monthly"}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(periodJSON.type == 5)
         }
 
         @Test("String type 'quarterly' decodes to type 6")
         func testStringTypeQuarterly() throws {
-            let data = #"{"year": 2024, "month": 3, "type": "quarterly"}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "month": 3, "type": "quarterly"}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(periodJSON.type == 6)
         }
 
         @Test("String type 'daily' decodes to type 4")
         func testStringTypeDaily() throws {
-            let data = #"{"year": 2024, "month": 3, "day": 15, "type": "daily"}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "month": 3, "day": 15, "type": "daily"}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(periodJSON.type == 4)
         }
 
         @Test("Integer type decodes correctly")
         func testIntegerType() throws {
-            let data = #"{"year": 2024, "month": 6, "type": 5}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "month": 6, "type": 5}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(periodJSON.type == 5)
             let period = try periodJSON.toPeriod()
@@ -78,7 +78,7 @@ struct TypeMarshallingTests {
 
         @Test("Invalid string type throws MarshallingError")
         func testInvalidStringType() {
-            let data = #"{"year": 2024, "type": "invalid"}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "type": "invalid"}"#.utf8)
             #expect(throws: (any Error).self) {
                 let _ = try JSONDecoder().decode(PeriodJSON.self, from: data)
             }
@@ -86,7 +86,7 @@ struct TypeMarshallingTests {
 
         @Test("Invalid integer type throws on toPeriod()")
         func testInvalidIntegerType() throws {
-            let data = #"{"year": 2024, "type": 99}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "type": 99}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(throws: MarshallingError.self) {
                 let _ = try periodJSON.toPeriod()
@@ -96,7 +96,7 @@ struct TypeMarshallingTests {
         @Test("Sub-daily period types throw descriptive error")
         func testSubDailyThrows() throws {
             // type 0 = millisecond
-            let data = #"{"year": 2024, "type": 0}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "type": 0}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(throws: MarshallingError.self) {
                 let _ = try periodJSON.toPeriod()
@@ -105,7 +105,7 @@ struct TypeMarshallingTests {
 
         @Test("Monthly period without month field throws")
         func testMonthlyMissingMonth() throws {
-            let data = #"{"year": 2024, "type": 5}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "type": 5}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(throws: MarshallingError.self) {
                 let _ = try periodJSON.toPeriod()
@@ -114,7 +114,7 @@ struct TypeMarshallingTests {
 
         @Test("Daily period without day field throws")
         func testDailyMissingDay() throws {
-            let data = #"{"year": 2024, "month": 3, "type": 4}"#.data(using: .utf8)!
+            let data = Data(#"{"year": 2024, "month": 3, "type": 4}"#.utf8)
             let periodJSON = try JSONDecoder().decode(PeriodJSON.self, from: data)
             #expect(throws: MarshallingError.self) {
                 let _ = try periodJSON.toPeriod()
@@ -138,7 +138,7 @@ struct TypeMarshallingTests {
                 "metadata": {"name": "Revenue", "unit": "USD"}
             }
             """
-            let data = json.data(using: .utf8)!
+            let data = Data(json.utf8)
             let tsJSON = try JSONDecoder().decode(TimeSeriesJSON.self, from: data)
             let ts = try tsJSON.toTimeSeries()
             #expect(ts.count == 2)
@@ -153,10 +153,10 @@ struct TypeMarshallingTests {
                 {"period": {"year": 2024, "type": 7}, "value": 110.0}
             ]
             """
-            let data = json.data(using: .utf8)!
+            let data = Data(json.utf8)
             let points = try JSONDecoder().decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: data)
             #expect(points.count == 2)
-            #expect(points[0].value == 100.0)
+            #expect(points[0].value.isEqual(to: 100.0))
         }
 
         @Test("TimeSeries round-trips through JSON")
@@ -182,7 +182,7 @@ struct TypeMarshallingTests {
                 ]
             }
             """
-            let data = json.data(using: .utf8)!
+            let data = Data(json.utf8)
             let tsJSON = try JSONDecoder().decode(TimeSeriesJSON.self, from: data)
             let ts = try tsJSON.toTimeSeries()
             #expect(ts.metadata.name == "Unnamed")

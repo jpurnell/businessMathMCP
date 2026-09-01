@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Adaptive Optimizer Tool
 
+/// Automatically select and run the best optimization algorithm for your problem. No algorithm expertise needed - just provide your objective function and constraints.
+///
+/// Exposed to clients as the `adaptive_optimize` tool.
 public struct AdaptiveOptimizeTool: MCPToolHandler, Sendable {
+    /// The `adaptive_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "adaptive_optimize",
         description: """
@@ -73,8 +77,13 @@ public struct AdaptiveOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `adaptive_optimize` handler.
     public init() {}
 
+    /// Runs `adaptive_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -234,7 +243,10 @@ public struct AdaptiveOptimizeTool: MCPToolHandler, Sendable {
             explanations.append("- Accuracy preference selects Newton-Raphson when possible")
         }
 
-        if tolerance != 1e-6 {
+        // A tolerance the caller set to something other than the default. `!=` on a
+        // Double is exactly the comparison meant here — "did they pass a value" — so it
+        // is named rather than left to look like an oversight.
+        if !tolerance.isEqual(to: 1e-6) {
             explanations.append("- Custom tolerance \(tolerance) adjusts convergence criteria")
         }
 
@@ -244,7 +256,11 @@ public struct AdaptiveOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Problem Analysis Tool
 
+/// Analyze an optimization problem before solving to understand:.
+///
+/// Exposed to clients as the `analyze_optimization_problem` tool.
 public struct AnalyzeOptimizationProblemTool: MCPToolHandler, Sendable {
+    /// The `analyze_optimization_problem` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_optimization_problem",
         description: """
@@ -295,8 +311,13 @@ public struct AnalyzeOptimizationProblemTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_optimization_problem` handler.
     public init() {}
 
+    /// Runs `analyze_optimization_problem` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -500,6 +521,7 @@ public struct AnalyzeOptimizationProblemTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every adaptive optimization tool this server exposes.
 public func getAdaptiveOptimizationTools() -> [MCPToolHandler] {
     return [
         AdaptiveOptimizeTool(),

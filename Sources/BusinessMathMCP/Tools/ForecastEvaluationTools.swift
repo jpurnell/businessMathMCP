@@ -37,7 +37,11 @@ private func makeSeries(_ values: [Double]) -> TimeSeries<Double> {
 
 // MARK: - Backtest Forecast
 
+/// Evaluate a baseline forecaster OUT-OF-SAMPLE using rolling-origin (walk-forward).
+///
+/// Exposed to clients as the `backtest_forecast` tool.
 public struct BacktestForecastTool: MCPToolHandler, Sendable {
+    /// The `backtest_forecast` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "backtest_forecast",
         description: """
@@ -89,8 +93,13 @@ public struct BacktestForecastTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `backtest_forecast` handler.
     public init() {}
 
+    /// Runs `backtest_forecast` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -98,9 +107,9 @@ public struct BacktestForecastTool: MCPToolHandler, Sendable {
         let values = try args.getDoubleArray("historicalValues")
         let initialTrainSize = try args.getInt("initialTrainSize")
         let horizon = try args.getInt("horizon")
-        let step = try args.getIntOptional("step") ?? 1
-        let seasonLength = try args.getIntOptional("seasonLength")
-        let forecasterName = (try args.getStringOptional("forecaster") ?? "naive").lowercased()
+        let step = args.getIntOptional("step") ?? 1
+        let seasonLength = args.getIntOptional("seasonLength")
+        let forecasterName = (args.getStringOptional("forecaster") ?? "naive").lowercased()
 
         guard values.count >= 2 else {
             throw ToolError.invalidArguments("Need at least 2 historical values")
@@ -168,7 +177,11 @@ public struct BacktestForecastTool: MCPToolHandler, Sendable {
 
 // MARK: - Assess Forecastability
 
+/// Measure how much exploitable structure a series contains BEFORE modeling, using.
+///
+/// Exposed to clients as the `assess_forecastability` tool.
 public struct AssessForecastabilityTool: MCPToolHandler, Sendable {
+    /// The `assess_forecastability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "assess_forecastability",
         description: """
@@ -198,14 +211,19 @@ public struct AssessForecastabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `assess_forecastability` handler.
     public init() {}
 
+    /// Runs `assess_forecastability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
         let values = try args.getDoubleArray("historicalValues")
-        let seasonLength = try args.getIntOptional("seasonLength")
+        let seasonLength = args.getIntOptional("seasonLength")
         guard values.count >= 4 else {
             throw ToolError.invalidArguments("Need at least 4 values to assess forecastability")
         }
@@ -238,7 +256,11 @@ public struct AssessForecastabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - Test Stationarity
 
+/// Run the Augmented Dickey-Fuller (ADF) and KPSS tests to decide whether a series is.
+///
+/// Exposed to clients as the `test_stationarity` tool.
 public struct TestStationarityTool: MCPToolHandler, Sendable {
+    /// The `test_stationarity` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "test_stationarity",
         description: """
@@ -273,15 +295,20 @@ public struct TestStationarityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `test_stationarity` handler.
     public init() {}
 
+    /// Runs `test_stationarity` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
         let values = try args.getDoubleArray("historicalValues")
-        let lag = try args.getIntOptional("lag")
-        let regressionName = (try args.getStringOptional("kpssRegression") ?? "level").lowercased()
+        let lag = args.getIntOptional("lag")
+        let regressionName = (args.getStringOptional("kpssRegression") ?? "level").lowercased()
         let regression: KPSSRegression = regressionName == "trend" ? .trend : .level
 
         guard values.count >= 8 else {

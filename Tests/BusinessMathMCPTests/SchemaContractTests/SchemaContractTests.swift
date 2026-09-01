@@ -29,12 +29,16 @@ struct SchemaContractTests {
     }
 
     @Test("Tool names follow snake_case convention")
-    func testSnakeCaseNames() {
-        let pattern = try! NSRegularExpression(pattern: "^[a-z][a-z0-9_]*$")
+    func testSnakeCaseNames() throws {
+        // The pattern is a literal and compiles, but `try!` would turn a typo in it into
+        // a crashed suite rather than a failed test that names the pattern.
+        let pattern = try NSRegularExpression(pattern: "^[a-z][a-z0-9_]*$")
         for handler in handlers {
             let name = handler.tool.name
             let range = NSRange(name.startIndex..<name.endIndex, in: name)
-            #expect(pattern.firstMatch(in: name, range: range) != nil,
+            // Count rather than test for presence: the anchored pattern must match the
+            // whole name exactly once, so anything but 1 means the name is malformed.
+            #expect(pattern.numberOfMatches(in: name, range: range) == 1,
                     "Tool name '\(name)' must be snake_case")
         }
     }
@@ -87,13 +91,21 @@ struct SchemaContractTests {
         }
     }
 
+    /// The primitive types a JSON Schema `items` declaration may name.
+    private var validJSONSchemaTypes: Set<String> {
+        ["string", "number", "integer", "boolean", "object", "array"]
+    }
+
     @Test("Array properties have items defined")
     func testArrayItemsDefined() {
         for handler in handlers {
             let schema = extractSchema(handler)
             for (param, type) in schema.paramTypes where type == "array" {
-                #expect(schema.hasItems[param] != nil,
-                        "Tool \(schema.name): array param '\(param)' must have items defined")
+                // `hasItems` records the declared element type, so assert it is a real JSON
+                // Schema type — a present-but-nonsense value is as broken as an absent one.
+                let itemType = schema.hasItems[param]
+                #expect(itemType.map(validJSONSchemaTypes.contains) == true,
+                        "Tool \(schema.name): array param '\(param)' must declare a valid items type, got \(itemType ?? "none")")
             }
         }
     }

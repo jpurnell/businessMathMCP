@@ -83,7 +83,10 @@ struct ToolResponseFormatTests {
             #expect(!tool.name.isEmpty, "Listed tool must have non-empty name")
             #expect(!(tool.description ?? "").isEmpty, "Tool \(tool.name) must have non-empty description")
             if case .object(let schemaDict) = tool.inputSchema {
-                #expect(schemaDict["type"] != nil, "Tool \(tool.name) schema must have 'type'")
+                // An MCP inputSchema is a JSON Schema object, so `type` is not merely
+                // present — it has exactly one correct value.
+                #expect(schemaDict["type"] == .string("object"),
+                        "Tool \(tool.name) schema type must be \"object\", got \(schemaDict["type"].map(String.init(describing:)) ?? "nothing")")
             } else {
                 Issue.record("Tool \(tool.name) inputSchema is not a Value.object")
             }
@@ -97,13 +100,19 @@ struct ToolResponseFormatTests {
     @Test("All tool inputSchemas convert to MCP.Value without error")
     func testSchemaToValueConversion() throws {
         let handlers = allToolHandlers()
+        var converted = 0
         for handler in handlers {
             do {
                 let _ = try handler.tool.inputSchema.toValue()
+                converted += 1
             } catch {
                 Issue.record("Tool \(handler.tool.name) schema toValue() failed: \(error)")
             }
         }
+        // Assert the totals match rather than relying on Issue.record alone, so an
+        // empty handler list cannot pass as "every schema converted".
+        #expect(converted == handlers.count)
+        #expect(converted > 0, "no tool schemas were converted")
     }
 
     @Test("Full tools/list to tools/call round-trip through registry")
@@ -116,8 +125,12 @@ struct ToolResponseFormatTests {
 
         // Verify tool is listed
         let tools = await registry.listTools()
-        let pvTool = tools.first(where: { $0.name == "calculate_present_value" })
-        #expect(pvTool != nil, "calculate_present_value must be in listed tools")
+        let pvTool = try #require(tools.first(where: { $0.name == "calculate_present_value" }),
+                                  "calculate_present_value must be in listed tools")
+        // Being listed is not enough for the round-trip to mean anything: the listing has
+        // to carry the description and schema a caller would dispatch on.
+        #expect(pvTool.name == "calculate_present_value")
+        #expect(!(pvTool.description ?? "").isEmpty, "Listed tool must advertise a description")
 
         // Execute via registry with MCP.Value args (the real wire path)
         let result = try await registry.executeTool(

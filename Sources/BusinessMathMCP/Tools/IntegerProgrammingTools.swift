@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Branch-and-Bound Tool
 
+/// Solve integer and mixed-integer programming problems using branch-and-bound.
+///
+/// Exposed to clients as the `solve_integer_program` tool.
 public struct BranchAndBoundTool: MCPToolHandler, Sendable {
+    /// The `solve_integer_program` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "solve_integer_program",
         description: """
@@ -64,8 +68,13 @@ public struct BranchAndBoundTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `solve_integer_program` handler.
     public init() {}
 
+    /// Runs `solve_integer_program` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -457,7 +466,11 @@ public struct BranchAndBoundTool: MCPToolHandler, Sendable {
 
 // MARK: - Branch-and-Cut Tool
 
+/// Solve integer programs using Branch-and-Cut: branch-and-bound enhanced with cutting planes.
+///
+/// Exposed to clients as the `solve_with_cutting_planes` tool.
 public struct BranchAndCutTool: MCPToolHandler, Sendable {
+    /// The `solve_with_cutting_planes` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "solve_with_cutting_planes",
         description: """
@@ -512,8 +525,13 @@ public struct BranchAndCutTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `solve_with_cutting_planes` handler.
     public init() {}
 
+    /// Runs `solve_with_cutting_planes` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -811,6 +829,7 @@ public struct BranchAndCutTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every integer programming tool this server exposes.
 public func getIntegerProgrammingTools() -> [MCPToolHandler] {
     return [
         BranchAndBoundTool(),

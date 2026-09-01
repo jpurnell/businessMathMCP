@@ -44,7 +44,11 @@ private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Per-Share Metrics
 
+/// Calculate Earnings Per Share (EPS).
+///
+/// Exposed to clients as the `calculate_earnings_per_share` tool.
 public struct EarningsPerShareTool: MCPToolHandler, Sendable {
+    /// The `calculate_earnings_per_share` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_earnings_per_share",
         description: """
@@ -83,8 +87,13 @@ public struct EarningsPerShareTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_earnings_per_share` handler.
     public init() {}
 
+    /// Runs `calculate_earnings_per_share` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -116,7 +125,11 @@ public struct EarningsPerShareTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Book Value Per Share (BVPS).
+///
+/// Exposed to clients as the `calculate_book_value_per_share` tool.
 public struct BookValuePerShareTool: MCPToolHandler, Sendable {
+    /// The `calculate_book_value_per_share` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_book_value_per_share",
         description: """
@@ -155,8 +168,13 @@ public struct BookValuePerShareTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_book_value_per_share` handler.
     public init() {}
 
+    /// Runs `calculate_book_value_per_share` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -190,7 +208,11 @@ public struct BookValuePerShareTool: MCPToolHandler, Sendable {
 
 // MARK: - Valuation Ratios
 
+/// Calculate Price-to-Earnings Ratio (P/E).
+///
+/// Exposed to clients as the `calculate_price_to_earnings` tool.
 public struct PriceToEarningsTool: MCPToolHandler, Sendable {
+    /// The `calculate_price_to_earnings` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_price_to_earnings",
         description: """
@@ -231,8 +253,13 @@ public struct PriceToEarningsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_price_to_earnings` handler.
     public init() {}
 
+    /// Runs `calculate_price_to_earnings` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -280,7 +307,11 @@ public struct PriceToEarningsTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Price-to-Book Ratio (P/B).
+///
+/// Exposed to clients as the `calculate_price_to_book` tool.
 public struct PriceToBookTool: MCPToolHandler, Sendable {
+    /// The `calculate_price_to_book` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_price_to_book",
         description: """
@@ -319,8 +350,13 @@ public struct PriceToBookTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_price_to_book` handler.
     public init() {}
 
+    /// Runs `calculate_price_to_book` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -364,7 +400,11 @@ public struct PriceToBookTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Price-to-Sales Ratio (P/S).
+///
+/// Exposed to clients as the `calculate_price_to_sales` tool.
 public struct PriceToSalesTool: MCPToolHandler, Sendable {
+    /// The `calculate_price_to_sales` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_price_to_sales",
         description: """
@@ -403,8 +443,13 @@ public struct PriceToSalesTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_price_to_sales` handler.
     public init() {}
 
+    /// Runs `calculate_price_to_sales` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -450,7 +495,11 @@ public struct PriceToSalesTool: MCPToolHandler, Sendable {
 
 // MARK: - Market Value Metrics
 
+/// Calculate Market Capitalization.
+///
+/// Exposed to clients as the `calculate_market_cap` tool.
 public struct MarketCapTool: MCPToolHandler, Sendable {
+    /// The `calculate_market_cap` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_market_cap",
         description: """
@@ -491,8 +540,13 @@ public struct MarketCapTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_market_cap` handler.
     public init() {}
 
+    /// Runs `calculate_market_cap` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -534,7 +588,11 @@ public struct MarketCapTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Enterprise Value (EV).
+///
+/// Exposed to clients as the `calculate_enterprise_value` tool.
 public struct EnterpriseValueTool: MCPToolHandler, Sendable {
+    /// The `calculate_enterprise_value` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_enterprise_value",
         description: """
@@ -575,8 +633,13 @@ public struct EnterpriseValueTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_enterprise_value` handler.
     public init() {}
 
+    /// Runs `calculate_enterprise_value` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -610,7 +673,11 @@ public struct EnterpriseValueTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate EV/EBITDA ratio.
+///
+/// Exposed to clients as the `calculate_ev_to_ebitda` tool.
 public struct EVToEBITDATool: MCPToolHandler, Sendable {
+    /// The `calculate_ev_to_ebitda` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_ev_to_ebitda",
         description: """
@@ -650,8 +717,13 @@ public struct EVToEBITDATool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_ev_to_ebitda` handler.
     public init() {}
 
+    /// Runs `calculate_ev_to_ebitda` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -699,7 +771,11 @@ public struct EVToEBITDATool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate EV/Sales ratio.
+///
+/// Exposed to clients as the `calculate_ev_to_sales` tool.
 public struct EVToSalesTool: MCPToolHandler, Sendable {
+    /// The `calculate_ev_to_sales` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_ev_to_sales",
         description: """
@@ -739,8 +815,13 @@ public struct EVToSalesTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_ev_to_sales` handler.
     public init() {}
 
+    /// Runs `calculate_ev_to_sales` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -786,7 +867,11 @@ public struct EVToSalesTool: MCPToolHandler, Sendable {
 
 // MARK: - Financial Health Metrics
 
+/// Calculate Working Capital.
+///
+/// Exposed to clients as the `calculate_working_capital` tool.
 public struct WorkingCapitalTool: MCPToolHandler, Sendable {
+    /// The `calculate_working_capital` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_working_capital",
         description: """
@@ -825,8 +910,13 @@ public struct WorkingCapitalTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_working_capital` handler.
     public init() {}
 
+    /// Runs `calculate_working_capital` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -866,7 +956,11 @@ public struct WorkingCapitalTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Debt-to-Assets Ratio.
+///
+/// Exposed to clients as the `calculate_debt_to_assets` tool.
 public struct DebtToAssetsTool: MCPToolHandler, Sendable {
+    /// The `calculate_debt_to_assets` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_debt_to_assets",
         description: """
@@ -905,8 +999,13 @@ public struct DebtToAssetsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_debt_to_assets` handler.
     public init() {}
 
+    /// Runs `calculate_debt_to_assets` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -950,7 +1049,11 @@ public struct DebtToAssetsTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate Free Cash Flow (FCF).
+///
+/// Exposed to clients as the `calculate_free_cash_flow` tool.
 public struct FreeCashFlowTool: MCPToolHandler, Sendable {
+    /// The `calculate_free_cash_flow` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_free_cash_flow",
         description: """
@@ -990,8 +1093,13 @@ public struct FreeCashFlowTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_free_cash_flow` handler.
     public init() {}
 
+    /// Runs `calculate_free_cash_flow` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

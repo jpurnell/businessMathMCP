@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
@@ -51,7 +51,11 @@ let package = Package(
                 .product(name: "SwiftMCPServer", package: "SwiftMCPServer"),
                 .product(name: "MCP", package: "swift-sdk"),
                 .product(name: "Numerics", package: "swift-numerics"),
-            ]
+            ],
+            // Declared, not excluded. `exclude:` silences the unhandled-file warning by
+            // removing the catalogue from `sourceFiles`, which is where swift-docc-plugin
+            // looks for it — DocC then receives nothing and doc-lint passes vacuously.
+            resources: [.copy("BusinessMathMCP.docc")]
         ),
         .executableTarget(
             name: "BusinessMathMCPServer",

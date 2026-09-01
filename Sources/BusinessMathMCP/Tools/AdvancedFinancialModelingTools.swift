@@ -22,10 +22,6 @@ public func getAdvancedFinancialModelingTools() -> [any MCPToolHandler] {
 
 // MARK: - Helper Functions
 
-private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
-    return value.formatDecimal(decimals: decimals)
-}
-
 private func formatPercentage(_ value: Double, decimals: Int = 2) -> String {
     return (value * 100).formatDecimal(decimals: decimals) + "%"
 }
@@ -44,7 +40,11 @@ private func separator(width: Int = 60) -> String {
 
 // MARK: - Scenario Financial Statements
 
+/// Run scenario analysis on financial statements with sensitivity analysis.
+///
+/// Exposed to clients as the `scenario_financial_statements` tool.
 public struct ScenarioFinancialStatementsTool: MCPToolHandler, Sendable {
+    /// The `scenario_financial_statements` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "scenario_financial_statements",
         description: """
@@ -113,8 +113,13 @@ public struct ScenarioFinancialStatementsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `scenario_financial_statements` handler.
     public init() {}
 
+    /// Runs `scenario_financial_statements` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

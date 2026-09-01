@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Parallel Multi-Start Optimizer Tool
 
+/// Run optimization from multiple random starting points in parallel to find global optimum.
+///
+/// Exposed to clients as the `parallel_optimize` tool.
 public struct ParallelOptimizeTool: MCPToolHandler, Sendable {
+    /// The `parallel_optimize` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "parallel_optimize",
         description: """
@@ -64,8 +68,13 @@ public struct ParallelOptimizeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `parallel_optimize` handler.
     public init() {}
 
+    /// Runs `parallel_optimize` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -420,7 +429,11 @@ public struct ParallelOptimizeTool: MCPToolHandler, Sendable {
 
 // MARK: - Parallel Optimization Guide Tool
 
+/// Comprehensive guide to parallel multi-start optimization.
+///
+/// Exposed to clients as the `parallel_optimization_guide` tool.
 public struct ParallelOptimizationGuideTool: MCPToolHandler, Sendable {
+    /// The `parallel_optimization_guide` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "parallel_optimization_guide",
         description: """
@@ -447,10 +460,15 @@ public struct ParallelOptimizationGuideTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `parallel_optimization_guide` handler.
     public init() {}
 
+    /// Runs `parallel_optimization_guide` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
-        let topic = (try? arguments?.getString("topic")) ?? "getting_started"
+        let topic = arguments?.getStringOptional("topic") ?? "getting_started"
 
         let guide: String
 
@@ -1257,6 +1275,7 @@ public struct ParallelOptimizationGuideTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every parallel optimization tool this server exposes.
 public func getParallelOptimizationTools() -> [MCPToolHandler] {
     return [
         ParallelOptimizeTool(),

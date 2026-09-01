@@ -29,7 +29,11 @@ public func getBondValuationTools() -> [any MCPToolHandler] {
 
 // MARK: - Bond Price Tool
 
+/// Calculate bond price given yield to maturity.
+///
+/// Exposed to clients as the `price_bond` tool.
 public struct BondPriceTool: MCPToolHandler, Sendable {
+    /// The `price_bond` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "price_bond",
         description: """
@@ -78,24 +82,31 @@ public struct BondPriceTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `price_bond` handler.
     public init() {}
 
+    /// Runs `price_bond` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        let faceValue = (try? args.getDouble("faceValue")) ?? 1000.0
+        let faceValue = (args.getDoubleOptional("faceValue")) ?? 1000.0
         let couponRate = try args.getDouble("couponRate")
         let yearsToMaturity = try args.getDouble("yearsToMaturity")
         let ytm = try args.getDouble("yieldToMaturity")
-        let freqString = (try? args.getString("paymentFrequency")) ?? "semiAnnual"
+        let freqString = (args.getStringOptional("paymentFrequency")) ?? "semiAnnual"
 
         let frequency = parsePaymentFrequency(freqString)
 
         let calendar = Calendar.current
         let today = Date()
-        let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today)!
+        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+            throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
+        }
 
         let bond = Bond(
             faceValue: faceValue,
@@ -150,7 +161,11 @@ public struct BondPriceTool: MCPToolHandler, Sendable {
 
 // MARK: - Bond Yield to Maturity Tool
 
+/// Calculate yield to maturity (YTM) given bond price.
+///
+/// Exposed to clients as the `calculate_bond_ytm` tool.
 public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
+    /// The `calculate_bond_ytm` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_bond_ytm",
         description: """
@@ -195,24 +210,31 @@ public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_bond_ytm` handler.
     public init() {}
 
+    /// Runs `calculate_bond_ytm` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        let faceValue = (try? args.getDouble("faceValue")) ?? 1000.0
+        let faceValue = (args.getDoubleOptional("faceValue")) ?? 1000.0
         let couponRate = try args.getDouble("couponRate")
         let yearsToMaturity = try args.getDouble("yearsToMaturity")
         let marketPrice = try args.getDouble("marketPrice")
-        let freqString = (try? args.getString("paymentFrequency")) ?? "semiAnnual"
+        let freqString = (args.getStringOptional("paymentFrequency")) ?? "semiAnnual"
 
         let frequency = parsePaymentFrequency(freqString)
 
         let calendar = Calendar.current
         let today = Date()
-        let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today)!
+        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+            throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
+        }
 
         let bond = Bond(
             faceValue: faceValue,
@@ -259,7 +281,11 @@ public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
 
 // MARK: - Bond Duration Tool
 
+/// Calculate bond duration and convexity for interest rate risk analysis.
+///
+/// Exposed to clients as the `calculate_bond_duration` tool.
 public struct BondDurationTool: MCPToolHandler, Sendable {
+    /// The `calculate_bond_duration` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_bond_duration",
         description: """
@@ -308,24 +334,31 @@ public struct BondDurationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_bond_duration` handler.
     public init() {}
 
+    /// Runs `calculate_bond_duration` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        let faceValue = (try? args.getDouble("faceValue")) ?? 1000.0
+        let faceValue = (args.getDoubleOptional("faceValue")) ?? 1000.0
         let couponRate = try args.getDouble("couponRate")
         let yearsToMaturity = try args.getDouble("yearsToMaturity")
         let ytm = try args.getDouble("yieldToMaturity")
-        let freqString = (try? args.getString("paymentFrequency")) ?? "semiAnnual"
+        let freqString = (args.getStringOptional("paymentFrequency")) ?? "semiAnnual"
 
         let frequency = parsePaymentFrequency(freqString)
 
         let calendar = Calendar.current
         let today = Date()
-        let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today)!
+        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+            throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
+        }
 
         let bond = Bond(
             faceValue: faceValue,
@@ -386,7 +419,11 @@ public struct BondDurationTool: MCPToolHandler, Sendable {
 
 // MARK: - Credit Spread Analysis Tool
 
+/// Analyze credit risk and calculate appropriate credit spreads.
+///
+/// Exposed to clients as the `analyze_credit_spread` tool.
 public struct CreditSpreadAnalysisTool: MCPToolHandler, Sendable {
+    /// The `analyze_credit_spread` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_credit_spread",
         description: """
@@ -431,8 +468,13 @@ public struct CreditSpreadAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_credit_spread` handler.
     public init() {}
 
+    /// Runs `analyze_credit_spread` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -440,8 +482,8 @@ public struct CreditSpreadAnalysisTool: MCPToolHandler, Sendable {
 
         let zScore = try args.getDouble("zScore")
         let maturityYears = try args.getDouble("maturityYears")
-        let seniorityString = (try? args.getString("seniority")) ?? "seniorUnsecured"
-        let riskFreeRate = (try? args.getDouble("riskFreeRate")) ?? 0.03
+        let seniorityString = (args.getStringOptional("seniority")) ?? "seniorUnsecured"
+        let riskFreeRate = (args.getDoubleOptional("riskFreeRate")) ?? 0.03
 
         let seniority = parseSeniority(seniorityString)
 
@@ -500,7 +542,11 @@ public struct CreditSpreadAnalysisTool: MCPToolHandler, Sendable {
 
 // MARK: - Callable Bond Price Tool
 
+/// Price bonds with embedded call options.
+///
+/// Exposed to clients as the `price_callable_bond` tool.
 public struct CallableBondPriceTool: MCPToolHandler, Sendable {
+    /// The `price_callable_bond` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "price_callable_bond",
         description: """
@@ -560,14 +606,19 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `price_callable_bond` handler.
     public init() {}
 
+    /// Runs `price_callable_bond` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        let faceValue = (try? args.getDouble("faceValue")) ?? 1000.0
+        let faceValue = (args.getDoubleOptional("faceValue")) ?? 1000.0
         let couponRate = try args.getDouble("couponRate")
         let yearsToMaturity = try args.getDouble("yearsToMaturity")
         let callYears = try args.getDouble("callYears")
@@ -578,8 +629,12 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today)!
-        let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today)!
+        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+            throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
+        }
+        guard let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today) else {
+            throw ToolError.invalidArguments("callYears does not produce a representable call date")
+        }
 
         let bond = Bond(
             faceValue: faceValue,
@@ -665,7 +720,11 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
 
 // MARK: - Option-Adjusted Spread Tool
 
+/// Calculate Option-Adjusted Spread (OAS) for callable bonds.
+///
+/// Exposed to clients as the `calculate_oas` tool.
 public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
+    /// The `calculate_oas` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_oas",
         description: """
@@ -725,14 +784,19 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_oas` handler.
     public init() {}
 
+    /// Runs `calculate_oas` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
-        let faceValue = (try? args.getDouble("faceValue")) ?? 1000.0
+        let faceValue = (args.getDoubleOptional("faceValue")) ?? 1000.0
         let couponRate = try args.getDouble("couponRate")
         let yearsToMaturity = try args.getDouble("yearsToMaturity")
         let callYears = try args.getDouble("callYears")
@@ -743,8 +807,12 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today)!
-        let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today)!
+        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+            throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
+        }
+        guard let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today) else {
+            throw ToolError.invalidArguments("callYears does not produce a representable call date")
+        }
 
         let bond = Bond(
             faceValue: faceValue,
@@ -807,7 +875,11 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
 
 // MARK: - Expected Loss Tool
 
+/// Calculate expected loss for bond portfolio credit risk.
+///
+/// Exposed to clients as the `calculate_expected_loss` tool.
 public struct ExpectedLossTool: MCPToolHandler, Sendable {
+    /// The `calculate_expected_loss` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_expected_loss",
         description: """
@@ -853,22 +925,27 @@ public struct ExpectedLossTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_expected_loss` handler.
     public init() {}
 
+    /// Runs `calculate_expected_loss` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
         }
 
         let exposure = try args.getDouble("exposure")
-        let seniorityString = (try? args.getString("seniority")) ?? "seniorUnsecured"
+        let seniorityString = (args.getStringOptional("seniority")) ?? "seniorUnsecured"
         let seniority = parseSeniority(seniorityString)
 
         // Get default probability (either directly or from Z-Score)
         let defaultProbability: Double
-        if let pd = try? args.getDouble("defaultProbability") {
+        if let pd = args.getDoubleOptional("defaultProbability") {
             defaultProbability = pd
-        } else if let zScore = try? args.getDouble("zScore") {
+        } else if let zScore = args.getDoubleOptional("zScore") {
             let creditModel = CreditSpreadModel<Double>()
             defaultProbability = creditModel.defaultProbability(zScore: zScore)
         } else {
@@ -919,7 +996,11 @@ public struct ExpectedLossTool: MCPToolHandler, Sendable {
 
 // MARK: - Nelson-Siegel Yield Curve Tool
 
+/// Fit a Nelson-Siegel yield curve to observed market data.
+///
+/// Exposed to clients as the `fit_nelson_siegel` tool.
 public struct NelsonSiegelTool: MCPToolHandler, Sendable {
+    /// The `fit_nelson_siegel` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "fit_nelson_siegel",
         description: """
@@ -974,8 +1055,13 @@ public struct NelsonSiegelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `fit_nelson_siegel` handler.
     public init() {}
 
+    /// Runs `fit_nelson_siegel` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -983,7 +1069,7 @@ public struct NelsonSiegelTool: MCPToolHandler, Sendable {
 
         let maturities = try args.getDoubleArray("maturities")
         let yields = try args.getDoubleArray("yields")
-        let interpolateAt = (try? args.getDoubleArray("interpolateAt")) ?? []
+        let interpolateAt = (try args.getDoubleArrayIfPresent("interpolateAt")) ?? []
         let lambda = args.getDoubleOptional("lambda") ?? 2.5
         let includeForwardRates = args.getBoolOptional("includeForwardRates") ?? false
 
@@ -1058,6 +1144,11 @@ public struct NelsonSiegelTool: MCPToolHandler, Sendable {
             return sum + diff * diff
         }
 
+        // RMSE needs at least one fitted maturity to average over.
+        let fittedCount = Double(maturities.count)
+        let rmseText = fittedCount > 0
+            ? sqrt(sse / fittedCount).formatDecimal(decimals: 6)
+            : "n/a (no maturities fitted)"
         let result = """
         Nelson-Siegel Yield Curve Fit
         =============================
@@ -1070,7 +1161,7 @@ public struct NelsonSiegelTool: MCPToolHandler, Sendable {
 
         Goodness of Fit:
           Sum of Squared Errors: \(sse.formatDecimal(decimals: 8))
-          RMSE: \(sqrt(sse / Double(maturities.count)).formatDecimal(decimals: 6))
+          RMSE: \(rmseText)
 
         Fitted vs Observed:
         \(fittedTable)

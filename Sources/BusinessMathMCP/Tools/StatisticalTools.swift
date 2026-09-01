@@ -38,7 +38,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - 1. Calculate Correlation (Pearson)
 
+/// Calculate Pearson correlation coefficient between two datasets.
+///
+/// Exposed to clients as the `calculate_correlation` tool.
 public struct CalculateCorrelationTool: MCPToolHandler, Sendable {
+    /// The `calculate_correlation` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_correlation",
         description: """
@@ -75,8 +79,13 @@ public struct CalculateCorrelationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_correlation` handler.
     public init() {}
 
+    /// Runs `calculate_correlation` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -123,7 +132,11 @@ public struct CalculateCorrelationTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. Linear Regression
 
+/// Perform linear regression analysis to model the relationship between variables.
+///
+/// Exposed to clients as the `linear_regression` tool.
 public struct LinearRegressionTool: MCPToolHandler, Sendable {
+    /// The `linear_regression` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "linear_regression",
         description: """
@@ -161,8 +174,13 @@ public struct LinearRegressionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `linear_regression` handler.
     public init() {}
 
+    /// Runs `linear_regression` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -202,7 +220,7 @@ public struct LinearRegressionTool: MCPToolHandler, Sendable {
         """
 
         // Generate predictions if requested
-        if let predictFor = try? args.getDoubleArray("predictFor") {
+        if let predictFor = try args.getDoubleArrayIfPresent("predictFor") {
             output += "\n\nPredictions:"
             for xVal in predictFor {
                 let prediction = intercept + slope * xVal
@@ -216,7 +234,11 @@ public struct LinearRegressionTool: MCPToolHandler, Sendable {
 
 // MARK: - 2b. Multiple Linear Regression
 
+/// Perform multiple linear regression with two or more predictor variables.
+///
+/// Exposed to clients as the `multiple_linear_regression` tool.
 public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
+    /// The `multiple_linear_regression` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "multiple_linear_regression",
         description: """
@@ -266,8 +288,13 @@ public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `multiple_linear_regression` handler.
     public init() {}
 
+    /// Runs `multiple_linear_regression` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -276,7 +303,7 @@ public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
         let X = try args.getDoubleMatrix("X")
         let y = try args.getDoubleArray("y")
         let confidenceLevel = args.getDoubleOptional("confidenceLevel") ?? 0.95
-        let predictorNames = try? args.getStringArray("predictorNames")
+        let predictorNames = try args.getStringArrayIfPresent("predictorNames")
 
         guard !X.isEmpty else {
             throw ToolError.invalidArguments("X must not be empty")
@@ -366,7 +393,7 @@ public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
         """
 
         // Predictions
-        if let predictFor = try? args.getDoubleMatrix("predictFor") {
+        if let predictFor = try args.getDoubleMatrixIfPresent("predictFor") {
             output += "\n\nPredictions:"
             for (i, row) in predictFor.enumerated() {
                 guard row.count == p else {
@@ -402,7 +429,11 @@ public struct MultipleLinearRegressionTool: MCPToolHandler, Sendable {
 
 // MARK: - 3. Spearman's Correlation
 
+/// Calculate Spearman's rank correlation coefficient (rho).
+///
+/// Exposed to clients as the `spearmans_correlation` tool.
 public struct SpearmansCorrelationTool: MCPToolHandler, Sendable {
+    /// The `spearmans_correlation` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "spearmans_correlation",
         description: """
@@ -438,8 +469,13 @@ public struct SpearmansCorrelationTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `spearmans_correlation` handler.
     public init() {}
 
+    /// Runs `spearmans_correlation` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -487,7 +523,11 @@ public struct SpearmansCorrelationTool: MCPToolHandler, Sendable {
 
 // MARK: - 4. Calculate Confidence Interval
 
+/// Calculate confidence interval for a population parameter based on sample data.
+///
+/// Exposed to clients as the `calculate_confidence_interval` tool.
 public struct CalculateConfidenceIntervalTool: MCPToolHandler, Sendable {
+    /// The `calculate_confidence_interval` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_confidence_interval",
         description: """
@@ -530,8 +570,13 @@ public struct CalculateConfidenceIntervalTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_confidence_interval` handler.
     public init() {}
 
+    /// Runs `calculate_confidence_interval` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -548,7 +593,7 @@ public struct CalculateConfidenceIntervalTool: MCPToolHandler, Sendable {
         let n: Int
 
         // Check if using raw values or summary statistics
-        if let values = try? args.getDoubleArray("values") {
+        if let values = try args.getDoubleArrayIfPresent("values") {
             guard !values.isEmpty else {
                 throw ToolError.invalidArguments("Values array cannot be empty")
             }
@@ -556,10 +601,18 @@ public struct CalculateConfidenceIntervalTool: MCPToolHandler, Sendable {
             stdDevValue = stdDev(values, .sample)
             n = values.count
         } else {
-            // Use summary statistics
-            meanValue = try args.getDouble("mean")
-            stdDevValue = try args.getDouble("stdDev")
-            n = try args.getInt("sampleSize")
+            // Use summary statistics. These are required only on this branch — a caller who
+            // supplied `values` must not supply them — so they are read optionally and
+            // reported together, which also tells the caller exactly what is missing.
+            guard let summaryMean = args.getDoubleOptional("mean"),
+                  let summaryStdDev = args.getDoubleOptional("stdDev"),
+                  let summarySize = args.getIntOptional("sampleSize") else {
+                throw ToolError.invalidArguments(
+                    "Provide either 'values', or all three of 'mean', 'stdDev', and 'sampleSize'")
+            }
+            meanValue = summaryMean
+            stdDevValue = summaryStdDev
+            n = summarySize
 
             guard n > 0 else {
                 throw ToolError.invalidArguments("Sample size must be positive")
@@ -598,7 +651,11 @@ public struct CalculateConfidenceIntervalTool: MCPToolHandler, Sendable {
 
 // MARK: - 5. Calculate Covariance
 
+/// Calculate covariance between two datasets.
+///
+/// Exposed to clients as the `calculate_covariance` tool.
 public struct CalculateCovarianceTool: MCPToolHandler, Sendable {
+    /// The `calculate_covariance` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_covariance",
         description: """
@@ -638,8 +695,13 @@ public struct CalculateCovarianceTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_covariance` handler.
     public init() {}
 
+    /// Runs `calculate_covariance` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -685,7 +747,11 @@ public struct CalculateCovarianceTool: MCPToolHandler, Sendable {
 
 // MARK: - 6. Calculate Z-Score (for correlation)
 
+/// Calculate z-score for testing correlation significance.
+///
+/// Exposed to clients as the `calculate_z_score` tool.
 public struct CalculateZScoreTool: MCPToolHandler, Sendable {
+    /// The `calculate_z_score` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_z_score",
         description: """
@@ -720,8 +786,13 @@ public struct CalculateZScoreTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_z_score` handler.
     public init() {}
 
+    /// Runs `calculate_z_score` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -771,7 +842,11 @@ public struct CalculateZScoreTool: MCPToolHandler, Sendable {
 
 // MARK: - 7. Descriptive Statistics (Extended)
 
+/// Calculate comprehensive descriptive statistics for a dataset.
+///
+/// Exposed to clients as the `descriptive_stats_extended` tool.
 public struct DescriptiveStatsExtendedTool: MCPToolHandler, Sendable {
+    /// The `descriptive_stats_extended` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "descriptive_stats_extended",
         description: """
@@ -803,8 +878,13 @@ public struct DescriptiveStatsExtendedTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `descriptive_stats_extended` handler.
     public init() {}
 
+    /// Runs `descriptive_stats_extended` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

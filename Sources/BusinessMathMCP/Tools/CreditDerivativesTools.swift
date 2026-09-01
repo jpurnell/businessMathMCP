@@ -26,7 +26,11 @@ public func getCreditDerivativesTools() -> [any MCPToolHandler] {
 
 // MARK: - CDS Pricing Tool
 
+/// Price a Credit Default Swap (CDS) contract.
+///
+/// Exposed to clients as the `price_cds` tool.
 public struct CDSPricingTool: MCPToolHandler, Sendable {
+    /// The `price_cds` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "price_cds",
         description: """
@@ -78,21 +82,26 @@ public struct CDSPricingTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `price_cds` handler.
     public init() {}
 
+    /// Runs `price_cds` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             return .error(message: "Missing arguments")
         }
 
         // Parse parameters
-        let notional = (try? args.getDouble("notional")) ?? 10_000_000.0
+        let notional = (args.getDoubleOptional("notional")) ?? 10_000_000.0
         let spreadBps = try args.getDouble("spread")
         let spread = spreadBps / 10000.0  // Convert bps to decimal
         let maturity = try args.getDouble("maturity")
-        let recoveryRate = (try? args.getDouble("recoveryRate")) ?? 0.40
+        let recoveryRate = (args.getDoubleOptional("recoveryRate")) ?? 0.40
         let hazardRate = try args.getDouble("hazardRate")
-        let riskFreeRate = (try? args.getDouble("riskFreeRate")) ?? 0.05
+        let riskFreeRate = (args.getDoubleOptional("riskFreeRate")) ?? 0.05
 
         // Create CDS (quarterly payments)
         let cds = CDS(
@@ -181,7 +190,11 @@ public struct CDSPricingTool: MCPToolHandler, Sendable {
 
 // MARK: - Merton Model Tool
 
+/// Calculate default probability using Merton structural model.
+///
+/// Exposed to clients as the `merton_default_model` tool.
 public struct MertonModelTool: MCPToolHandler, Sendable {
+    /// The `merton_default_model` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "merton_default_model",
         description: """
@@ -230,8 +243,13 @@ public struct MertonModelTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `merton_default_model` handler.
     public init() {}
 
+    /// Runs `merton_default_model` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             return .error(message: "Missing arguments")
@@ -241,8 +259,8 @@ public struct MertonModelTool: MCPToolHandler, Sendable {
         let assetValue = try args.getDouble("assetValue")
         let assetVolatility = try args.getDouble("assetVolatility")
         let debtFaceValue = try args.getDouble("debtFaceValue")
-        let riskFreeRate = (try? args.getDouble("riskFreeRate")) ?? 0.05
-        let maturity = (try? args.getDouble("maturity")) ?? 1.0
+        let riskFreeRate = (args.getDoubleOptional("riskFreeRate")) ?? 0.05
+        let maturity = (args.getDoubleOptional("maturity")) ?? 1.0
 
         // Create Merton model
         let model = MertonModel(
@@ -296,7 +314,11 @@ public struct MertonModelTool: MCPToolHandler, Sendable {
 
 // MARK: - Hazard Rate Analysis Tool
 
+/// Analyze credit risk using hazard rate models.
+///
+/// Exposed to clients as the `analyze_hazard_rate` tool.
 public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
+    /// The `analyze_hazard_rate` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_hazard_rate",
         description: """
@@ -341,8 +363,13 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_hazard_rate` handler.
     public init() {}
 
+    /// Runs `analyze_hazard_rate` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             return .error(message: "Missing arguments")
@@ -350,9 +377,9 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
 
         // Parse parameters
         let hazardRate = try args.getDouble("hazardRate")
-        let timeHorizon = (try? args.getDouble("timeHorizon")) ?? 5.0
-        let spreadBps = try? args.getDouble("creditSpread")
-        let recoveryRate = (try? args.getDouble("recoveryRate")) ?? 0.40
+        let timeHorizon = (args.getDoubleOptional("timeHorizon")) ?? 5.0
+        let spreadBps = args.getDoubleOptional("creditSpread")
+        let recoveryRate = (args.getDoubleOptional("recoveryRate")) ?? 0.40
 
         // Create constant hazard rate model
         let model = ConstantHazardRate(hazardRate: hazardRate)
@@ -373,7 +400,11 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
         var spreadAnalysis = ""
         if let spreadBps = spreadBps {
             let spread = spreadBps / 10000.0
-            let impliedHazard = hazardRateFromSpread(spread: spread, recoveryRate: recoveryRate)
+            // `hazardRateFromSpread` became optional upstream: a recovery rate of 100%
+            // leaves no loss given default to imply a hazard from.
+            guard let impliedHazard = hazardRateFromSpread(spread: spread, recoveryRate: recoveryRate) else {
+                throw ToolError.invalidArguments("A recovery rate of 100% implies no hazard rate from a spread")
+            }
             spreadAnalysis = """
 
             **Spread Analysis:**
@@ -415,7 +446,11 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
 
 // MARK: - Bootstrap Credit Curve Tool
 
+/// Bootstrap credit term structure from market CDS quotes.
+///
+/// Exposed to clients as the `bootstrap_credit_curve` tool.
 public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
+    /// The `bootstrap_credit_curve` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "bootstrap_credit_curve",
         description: """
@@ -457,8 +492,13 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `bootstrap_credit_curve` handler.
     public init() {}
 
+    /// Runs `bootstrap_credit_curve` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             return .error(message: "Missing arguments")
@@ -468,7 +508,7 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
         let spreadsBps = try args.getDoubleArray("cdsSpreads")
         let spreads = spreadsBps.map { $0 / 10000.0 }
         let tenors = try args.getDoubleArray("tenors")
-        let recoveryRate = (try? args.getDouble("recoveryRate")) ?? 0.40
+        let recoveryRate = (args.getDoubleOptional("recoveryRate")) ?? 0.40
 
         guard spreads.count == tenors.count && !spreads.isEmpty else {
             return .error(message: "cdsSpreads and tenors must have same length and be non-empty")
@@ -509,6 +549,9 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
             }
         }
 
+        // An empty curve has no average hazard rate to report.
+        let averageHazardRateText = curve.hazardRates.valuesArray.meanValue.map { $0.percent() }
+            ?? "n/a (no hazard rates)"
         let result = """
         ## Credit Curve Bootstrap Results
 
@@ -524,7 +567,7 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
         **Interpretation:**
         \(curve.hazardRates.valuesArray.last ?? 0 > curve.hazardRates.valuesArray.first ?? 0 ? "• **Upward sloping** hazard curve (deteriorating credit quality over time)" : "• **Flat or inverted** hazard curve")
         • \(Int(tenors.max() ?? 5))Y cumulative default probability: \((curve.defaultProbability(time: tenors.max() ?? 5)).percent())
-        • Average hazard rate: \((curve.hazardRates.valuesArray.reduce(0, +) / Double(curve.hazardRates.valuesArray.count)).percent())
+        • Average hazard rate: \(averageHazardRateText)
         • Spread range: \(formatNumber((spreads.min() ?? 0) * 10000)) - \(formatNumber((spreads.max() ?? 0) * 10000)) bps
         """
 
@@ -534,7 +577,11 @@ public struct BootstrapCreditCurveTool: MCPToolHandler, Sendable {
 
 // MARK: - Recovery Metrics Tool
 
+/// Calculate credit loss and recovery metrics for debt positions.
+///
+/// Exposed to clients as the `calculate_recovery_metrics` tool.
 public struct RecoveryMetricsTool: MCPToolHandler, Sendable {
+    /// The `calculate_recovery_metrics` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_recovery_metrics",
         description: """
@@ -593,8 +640,13 @@ public struct RecoveryMetricsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_recovery_metrics` handler.
     public init() {}
 
+    /// Runs `calculate_recovery_metrics` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

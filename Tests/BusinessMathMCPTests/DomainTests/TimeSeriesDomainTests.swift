@@ -65,27 +65,30 @@ struct TimeSeriesDomainTests {
     @Test("calculate_seasonal_indices extracts seasonal patterns")
     func testSeasonalIndices() async throws {
         let tool = CalculateSeasonalIndicesTool()
+        // Point shape is `"value": <scalar>`, per TimeSeriesPointJSON — not `"values": [...]`.
+        // A quarterly period is expressed by its first `month` (PeriodJSON.toPeriod
+        // derives the quarter as (month - 1) / 3 + 1); there is no `quarter` key.
         let args = argsFromJSON("""
             {
                 "data": [
-                    {"period": {"type": "quarterly", "year": 2022, "quarter": 1}, "values": [80.0]},
-                    {"period": {"type": "quarterly", "year": 2022, "quarter": 2}, "values": [100.0]},
-                    {"period": {"type": "quarterly", "year": 2022, "quarter": 3}, "values": [120.0]},
-                    {"period": {"type": "quarterly", "year": 2022, "quarter": 4}, "values": [100.0]},
-                    {"period": {"type": "quarterly", "year": 2023, "quarter": 1}, "values": [85.0]},
-                    {"period": {"type": "quarterly", "year": 2023, "quarter": 2}, "values": [105.0]},
-                    {"period": {"type": "quarterly", "year": 2023, "quarter": 3}, "values": [125.0]},
-                    {"period": {"type": "quarterly", "year": 2023, "quarter": 4}, "values": [105.0]}
-                ]
+                    {"period": {"type": "quarterly", "year": 2022, "month": 1}, "value": 80.0},
+                    {"period": {"type": "quarterly", "year": 2022, "month": 4}, "value": 100.0},
+                    {"period": {"type": "quarterly", "year": 2022, "month": 7}, "value": 120.0},
+                    {"period": {"type": "quarterly", "year": 2022, "month": 10}, "value": 100.0},
+                    {"period": {"type": "quarterly", "year": 2023, "month": 1}, "value": 85.0},
+                    {"period": {"type": "quarterly", "year": 2023, "month": 4}, "value": 105.0},
+                    {"period": {"type": "quarterly", "year": 2023, "month": 7}, "value": 125.0},
+                    {"period": {"type": "quarterly", "year": 2023, "month": 10}, "value": 105.0}
+                ],
+                "periodsPerYear": 4
             }
         """)
-        // Time series format may error — key is no crash
-        do {
-            let result = try await tool.execute(arguments: args)
-            _ = result
-        } catch {
-            // Domain-specific format error is acceptable
-        }
+        // Two full years of quarterly data is a well-formed input for seasonal
+        // decomposition, so this asserts the indices come back rather than merely
+        // that nothing crashed.
+        let result = try await tool.execute(arguments: args)
+        #expect(result.isError != true, "seasonal indices returned an error: \(result.text)")
+        #expect(result.text.contains("Seasonal") || result.text.contains("seasonal") || result.text.contains("Index"))
     }
 
     // MARK: - Growth Analysis Tools

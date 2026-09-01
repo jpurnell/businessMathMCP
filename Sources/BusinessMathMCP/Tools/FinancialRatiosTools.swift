@@ -44,7 +44,11 @@ private func formatRatio(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - 1. Asset Turnover
 
+/// Calculate the asset turnover ratio.
+///
+/// Exposed to clients as the `calculate_asset_turnover` tool.
 public struct AssetTurnoverTool: MCPToolHandler, Sendable {
+    /// The `calculate_asset_turnover` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_asset_turnover",
         description: """
@@ -84,8 +88,13 @@ public struct AssetTurnoverTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_asset_turnover` handler.
     public init() {}
 
+    /// Runs `calculate_asset_turnover` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -127,7 +136,11 @@ public struct AssetTurnoverTool: MCPToolHandler, Sendable {
 
 // MARK: - 2. Current Ratio
 
+/// Calculate the current ratio (liquidity ratio).
+///
+/// Exposed to clients as the `calculate_current_ratio` tool.
 public struct CurrentRatioTool: MCPToolHandler, Sendable {
+    /// The `calculate_current_ratio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_current_ratio",
         description: """
@@ -166,8 +179,13 @@ public struct CurrentRatioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_current_ratio` handler.
     public init() {}
 
+    /// Runs `calculate_current_ratio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -209,7 +227,11 @@ public struct CurrentRatioTool: MCPToolHandler, Sendable {
 
 // MARK: - 3. Quick Ratio
 
+/// Calculate the quick ratio (acid-test ratio).
+///
+/// Exposed to clients as the `calculate_quick_ratio` tool.
 public struct QuickRatioTool: MCPToolHandler, Sendable {
+    /// The `calculate_quick_ratio` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_quick_ratio",
         description: """
@@ -255,8 +277,13 @@ public struct QuickRatioTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_quick_ratio` handler.
     public init() {}
 
+    /// Runs `calculate_quick_ratio` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -305,7 +332,11 @@ public struct QuickRatioTool: MCPToolHandler, Sendable {
 
 // MARK: - 4. Debt to Equity
 
+/// Calculate the debt to equity ratio (leverage ratio).
+///
+/// Exposed to clients as the `calculate_debt_to_equity` tool.
 public struct DebtToEquityTool: MCPToolHandler, Sendable {
+    /// The `calculate_debt_to_equity` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_debt_to_equity",
         description: """
@@ -347,8 +378,13 @@ public struct DebtToEquityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_debt_to_equity` handler.
     public init() {}
 
+    /// Runs `calculate_debt_to_equity` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -396,7 +432,11 @@ public struct DebtToEquityTool: MCPToolHandler, Sendable {
 
 // MARK: - 5. Interest Coverage
 
+/// Calculate the interest coverage ratio (times interest earned).
+///
+/// Exposed to clients as the `calculate_interest_coverage` tool.
 public struct InterestCoverageTool: MCPToolHandler, Sendable {
+    /// The `calculate_interest_coverage` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_interest_coverage",
         description: """
@@ -436,8 +476,13 @@ public struct InterestCoverageTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_interest_coverage` handler.
     public init() {}
 
+    /// Runs `calculate_interest_coverage` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -481,7 +526,11 @@ public struct InterestCoverageTool: MCPToolHandler, Sendable {
 
 // MARK: - 6. Inventory Turnover
 
+/// Calculate the inventory turnover ratio.
+///
+/// Exposed to clients as the `calculate_inventory_turnover` tool.
 public struct InventoryTurnoverTool: MCPToolHandler, Sendable {
+    /// The `calculate_inventory_turnover` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_inventory_turnover",
         description: """
@@ -523,8 +572,13 @@ public struct InventoryTurnoverTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_inventory_turnover` handler.
     public init() {}
 
+    /// Runs `calculate_inventory_turnover` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -569,7 +623,11 @@ public struct InventoryTurnoverTool: MCPToolHandler, Sendable {
 
 // MARK: - 7. Profit Margin
 
+/// Calculate the profit margin (net profit margin).
+///
+/// Exposed to clients as the `calculate_profit_margin` tool.
 public struct ProfitMarginTool: MCPToolHandler, Sendable {
+    /// The `calculate_profit_margin` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_profit_margin",
         description: """
@@ -609,8 +667,13 @@ public struct ProfitMarginTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_profit_margin` handler.
     public init() {}
 
+    /// Runs `calculate_profit_margin` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -655,7 +718,11 @@ public struct ProfitMarginTool: MCPToolHandler, Sendable {
 
 // MARK: - 8. Return on Equity (ROE)
 
+/// Calculate Return on Equity (ROE).
+///
+/// Exposed to clients as the `calculate_roe` tool.
 public struct ROETool: MCPToolHandler, Sendable {
+    /// The `calculate_roe` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_roe",
         description: """
@@ -697,8 +764,13 @@ public struct ROETool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_roe` handler.
     public init() {}
 
+    /// Runs `calculate_roe` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -743,7 +815,11 @@ public struct ROETool: MCPToolHandler, Sendable {
 
 // MARK: - 9. Return on Investment (ROI)
 
+/// Calculate Return on Investment (ROI).
+///
+/// Exposed to clients as the `calculate_roi` tool.
 public struct ROITool: MCPToolHandler, Sendable {
+    /// The `calculate_roi` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_roi",
         description: """
@@ -786,8 +862,13 @@ public struct ROITool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_roi` handler.
     public init() {}
 
+    /// Runs `calculate_roi` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

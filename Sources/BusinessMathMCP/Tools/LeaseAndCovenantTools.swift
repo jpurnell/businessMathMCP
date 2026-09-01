@@ -20,7 +20,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Lease Liability Analysis
 
+/// Calculate Right-of-Use (ROU) asset and lease liability under IFRS 16 / ASC 842.
+///
+/// Exposed to clients as the `analyze_lease_liability` tool.
 public struct LeaseLiabilityTool: MCPToolHandler, Sendable {
+    /// The `analyze_lease_liability` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_lease_liability",
         description: """
@@ -71,8 +75,13 @@ public struct LeaseLiabilityTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_lease_liability` handler.
     public init() {}
 
+    /// Runs `analyze_lease_liability` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -131,7 +140,11 @@ public struct LeaseLiabilityTool: MCPToolHandler, Sendable {
 
 // MARK: - Debt Covenant Check
 
+/// Automated checking of debt covenant compliance.
+///
+/// Exposed to clients as the `check_debt_covenant` tool.
 public struct DebtCovenantCheckTool: MCPToolHandler, Sendable {
+    /// The `check_debt_covenant` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "check_debt_covenant",
         description: """
@@ -180,8 +193,13 @@ public struct DebtCovenantCheckTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `check_debt_covenant` handler.
     public init() {}
 
+    /// Runs `check_debt_covenant` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -279,7 +297,11 @@ public struct DebtCovenantCheckTool: MCPToolHandler, Sendable {
 
 // MARK: - Custom Payment Schedule
 
+/// Generate amortization schedule for custom debt instruments (e.g., bullet loans).
+///
+/// Exposed to clients as the `calculate_custom_payment_schedule` tool.
 public struct CustomPaymentScheduleTool: MCPToolHandler, Sendable {
+    /// The `calculate_custom_payment_schedule` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_custom_payment_schedule",
         description: """
@@ -330,8 +352,13 @@ public struct CustomPaymentScheduleTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_custom_payment_schedule` handler.
     public init() {}
 
+    /// Runs `calculate_custom_payment_schedule` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -380,6 +407,11 @@ public struct CustomPaymentScheduleTool: MCPToolHandler, Sendable {
 
         let totalPayments = monthlyPayment * Double(periods - 1) + finalPayment
 
+        // A zero principal has no effective interest cost to express as a percentage.
+        let effectiveInterestCostText = principal > 0
+            ? (totalInterest / principal).percent()
+            : "n/a (zero principal)"
+
         let output = """
         Custom Payment Schedule:
 
@@ -397,7 +429,7 @@ public struct CustomPaymentScheduleTool: MCPToolHandler, Sendable {
         Summary:
         • Total Payments: $\(formatNumber(totalPayments, decimals: 0))
         • Total Interest: $\(formatNumber(totalInterest, decimals: 0))
-        • Effective Interest Cost: \((totalInterest / principal).percent())
+        • Effective Interest Cost: \(effectiveInterestCostText)
 
         Cash Flow Impact:
         Lower monthly payments preserve cash flow but result in

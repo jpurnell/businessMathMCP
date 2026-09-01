@@ -20,7 +20,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Rolling Window Calculations
 
+/// Calculate the rolling/moving sum of values over a specified window.
+///
+/// Exposed to clients as the `calculate_rolling_sum` tool.
 public struct RollingSumTool: MCPToolHandler, Sendable {
+    /// The `calculate_rolling_sum` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_rolling_sum",
         description: """
@@ -53,8 +57,13 @@ public struct RollingSumTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_rolling_sum` handler.
     public init() {}
 
+    /// Runs `calculate_rolling_sum` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -108,7 +117,11 @@ public struct RollingSumTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate the rolling/moving minimum over a specified window.
+///
+/// Exposed to clients as the `calculate_rolling_min` tool.
 public struct RollingMinTool: MCPToolHandler, Sendable {
+    /// The `calculate_rolling_min` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_rolling_min",
         description: """
@@ -141,8 +154,13 @@ public struct RollingMinTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_rolling_min` handler.
     public init() {}
 
+    /// Runs `calculate_rolling_min` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -197,7 +215,11 @@ public struct RollingMinTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate the rolling/moving maximum over a specified window.
+///
+/// Exposed to clients as the `calculate_rolling_max` tool.
 public struct RollingMaxTool: MCPToolHandler, Sendable {
+    /// The `calculate_rolling_max` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_rolling_max",
         description: """
@@ -230,8 +252,13 @@ public struct RollingMaxTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_rolling_max` handler.
     public init() {}
 
+    /// Runs `calculate_rolling_max` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -286,7 +313,11 @@ public struct RollingMaxTool: MCPToolHandler, Sendable {
     }
 }
 
+/// Calculate the period-over-period percentage change.
+///
+/// Exposed to clients as the `calculate_percent_change` tool.
 public struct PercentChangeTool: MCPToolHandler, Sendable {
+    /// The `calculate_percent_change` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_percent_change",
         description: """
@@ -317,8 +348,13 @@ public struct PercentChangeTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_percent_change` handler.
     public init() {}
 
+    /// Runs `calculate_percent_change` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -365,7 +401,7 @@ public struct PercentChangeTool: MCPToolHandler, Sendable {
             return (values[i] - oldValue) / oldValue
         }
 
-        let avgChange = validChanges.isEmpty ? 0 : validChanges.reduce(0, +) / Double(validChanges.count)
+        let avgChange = validChanges.meanValue ?? 0
 
         let output = """
         Percent Change Analysis:
@@ -388,7 +424,11 @@ public struct PercentChangeTool: MCPToolHandler, Sendable {
 
 // MARK: - TTM Metrics
 
+/// Calculate Trailing Twelve Months (TTM) metrics.
+///
+/// Exposed to clients as the `calculate_ttm_metrics` tool.
 public struct TTMMetricsTool: MCPToolHandler, Sendable {
+    /// The `calculate_ttm_metrics` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_ttm_metrics",
         description: """
@@ -421,8 +461,13 @@ public struct TTMMetricsTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_ttm_metrics` handler.
     public init() {}
 
+    /// Runs `calculate_ttm_metrics` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -489,7 +534,11 @@ public struct TTMMetricsTool: MCPToolHandler, Sendable {
 
 // MARK: - Budget vs Actual
 
+/// Calculate and compare projected vs actual results.
+///
+/// Exposed to clients as the `analyze_budget_vs_actual` tool.
 public struct BudgetVsActualTool: MCPToolHandler, Sendable {
+    /// The `analyze_budget_vs_actual` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "analyze_budget_vs_actual",
         description: """
@@ -534,8 +583,13 @@ public struct BudgetVsActualTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `analyze_budget_vs_actual` handler.
     public init() {}
 
+    /// Runs `analyze_budget_vs_actual` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

@@ -5,7 +5,11 @@ import BusinessMath
 
 // MARK: - Black-Scholes Option Pricing Tool
 
+/// Price European options using the Black-Scholes-Merton model. Perfect for valuing call and put options that can only be exercised at expiration.
+///
+/// Exposed to clients as the `price_black_scholes_option` tool.
 public struct BlackScholesOptionTool: MCPToolHandler, Sendable {
+    /// The `price_black_scholes_option` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "price_black_scholes_option",
         description: """
@@ -53,8 +57,13 @@ public struct BlackScholesOptionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `price_black_scholes_option` handler.
     public init() {}
 
+    /// Runs `price_black_scholes_option` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -140,7 +149,11 @@ public struct BlackScholesOptionTool: MCPToolHandler, Sendable {
 
 // MARK: - Option Greeks Calculator Tool
 
+/// Calculate option Greeks (Delta, Gamma, Vega, Theta, Rho) for sensitivity analysis. Greeks measure how option prices change with market conditions.
+///
+/// Exposed to clients as the `calculate_option_greeks` tool.
 public struct CalculateGreeksTool: MCPToolHandler, Sendable {
+    /// The `calculate_option_greeks` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_option_greeks",
         description: """
@@ -188,8 +201,13 @@ public struct CalculateGreeksTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_option_greeks` handler.
     public init() {}
 
+    /// Runs `calculate_option_greeks` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -434,7 +452,11 @@ public struct CalculateGreeksTool: MCPToolHandler, Sendable {
 
 // MARK: - Real Options Expansion Tool
 
+/// Value a strategic expansion option as a call option on growth opportunities. Captures the value of flexibility to expand into new markets or products.
+///
+/// Exposed to clients as the `value_expansion_option` tool.
 public struct RealOptionsExpansionTool: MCPToolHandler, Sendable {
+    /// The `value_expansion_option` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_expansion_option",
         description: """
@@ -481,8 +503,13 @@ public struct RealOptionsExpansionTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_expansion_option` handler.
     public init() {}
 
+    /// Runs `value_expansion_option` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -551,7 +578,11 @@ public struct RealOptionsExpansionTool: MCPToolHandler, Sendable {
 
 // MARK: - Real Options Abandonment Tool
 
+/// Value an abandonment option as a put option providing downside protection. Captures the value of being able to exit a project if conditions deteriorate.
+///
+/// Exposed to clients as the `value_abandonment_option` tool.
 public struct RealOptionsAbandonmentTool: MCPToolHandler, Sendable {
+    /// The `value_abandonment_option` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "value_abandonment_option",
         description: """
@@ -593,8 +624,13 @@ public struct RealOptionsAbandonmentTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `value_abandonment_option` handler.
     public init() {}
 
+    /// Runs `value_abandonment_option` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -660,6 +696,7 @@ public struct RealOptionsAbandonmentTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool Registration
 
+/// Every real options tool this server exposes.
 public func getRealOptionsTools() -> [MCPToolHandler] {
     // Note: CalculateGreeksTool and BinomialTreeOptionTool share names with
     // tools in getAdvancedOptionsTools() and are omitted here to avoid duplicates.

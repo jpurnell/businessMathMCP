@@ -44,7 +44,11 @@ private func separator(width: Int = 60) -> String {
 
 // MARK: - Monitor Debt Covenants (Comprehensive)
 
+/// Comprehensive debt covenant monitoring dashboard with headroom analysis.
+///
+/// Exposed to clients as the `monitor_debt_covenants` tool.
 public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
+    /// The `monitor_debt_covenants` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "monitor_debt_covenants",
         description: """
@@ -116,8 +120,13 @@ public struct MonitorDebtCovenantsComprehensiveTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `monitor_debt_covenants` handler.
     public init() {}
 
+    /// Runs `monitor_debt_covenants` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")

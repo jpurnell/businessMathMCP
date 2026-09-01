@@ -37,7 +37,11 @@ private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
 
 // MARK: - Profitability Index
 
+/// Calculate Profitability Index (PI) for investment decision-making.
+///
+/// Exposed to clients as the `calculate_profitability_index` tool.
 public struct ProfitabilityIndexTool: MCPToolHandler, Sendable {
+    /// The `calculate_profitability_index` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_profitability_index",
         description: """
@@ -98,8 +102,13 @@ public struct ProfitabilityIndexTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_profitability_index` handler.
     public init() {}
 
+    /// Runs `calculate_profitability_index` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -192,7 +201,11 @@ public struct ProfitabilityIndexTool: MCPToolHandler, Sendable {
 
 // MARK: - Payback Period
 
+/// Calculate payback period (undiscounted) for investment recovery analysis.
+///
+/// Exposed to clients as the `calculate_payback_period` tool.
 public struct PaybackPeriodTool: MCPToolHandler, Sendable {
+    /// The `calculate_payback_period` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_payback_period",
         description: """
@@ -255,8 +268,13 @@ public struct PaybackPeriodTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_payback_period` handler.
     public init() {}
 
+    /// Runs `calculate_payback_period` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -354,7 +372,11 @@ public struct PaybackPeriodTool: MCPToolHandler, Sendable {
 
 // MARK: - Discounted Payback Period
 
+/// Calculate discounted payback period with time value of money.
+///
+/// Exposed to clients as the `calculate_discounted_payback_period` tool.
 public struct DiscountedPaybackPeriodTool: MCPToolHandler, Sendable {
+    /// The `calculate_discounted_payback_period` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_discounted_payback_period",
         description: """
@@ -413,8 +435,13 @@ public struct DiscountedPaybackPeriodTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_discounted_payback_period` handler.
     public init() {}
 
+    /// Runs `calculate_discounted_payback_period` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -567,7 +594,11 @@ public struct DiscountedPaybackPeriodTool: MCPToolHandler, Sendable {
 
 // MARK: - Modified IRR (MIRR)
 
+/// Calculate Modified Internal Rate of Return (MIRR) for realistic return analysis.
+///
+/// Exposed to clients as the `calculate_mirr` tool.
 public struct MIRRTool: MCPToolHandler, Sendable {
+    /// The `calculate_mirr` tool definition: name, description and input schema.
     public let tool = MCPTool(
         name: "calculate_mirr",
         description: """
@@ -642,8 +673,13 @@ public struct MIRRTool: MCPToolHandler, Sendable {
         )
     )
 
+    /// Creates the `calculate_mirr` handler.
     public init() {}
 
+    /// Runs `calculate_mirr` against the caller's arguments.
+    /// - Parameter arguments: Values keyed by the input schema's property names.
+    /// - Returns: The tool's formatted result.
+    /// - Throws: If a required argument is missing or the computation fails.
     public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
         guard let args = arguments else {
             throw ToolError.invalidArguments("Missing arguments")
@@ -670,11 +706,14 @@ public struct MIRRTool: MCPToolHandler, Sendable {
 			throw ToolError.executionFailed("calculate_mirr", "MIRR calculation failed: \(error.localizedDescription)")
         }
 
-        // Calculate IRR for comparison
+        // Calculate IRR for comparison. IRR is supplementary here — MIRR is the answer the
+        // caller asked for — so a failure must not fail the whole call. `Result` keeps the
+        // reason instead of discarding it, and the report below states it.
+        let irrOutcome = Result { try irr(cashFlows: cashFlows) }
         let irrValue: Double?
-        do {
-            irrValue = try irr(cashFlows: cashFlows)
-        } catch {
+        if case .success(let value) = irrOutcome {
+            irrValue = value
+        } else {
             irrValue = nil
         }
 
@@ -738,7 +777,15 @@ public struct MIRRTool: MCPToolHandler, Sendable {
             • \(explanation)
             """
         } else {
-            irrComparison = "\n• Traditional IRR could not be calculated (unusual cash flows)"
+            // The old text asserted "unusual cash flows" without having checked; IRR also
+            // fails on fewer than two flows and on non-convergence. Report what happened.
+            let reason: String
+            if case .failure(let error) = irrOutcome {
+                reason = "\(error)"
+            } else {
+                reason = "no solution for these cash flows"
+            }
+            irrComparison = "\n• Traditional IRR could not be calculated: \(reason)"
         }
 
         let output = """

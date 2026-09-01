@@ -155,6 +155,7 @@ public actor ResourceProvider: MCPResourceProvider {
         }
     }
 
+    /// Creates the resource handler.
     public init() {}
 }
 
@@ -162,6 +163,7 @@ public actor ResourceProvider: MCPResourceProvider {
 public enum ResourceError: Error, LocalizedError {
     case notFound(String)
 
+    /// A human-readable account of which resource could not be served.
     public var errorDescription: String? {
         switch self {
         case .notFound(let uri):
