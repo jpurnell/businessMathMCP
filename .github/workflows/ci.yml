@@ -74,6 +74,21 @@ jobs:
           fi
           echo "Swift $ACTUAL satisfies the $REQUIRED floor"
 
+      - name: Authenticate for the private SwiftMCPServer dependency
+        env:
+          TOKEN: ${{ secrets.SPM_PRIVATE_DEPS_TOKEN }}
+        run: |
+          # SwiftMCPServer is a private repository, and the default GITHUB_TOKEN is scoped
+          # to this repository only. Without this, SwiftPM's clone fails with
+          # "could not read Username for 'https://github.com': terminal prompts disabled",
+          # which names neither the repository nor the remedy.
+          if [ -z "$TOKEN" ]; then
+            echo "::error::SPM_PRIVATE_DEPS_TOKEN is not set. SwiftMCPServer is a private dependency and cannot be resolved without a token granting it Contents: read."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          echo "Configured git to authenticate github.com clones"
+
       - name: Tooling versions
         run: |
           xcodebuild -version
@@ -134,6 +149,21 @@ jobs:
             exit 1
           fi
           echo "Swift $ACTUAL satisfies the $REQUIRED floor"
+
+      - name: Authenticate for the private SwiftMCPServer dependency
+        env:
+          TOKEN: ${{ secrets.SPM_PRIVATE_DEPS_TOKEN }}
+        run: |
+          # SwiftMCPServer is a private repository, and the default GITHUB_TOKEN is scoped
+          # to this repository only. Without this, SwiftPM's clone fails with
+          # "could not read Username for 'https://github.com': terminal prompts disabled",
+          # which names neither the repository nor the remedy.
+          if [ -z "$TOKEN" ]; then
+            echo "::error::SPM_PRIVATE_DEPS_TOKEN is not set. SwiftMCPServer is a private dependency and cannot be resolved without a token granting it Contents: read."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          echo "Configured git to authenticate github.com clones"
 
       - name: Test against the pinned BusinessMath release
         run: |
