@@ -23,7 +23,8 @@ public func getStatisticalTools() -> [any MCPToolHandler] {
         CalculateConfidenceIntervalTool(),
         CalculateCovarianceTool(),
         CalculateZScoreTool(),
-        DescriptiveStatsExtendedTool()
+        DescriptiveStatsExtendedTool(),
+        ConcordanceAnalysisTool()
     ]
 }
 
@@ -947,6 +948,165 @@ public struct DescriptiveStatsExtendedTool: MCPToolHandler, Sendable {
         Interpretation:
         \(abs(stats.mean - stats.median) < stats.stdDev * 0.1 ? "✓ Mean ≈ Median suggests symmetric distribution" : "✗ Mean ≠ Median suggests skewed distribution")
         """
+
+        return .success(text: output)
+    }
+}
+
+// MARK: - Concordance Analysis
+
+/// Kendall's W coefficient of concordance — agreement among several judges ranking the same
+/// items.
+///
+/// Accepts three shapes of the same question, because callers rarely hold the data in the form
+/// the statistic wants: a full ranking matrix, pre-computed rank sums with the judge and item
+/// counts, or a matrix with gaps handled by the Brueckl (2011) pairwise approach.
+public struct ConcordanceAnalysisTool: MCPToolHandler, Sendable {
+    /// The tool's MCP declaration: name, description and input schema.
+    public let tool = MCPTool(
+        name: "concordance_analysis",
+        description: """
+        Calculate Kendall's W coefficient of concordance with full statistical analysis.
+
+        Measures agreement among multiple judges ranking multiple items.
+        Returns W (uncorrected and tie-corrected), chi-square, Friedman statistic,
+        p-value, F-statistic, and degrees of freedom.
+
+        Supports three modes:
+        1. Full ranking matrix (rankings parameter)
+        2. Pre-computed rank sums (rank_sums + judges + items)
+        3. Missing data via Brueckl 2011 pairwise approach (rankings + has_missing)
+        
+        Optionally runs a permutation test for non-parametric p-value.
+        """,
+        inputSchema: MCPToolInputSchema(
+            properties: [
+                "rankings": MCPSchemaProperty(
+                    type: "array",
+                    description: "2D array of rankings: rows = judges, columns = items. Each cell is the rank assigned by that judge to that item.",
+                    items: MCPSchemaItems(type: "array")
+                ),
+                "rank_sums": MCPSchemaProperty(
+                    type: "array",
+                    description: "Pre-computed rank sums for each item (when individual rankings unavailable)",
+                    items: MCPSchemaItems(type: "number")
+                ),
+                "judges": MCPSchemaProperty(
+                    type: "number",
+                    description: "Number of judges (required with rank_sums)"
+                ),
+                "items": MCPSchemaProperty(
+                    type: "number",
+                    description: "Number of items (required with rank_sums)"
+                ),
+                "has_missing": MCPSchemaProperty(
+                    type: "boolean",
+                    description: "If true, treat 0 values in rankings as missing data and use Brueckl 2011 pairwise Spearman approach"
+                ),
+                "permutation_test": MCPSchemaProperty(
+                    type: "boolean",
+                    description: "If true, also run a permutation test for p-value"
+                ),
+                "permutations": MCPSchemaProperty(
+                    type: "number",
+                    description: "Number of permutations for permutation test (default: 10000)"
+                )
+            ]
+        )
+    )
+
+    /// Creates the tool.
+    public init() {}
+
+    /// Runs a concordance analysis over whichever input shape the caller supplied.
+    ///
+    /// - Parameter arguments: Either `rankings`, or `rank_sums` with `judges` and `items`.
+    /// - Returns: W, chi-square, the Friedman statistic, p-value, F and degrees of freedom.
+    /// - Throws: `ToolError.invalidArguments` if neither input shape is present or an
+    ///   argument is malformed.
+    public func execute(arguments: [String: AnyCodable]?) async throws -> MCPToolCallResult {
+        guard let args = arguments else {
+            throw ToolError.invalidArguments("Missing arguments")
+        }
+
+        let hasMissing = args.getBoolOptional("has_missing") ?? false
+        let runPermutation = args.getBoolOptional("permutation_test") ?? false
+        let numPermutations = args.getIntOptional("permutations") ?? 10000
+
+        let result: ConcordanceResult<Double>
+
+        // Optional accessors rather than throwing ones behind `hasKey`: absence selects the
+        // mode, so it is not an error, and a throwing getter would claim otherwise.
+        if let rankings = try args.getDoubleMatrixOptional("rankings") {
+            if hasMissing {
+                let optionalRankings: [[Double?]] = rankings.map { row in
+                    row.map { $0 == 0 ? nil : Optional($0) }
+                }
+                result = try concordanceAnalysisNA(optionalRankings)
+            } else {
+                result = try concordanceAnalysis(rankings)
+            }
+        } else if let rankSums = try args.getDoubleArrayOptional("rank_sums") {
+            guard let judges = args.getIntOptional("judges"),
+                let items = args.getIntOptional("items")
+            else {
+                throw ToolError.invalidArguments(
+                    "'rank_sums' also requires 'judges' and 'items'")
+            }
+            result = try concordanceAnalysisFromRankSums(rankSums: rankSums, judges: judges, items: items)
+        } else {
+            throw ToolError.invalidArguments("Provide either 'rankings' (2D array) or 'rank_sums' + 'judges' + 'items'")
+        }
+
+        var output = """
+        Concordance Analysis (Kendall's W):
+
+        Agreement:
+        • W (uncorrected): \(formatNumber(result.w, decimals: 6))
+        • W (tie-corrected): \(formatNumber(result.wCorrected, decimals: 6))
+
+        Significance:
+        • Chi-square: \(formatNumber(result.chiSquare, decimals: 4))
+        • Friedman: \(formatNumber(result.friedman, decimals: 4))
+        • F-statistic: \(formatNumber(result.fStatistic, decimals: 4))
+        • Degrees of freedom: \(result.degreesOfFreedom)
+        • p-value: \(formatNumber(result.pValue, decimals: 6))
+
+        Design:
+        • Judges: \(result.judges)
+        • Items: \(result.items)
+        • Tie correction: \(formatNumber(result.totalTieCorrection, decimals: 4))
+        """
+
+        let wVal = result.wCorrected
+        let interpretation = wVal >= 0.9 ? "Very strong to perfect" :
+                            wVal >= 0.7 ? "Strong" :
+                            wVal >= 0.5 ? "Good" :
+                            wVal >= 0.3 ? "Moderate" :
+                            wVal >= 0.1 ? "Weak" : "No"
+        output += "\n\n        Interpretation: \(interpretation) agreement (W = \(formatNumber(wVal, decimals: 4)))"
+
+        if result.pValue < 0.001 {
+            output += "\n        ✓ Highly significant (p < 0.001)"
+        } else if result.pValue < 0.01 {
+            output += "\n        ✓ Very significant (p < 0.01)"
+        } else if result.pValue < 0.05 {
+            output += "\n        ✓ Significant (p < 0.05)"
+        } else {
+            output += "\n        ✗ Not significant at α = 0.05 (p = \(formatNumber(result.pValue, decimals: 4)))"
+        }
+
+        if runPermutation, !hasMissing,
+            let rankings = try args.getDoubleMatrixOptional("rankings") {
+            let permResult = try concordancePermutationTest(rankings, permutations: numPermutations)
+            output += """
+
+            
+            Permutation Test (\(numPermutations) permutations):
+            • W: \(formatNumber(permResult.w, decimals: 6))
+            • p-value: \(formatNumber(permResult.pValue, decimals: 6))
+            """
+        }
 
         return .success(text: output)
     }

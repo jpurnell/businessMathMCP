@@ -18,7 +18,7 @@ extension MCPToolCallResult {
             return ""
         }
         switch firstContent {
-        case .text(let string):
+        case .text(let string, _, _):
             return string
         default:
             return ""

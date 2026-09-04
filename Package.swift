@@ -25,12 +25,15 @@ let package = Package(
         // MCP Server framework (transport, auth, OAuth, session management)
         .package(
             url: "https://github.com/jpurnell/SwiftMCPServer.git",
-            .upToNextMinor(from: "1.1.6")
+            from: "4.3.0"
         ),
         // MCP SDK (fork 0.11.x — 2025-11-25 spec + Swift 6.4 concurrency fixes)
         .package(
-            url: "https://github.com/jpurnell/swift-sdk.git",
-            "0.11.0"..<"0.12.0"
+            // The fork, at the URL SwiftMCPServer resolves. SwiftPM derives package identity
+            // from the URL's last path component, so "swift-sdk" and "swift-mcp-sdk"
+            // are two identities for one repository and both would vend MCP.
+            url: "https://github.com/jpurnell/swift-mcp-sdk.git",
+            exact: "2026.7.28"
         ),
         // Numerics (shared dependency)
         .package(
@@ -49,7 +52,7 @@ let package = Package(
             dependencies: [
                 .product(name: "BusinessMath", package: "BusinessMath"),
                 .product(name: "SwiftMCPServer", package: "SwiftMCPServer"),
-                .product(name: "MCP", package: "swift-sdk"),
+                .product(name: "MCP", package: "swift-mcp-sdk"),
                 .product(name: "Numerics", package: "swift-numerics"),
             ],
             // Declared, not excluded. `exclude:` silences the unhandled-file warning by
