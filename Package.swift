@@ -25,7 +25,7 @@ let package = Package(
         // MCP Server framework (transport, auth, OAuth, session management)
         .package(
             url: "https://github.com/jpurnell/SwiftMCPServer.git",
-            from: "4.4.0"
+            from: "4.4.1"
         ),
         // MCP SDK (fork 0.11.x — 2025-11-25 spec + Swift 6.4 concurrency fixes)
         .package(
