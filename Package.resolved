@@ -276,8 +276,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/SwiftMCPServer.git",
       "state" : {
-        "revision" : "8f57b555bbaccb99b8f20657e715faeb8faf860e",
-        "version" : "4.4.2"
+        "revision" : "aefb21e88c868d843b46eaf21874b63e54cd54e1",
+        "version" : "4.4.3"
       }
     }
   ],
