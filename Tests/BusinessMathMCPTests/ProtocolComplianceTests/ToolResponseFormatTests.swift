@@ -81,7 +81,12 @@ struct ToolResponseFormatTests {
 
         for tool in tools {
             #expect(!tool.name.isEmpty, "Listed tool must have non-empty name")
-            #expect(!(tool.description ?? "").isEmpty, "Tool \(tool.name) must have non-empty description")
+            // `try #require` rather than `?? ""`: an absent description and an empty one are
+            // different failures — one means the handler never declared it, the other that it
+            // declared nothing — and the fallback reported both as "expression is false".
+            let description = try #require(
+                tool.description, "Tool \(tool.name) must declare a description")
+            #expect(!description.isEmpty, "Tool \(tool.name) must have non-empty description")
             if case .object(let schemaDict) = tool.inputSchema {
                 // An MCP inputSchema is a JSON Schema object, so `type` is not merely
                 // present — it has exactly one correct value.
@@ -130,7 +135,9 @@ struct ToolResponseFormatTests {
         // Being listed is not enough for the round-trip to mean anything: the listing has
         // to carry the description and schema a caller would dispatch on.
         #expect(pvTool.name == "calculate_present_value")
-        #expect(!(pvTool.description ?? "").isEmpty, "Listed tool must advertise a description")
+        let pvDescription = try #require(
+            pvTool.description, "Listed tool must advertise a description")
+        #expect(!pvDescription.isEmpty, "Listed tool must advertise a description")
 
         // Execute via registry with MCP.Value args (the real wire path)
         let result = try await registry.executeTool(
