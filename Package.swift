@@ -18,9 +18,17 @@ let package = Package(
     ],
     dependencies: [
         // Core BusinessMath library
+        // Exact, because this is a prerelease. `.upToNextMinor(from: "2.7.0")` was
+        // here until 2026-09-19 and could no longer resolve at all: the 2.7.0 tag
+        // had been removed upstream, so the pinned revision existed nowhere but
+        // this machine's `.build/checkouts`. A clean checkout could not build.
+        //
+        // A range would also be wrong for an alpha — SwiftPM does not select
+        // prereleases for a range anyway, and drifting between alphas silently is
+        // not what anybody wants from a dependency that is still moving.
         .package(
             url: "https://github.com/jpurnell/businessMath",
-            .upToNextMinor(from: "2.7.0")
+            exact: "3.0.0-alpha.7"
         ),
         // MCP Server framework (transport, auth, OAuth, session management)
         .package(

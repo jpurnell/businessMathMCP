@@ -1,5 +1,5 @@
 {
-  "originHash" : "b1fc1229793ac00cd0c4d0932dc168b13c86d944b9546aa3e5ef4a2a4926cbfa",
+  "originHash" : "1f11ee7f546766894735ed2e38501f1575e2d5ca30772baa94a4dd498f1fcb67",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/businessMath",
       "state" : {
-        "revision" : "a2635a19ff3c2d3803291c067d9f942946464991",
-        "version" : "2.7.0"
+        "revision" : "13b842f19ab5edcfc635fc427c4479ed6de46e89",
+        "version" : "3.0.0-alpha.7"
       }
     },
     {
@@ -267,8 +267,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/SwiftDeterminism.git",
       "state" : {
-        "revision" : "6c48c1029adf5df1b739f520cdf4e23a2d1ba8c1",
-        "version" : "1.1.0"
+        "revision" : "ff53b5aa728a33fea62c98390b16ff54892070ea",
+        "version" : "1.3.0"
       }
     },
     {
