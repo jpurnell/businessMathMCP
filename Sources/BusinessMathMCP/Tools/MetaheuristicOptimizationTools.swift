@@ -106,7 +106,29 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         let neighborhoodType = args.getStringOptional("neighborhoodType") ?? "swap"
         let problemType = args.getStringOptional("problemType") ?? "general"
 
-        let totalTemperatureSteps = estimateTemperatureSteps(initial: initialTemp, final: finalTemp, rate: coolingRate, schedule: coolingSchedule)
+        // The step estimate divides by log(coolingRate) and by initialTemperature, and takes
+        // the log of finalTemperature / initialTemperature: a rate of 1, a temperature of
+        // zero or a final temperature above the initial one makes it infinite, NaN or
+        // negative. None of those is a schedule that cools.
+        guard initialTemp.isFinite, initialTemp > 0 else {
+            throw ToolError.invalidArguments("initialTemperature must be a number greater than 0")
+        }
+        guard finalTemp.isFinite, finalTemp > 0, finalTemp < initialTemp else {
+            throw ToolError.invalidArguments(
+                "finalTemperature must be a number greater than 0 and less than initialTemperature")
+        }
+        guard coolingRate.isFinite, coolingRate > 0, coolingRate < 1 else {
+            throw ToolError.invalidArguments(
+                "coolingRate must be a number greater than 0 and less than 1")
+        }
+
+        let totalTemperatureSteps = try estimateTemperatureSteps(initial: initialTemp, final: finalTemp, rate: coolingRate, schedule: coolingSchedule)
+        let (totalIterations, iterationsOverflowed) =
+            totalTemperatureSteps.multipliedReportingOverflow(by: itersPerTemp)
+        guard !iterationsOverflowed else {
+            throw ToolError.invalidArguments(
+                "iterationsPerTemperature is too large: the schedule's total iterations cannot be counted")
+        }
 
         let guide = """
         🌡️ **Simulated Annealing (SA) Optimization**
@@ -123,7 +145,7 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         - Cooling rate (α): \(coolingRate.digits(3)) \(explainCoolingRate(coolingRate, schedule: coolingSchedule))
         - Iterations per temperature: \(itersPerTemp)
         - Estimated temperature steps: ~\(totalTemperatureSteps)
-        - Total iterations: ~\(totalTemperatureSteps * itersPerTemp) (max: \(maxIterations))
+        - Total iterations: ~\(totalIterations) (max: \(maxIterations))
 
         **How Simulated Annealing Works:**
 
@@ -342,7 +364,7 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
 
         | Problem Size | Iterations | Time Estimate | Solution Quality |
         |--------------|-----------|---------------|------------------|
-        | \(dimensions) | \(totalTemperatureSteps * itersPerTemp) | \(estimateSATime(problemType: problemType, iterations: totalTemperatureSteps * itersPerTemp)) | \(estimateQuality(coolingRate: coolingRate)) |
+        | \(dimensions) | \(totalIterations) | \(estimateSATime(problemType: problemType, iterations: totalIterations)) | \(estimateQuality(coolingRate: coolingRate)) |
         | TSP 50 cities | 100,000 | 5-30s | 1-3% from optimal |
         | TSP 100 cities | 500,000 | 30-180s | 2-5% from optimal |
         | Scheduling 200 jobs | 1,000,000 | 60-300s | Good (no exact optimal known) |
@@ -391,24 +413,34 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
 
     // MARK: - Helper Functions
 
-    private func estimateTemperatureSteps(initial: Double, final: Double, rate: Double, schedule: String) -> Int {
+    private func estimateTemperatureSteps(initial: Double, final: Double, rate: Double, schedule: String) throws -> Int {
+        let estimate: Double
         switch schedule {
         case "exponential", "geometric":
             // T_k = T_0 × α^k
             // Solve: T_f = T_0 × α^k for k
-            return Int(ceil(log(final / initial) / log(rate)))
+            estimate = ceil(log(final / initial) / log(rate))
         case "linear":
             // Rough estimate
-            return Int(ceil((initial - final) / (initial * (1 - rate))))
+            estimate = ceil((initial - final) / (initial * (1 - rate)))
         case "logarithmic":
             return 100 // Typical
         default:
             return 100
         }
+        // The arguments are validated before this is called, but a rate within a few ulps of
+        // 1 still asks for more steps than an Int holds. That is refused, not rounded.
+        guard let steps = Int(exactly: estimate) else {
+            throw ToolError.invalidArguments(
+                "the temperature schedule needs more steps than can be counted: "
+                + "lower coolingRate or raise finalTemperature")
+        }
+        return steps
     }
 
     private func explainTemperature(_ temp: Double, type: String) -> String {
         if type == "initial" {
+            guard temp.isFinite else { return "← not a finite number" }
             if temp > 1000 {
                 return "← Very high (aggressive exploration)"
             } else if temp > 100 {
@@ -424,6 +456,7 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
         guard schedule == "exponential" || schedule == "geometric" else {
             return ""
         }
+        guard rate.isFinite else { return "← not a finite number" }
 
         if rate > 0.98 {
             return "← Very slow cooling (thorough but slow)"
@@ -728,6 +761,7 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func estimateQuality(coolingRate: Double) -> String {
+        guard coolingRate.isFinite else { return "Unknown (cooling rate is not a finite number)" }
         if coolingRate > 0.98 {
             return "Excellent (slow cooling)"
         } else if coolingRate > 0.92 {
@@ -858,7 +892,13 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
 
         let populationSize = args.getIntOptional("populationSize") ?? max(40, dimensions * 10)
         let differentialWeight = args.getDoubleOptional("differentialWeight") ?? 0.8
+        guard differentialWeight.isFinite, differentialWeight >= 0, differentialWeight <= 2 else {
+            throw ToolError.invalidArguments("differentialWeight must be a number from 0 to 2")
+        }
         let crossoverRate = args.getDoubleOptional("crossoverRate") ?? 0.9
+        guard crossoverRate.isFinite, crossoverRate >= 0, crossoverRate <= 1 else {
+            throw ToolError.invalidArguments("crossoverRate must be a probability from 0 to 1")
+        }
         let strategy = args.getStringOptional("strategy") ?? "best1bin"
         let maxGenerations = args.getIntOptional("maxGenerations") ?? 1000
         let problemType = args.getStringOptional("problemType") ?? "general"
@@ -1191,6 +1231,7 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func explainDEWeight(_ F: Double) -> String {
+        guard F.isFinite else { return "← not a finite number" }
         if F > 0.9 {
             return "← High amplification (aggressive)"
         } else if F < 0.6 {
@@ -1201,6 +1242,7 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func explainDECrossover(_ CR: Double) -> String {
+        guard CR.isFinite else { return "← not a finite number" }
         if CR > 0.85 {
             return "← High (favor mutant vector) ✓"
         } else if CR < 0.5 {
@@ -1263,6 +1305,7 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func getFTuningAdvice(F: Double) -> String {
+        guard F.isFinite else { return "⚠️ F is not a finite number" }
         if F > 0.85 {
             return "⚠️ High F may cause instability - reduce if oscillating"
         } else if F < 0.6 {
@@ -1273,6 +1316,7 @@ public struct DifferentialEvolutionOptimizeTool: MCPToolHandler, Sendable {
     }
 
     private func getCRTuningAdvice(CR: Double) -> String {
+        guard CR.isFinite else { return "⚠️ CR is not a finite number" }
         if CR > 0.95 {
             return "⚠️ Very high CR - may converge too quickly"
         } else if CR < 0.5 {
