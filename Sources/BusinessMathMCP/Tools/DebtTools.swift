@@ -73,8 +73,7 @@ public struct CreateAmortizationScheduleTool: MCPToolHandler, Sendable {
 
         // Calculate dates
         let startDate = Date()
-        let calendar = Calendar.current
-        guard let maturityDate = calendar.date(byAdding: .year, value: years, to: startDate) else {
+        guard let maturityDate = dateByAdding(years: years, to: startDate) else {
             throw ToolError.executionFailed("create_amortization_schedule", "Could not calculate maturity date")
         }
 

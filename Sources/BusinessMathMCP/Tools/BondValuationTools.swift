@@ -130,9 +130,8 @@ public struct BondPriceTool: MCPToolHandler, Sendable {
 
         let frequency = parsePaymentFrequency(freqString)
 
-        let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
+        guard let maturity = dateByAdding(years: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -258,9 +257,8 @@ public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
 
         let frequency = parsePaymentFrequency(freqString)
 
-        let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
+        guard let maturity = dateByAdding(years: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -382,9 +380,8 @@ public struct BondDurationTool: MCPToolHandler, Sendable {
 
         let frequency = parsePaymentFrequency(freqString)
 
-        let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
+        guard let maturity = dateByAdding(years: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -655,12 +652,11 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
         let creditSpread = try args.getDouble("creditSpread")
         let volatility = try args.getDouble("volatility")
 
-        let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
+        guard let maturity = dateByAdding(years: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
-        guard let callDate = calendar.date(byAdding: .year, value: try bondYears(callYears, argument: "callYears"), to: today) else {
+        guard let callDate = dateByAdding(years: try bondYears(callYears, argument: "callYears"), to: today) else {
             throw ToolError.invalidArguments("callYears does not produce a representable call date")
         }
 
@@ -833,12 +829,11 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
         let riskFreeRate = try args.getDouble("riskFreeRate")
         let volatility = try args.getDouble("volatility")
 
-        let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
+        guard let maturity = dateByAdding(years: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
-        guard let callDate = calendar.date(byAdding: .year, value: try bondYears(callYears, argument: "callYears"), to: today) else {
+        guard let callDate = dateByAdding(years: try bondYears(callYears, argument: "callYears"), to: today) else {
             throw ToolError.invalidArguments("callYears does not produce a representable call date")
         }
 

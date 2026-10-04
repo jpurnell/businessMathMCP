@@ -97,11 +97,7 @@ public struct PeriodJSON: Codable, Sendable {
             guard let month = month, let day = day else {
                 throw MarshallingError.missingField("month or day")
             }
-            var components = DateComponents()
-            components.year = year
-            components.month = month
-            components.day = day
-            guard let date = Calendar.current.date(from: components) else {
+            guard let date = utcDay(year: year, month: month, day: day) else {
                 throw MarshallingError.invalidData("Invalid date components")
             }
             return Period.day(date)
@@ -449,11 +445,7 @@ extension Dictionary where Key == String, Value == MCP.Value {
                   let day = dayValue.intValue else {
                 throw ValueExtractionError.invalidArguments("\(key) day must have month and day")
             }
-            var components = DateComponents()
-            components.year = year
-            components.month = month
-            components.day = day
-            guard let date = Calendar.current.date(from: components) else {
+            guard let date = utcDay(year: year, month: month, day: day) else {
                 throw ValueExtractionError.invalidArguments("\(key) has invalid date components")
             }
             return Period.day(date)

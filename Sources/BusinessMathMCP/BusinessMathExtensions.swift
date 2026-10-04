@@ -63,11 +63,7 @@ extension Dictionary where Key == String, Value == AnyCodable {
                   let day = dayValue.value as? Int else {
                 throw ToolError.invalidArguments("\(key) day must have month and day")
             }
-            var components = DateComponents()
-            components.year = year
-            components.month = month
-            components.day = day
-            guard let date = Calendar.current.date(from: components) else {
+            guard let date = utcDay(year: year, month: month, day: day) else {
                 throw ToolError.invalidArguments("\(key) has invalid date components")
             }
             return Period.day(date)
