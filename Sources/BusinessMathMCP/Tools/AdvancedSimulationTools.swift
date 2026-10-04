@@ -138,6 +138,10 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
                     • Profit: "{0} - {1}" (Revenue - Costs)
                     • Portfolio: "0.6 * {0} + 0.4 * {1}" (Weighted average)
                     • Margin: "({0} - {1}) / {0}" ((Revenue - Costs) / Revenue)
+                    An input whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "iterations": MCPSchemaProperty(
@@ -295,11 +299,15 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
             correlationMatrix: correlationValues
         )
 
+        // Check the formula before any iteration runs; a sample where it has no value fails
+        // the run rather than contributing a zero to it.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: names)
+
         // Run simulation with correlated inputs
         var results: [Double] = []
         for _ in 0..<iterations {
             let correlatedSamples = correlatedNormals.sample()
-            let output = evaluateCalculation(calculation, with: correlatedSamples)
+            let output = try formula.value(at: correlatedSamples)
             results.append(output)
         }
 
@@ -512,6 +520,10 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
                     Examples:
                     • Simple: "{0} - {1}"
                     • Complex: "{0} * (1 + {1}) - {2} * {3} / (1 + {4})"
+                    An input whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "iterations": MCPSchemaProperty(
@@ -650,15 +662,27 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
         // Create and run simulation with GPU if available
         let startTime = Date()
 
+        // Check the formula before any iteration runs. The model callback cannot throw, so a
+        // failure is recorded and the run fails with it.
+        let formula = try CallerFormula(
+            calculation, argument: "calculation", names: simulationInputs.map(\.name))
+
         var simulation = MonteCarloSimulation(iterations: iterations, enableGPU: useGPU) { inputs in
-            return evaluateCalculation(calculation, with: inputs)
+            formula.recordedValue(at: inputs)
         }
 
         for input in simulationInputs {
             simulation.addInput(input)
         }
 
-        let results = try await simulation.run()
+        let results: SimulationResults
+        do {
+            results = try await simulation.run()
+        } catch {
+            try formula.throwIfFailed()
+            throw error
+        }
+        try formula.throwIfFailed()
         let elapsedTime = Date().timeIntervalSince(startTime)
 
         // Estimate CPU time for comparison
@@ -757,19 +781,6 @@ public struct RunMonteCarloGPUTool: MCPToolHandler, Sendable {
 /// Format a number with specified decimal places
 private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
     return value.formatDecimal(decimals: decimals)
-}
-
-/// Evaluate a simple calculation string with input values
-private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -> Double {
-    var formula = calculation
-
-    // Replace input placeholders {0}, {1}, etc.
-    for (index, value) in inputs.enumerated() {
-        formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
-    }
-
-    // Use cross-platform expression evaluator
-    return ExpressionEvaluator.evaluate(formula)
 }
 
 // MARK: - Tool Registration

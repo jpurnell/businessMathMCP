@@ -84,23 +84,48 @@ extension Dictionary where Key == String, Value == AnyCodable {
             throw ToolError.missingRequiredArgument(key)
         }
 
-        // Convert to JSON and decode (use jsonValue to recursively unwrap AnyCodable)
-        let jsonData = try JSONSerialization.data(withJSONObject: value.jsonValue)
-        let decoder = JSONDecoder()
-
+        // The argument is re-encoded under its own key and decoded from there, so that a
+        // decoding failure's path reads the way the caller wrote it: `data[1].value`.
+        //
         // Two shapes are accepted: the wrapped object {"data": [...], "metadata": {...}}
-        // and the flat array [{period: {...}, value: 100}, ...]. JSON says which one
-        // arrived — an object opens with `{`, an array with `[` — so the shape is decided
+        // and the flat array [{period: {...}, value: 100}, ...]. Which one arrived is decided
         // before decoding rather than by decoding and catching. That matters for error
         // quality: a malformed *wrapped* series used to fall through to the array decode
         // and report "expected an array", hiding the field that was actually wrong.
-        let openingToken = jsonData.first { !jsonWhitespace.contains($0) }
+        //
+        // Anything else — a number, a string, a boolean — is refused here. It is not a time
+        // series, and it must not reach `JSONSerialization` with nothing around it.
+        let json = value.jsonValue
+        let isArray = json is [Any]
+        guard isArray || json is [String: Any] else {
+            throw ToolError.invalidArguments(
+                "\(key) must be a time series: an object with a 'data' array, or an array of {period, value} points")
+        }
+        let keyed: [String: Any] = [key: json]
+        guard JSONSerialization.isValidJSONObject(keyed) else {
+            throw ToolError.invalidArguments("\(key) contains a value that is not valid JSON")
+        }
+        let jsonData = try JSONSerialization.data(withJSONObject: keyed)
+        let decoder = JSONDecoder()
 
-        guard openingToken == UInt8(ascii: "[") else {
-            return try decoder.decode(TimeSeriesJSON.self, from: jsonData).toTimeSeries()
+        // A `DecodingError` here is about the argument the caller sent, and says so in the
+        // caller's terms; left bare, the server would withhold it.
+        guard isArray else {
+            do {
+                return try decoder.decode(KeyedArgument<TimeSeriesJSON>.self, from: jsonData)
+                    .value.toTimeSeries()
+            } catch let error as DecodingError {
+                throw ArgumentDecodingError(error)
+            }
         }
 
-        let points = try decoder.decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: jsonData)
+        let points: [TimeSeriesJSON.TimeSeriesPointJSON]
+        do {
+            points = try decoder.decode(
+                KeyedArgument<[TimeSeriesJSON.TimeSeriesPointJSON]>.self, from: jsonData).value
+        } catch let error as DecodingError {
+            throw ArgumentDecodingError(error)
+        }
         var periods: [Period] = []
         var values: [Double] = []
         for point in points {
@@ -108,5 +133,36 @@ extension Dictionary where Key == String, Value == AnyCodable {
             values.append(point.value)
         }
         return TimeSeries(periods: periods, values: values, metadata: TimeSeriesMetadata(name: "Unnamed"))
+    }
+}
+
+// MARK: - Decoding one argument under its own name
+
+/// A single argument, decoded from `{"<name>": <value>}` so that the coding path of a failure
+/// begins with the argument's name.
+struct KeyedArgument<Wrapped: Decodable>: Decodable {
+    let value: Wrapped
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: ArgumentName.self)
+        guard let name = container.allKeys.first else {
+            throw DecodingError.dataCorrupted(DecodingError.Context(
+                codingPath: decoder.codingPath, debugDescription: "No argument to decode"))
+        }
+        value = try container.decode(Wrapped.self, forKey: name)
+    }
+}
+
+/// An argument's name as a coding key.
+struct ArgumentName: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+    }
+
+    init?(intValue: Int) {
+        nil
     }
 }

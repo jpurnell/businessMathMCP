@@ -470,24 +470,35 @@ extension Dictionary where Key == String, Value == MCP.Value {
             throw ValueExtractionError.missingRequiredArgument(key)
         }
 
-        // Convert Value to JSON data and decode
-        let encoder = JSONEncoder()
-        let jsonData = try encoder.encode(value)
-        let decoder = JSONDecoder()
-
+        // The argument is encoded under its own key and decoded from there, so that a decoding
+        // failure's path reads the way the caller wrote it: `data[1].value`.
+        //
         // Two shapes are accepted: the wrapped object {"data": [...], "metadata": {...}}
-        // and the flat array [{period: {...}, value: 100}, ...]. JSON says which one
-        // arrived — an object opens with `{`, an array with `[` — so the shape is decided
+        // and the flat array [{period: {...}, value: 100}, ...]. Which one arrived is decided
         // before decoding rather than by decoding and catching. That matters for error
         // quality: a malformed *wrapped* series used to fall through to the array decode
         // and report "expected an array", hiding the field that was actually wrong.
-        let openingToken = jsonData.first { !jsonWhitespace.contains($0) }
+        let jsonData = try JSONEncoder().encode(Value.object([key: value]))
+        let decoder = JSONDecoder()
 
-        guard openingToken == UInt8(ascii: "[") else {
-            return try decoder.decode(TimeSeriesJSON.self, from: jsonData).toTimeSeries()
+        // A `DecodingError` here is about the argument the caller sent, and says so in the
+        // caller's terms; left bare, the server would withhold it.
+        guard case .array = value else {
+            do {
+                return try decoder.decode(KeyedArgument<TimeSeriesJSON>.self, from: jsonData)
+                    .value.toTimeSeries()
+            } catch let error as DecodingError {
+                throw ArgumentDecodingError(error)
+            }
         }
 
-        let points = try decoder.decode([TimeSeriesJSON.TimeSeriesPointJSON].self, from: jsonData)
+        let points: [TimeSeriesJSON.TimeSeriesPointJSON]
+        do {
+            points = try decoder.decode(
+                KeyedArgument<[TimeSeriesJSON.TimeSeriesPointJSON]>.self, from: jsonData).value
+        } catch let error as DecodingError {
+            throw ArgumentDecodingError(error)
+        }
         var periods: [Period] = []
         var values: [Double] = []
         for point in points {
@@ -497,11 +508,6 @@ extension Dictionary where Key == String, Value == MCP.Value {
         return TimeSeries(periods: periods, values: values, metadata: TimeSeriesMetadata(name: "Unnamed"))
     }
 }
-
-/// The bytes JSON permits between tokens: space, tab, line feed, carriage return.
-///
-/// Used to find a payload's opening token so its shape can be identified without decoding.
-let jsonWhitespace: Set<UInt8> = [0x20, 0x09, 0x0A, 0x0D]
 
 // MARK: - Formatting Helpers
 

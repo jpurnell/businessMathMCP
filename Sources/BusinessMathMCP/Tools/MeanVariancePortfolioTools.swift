@@ -285,7 +285,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
                 from: VectorN(Array(repeating: equalStartingWeight, count: n)),
                 constraints: constraints
             )
-        } catch {
+        } catch let error as OptimizationError {
             return .error(message: """
                 Optimization Failed
 
@@ -301,7 +301,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
                 • Relax concentration limit
                 • Verify expected returns are reasonable
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
                 """)
         }
 

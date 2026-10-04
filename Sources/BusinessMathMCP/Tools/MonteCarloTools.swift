@@ -565,6 +565,10 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                     • Profit: "{0} - {1}" (Revenue - Costs)
                     • Margin: "({0} - {1}) / {0}" ((Revenue - Costs) / Revenue)
                     • Growth: "{0} * (1 + {1})" (Base * (1 + Rate))
+                    An input whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "iterations": MCPSchemaProperty(
@@ -739,17 +743,28 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
             simulationInputs.append(simInput)
         }
 
-        // Create and run simulation
+        // Check the formula before any iteration runs.
+        let formula = try CallerFormula(
+            calculation, argument: "calculation", names: simulationInputs.map(\.name))
+
+        // Create and run simulation. The model callback cannot throw, so a failure is recorded
+        // and the run fails with it: one iteration without a value is not a zero.
         var simulation = MonteCarloSimulation(iterations: iterations) { inputs in
-            // Evaluate calculation
-            return evaluateCalculation(calculation, with: inputs)
+            formula.recordedValue(at: inputs)
         }
 
         for input in simulationInputs {
             simulation.addInput(input)
         }
 
-        let results = try await simulation.run()
+        let results: SimulationResults
+        do {
+            results = try await simulation.run()
+        } catch {
+            try formula.throwIfFailed()
+            throw error
+        }
+        try formula.throwIfFailed()
 
         // Format output
         let inputNames = simulationInputs.map { $0.name }.joined(separator: ", ")
@@ -1230,7 +1245,11 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
                 ),
                 "calculation": MCPSchemaProperty(
                     type: "string",
-                    description: "Formula using {0} to reference the variable. Example: \"{0} * 1.2 - 50000\""
+                    description: """
+                    Formula using {0} or x to reference the variable. Example: "{0} * 1.2 - 50000"
+
+                    \(CallerFormula.syntaxSummary)
+                    """
                 ),
                 "steps": MCPSchemaProperty(
                     type: "number",
@@ -1297,14 +1316,17 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         let stepSize = (maxValue - minValue) / stepDivisor
         var results: [(input: Double, output: Double)] = []
 
+        // Check the formula before sweeping it; a point where it has no value fails the sweep.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: ["x"])
+
         for i in 0..<steps {
             let inputValue = minValue + Double(i) * stepSize
-            let outputValue = evaluateCalculation(calculation, with: [inputValue])
+            let outputValue = try formula.value(at: [inputValue])
             results.append((input: inputValue, output: outputValue))
         }
 
         // Calculate base output
-        let baseOutput = evaluateCalculation(calculation, with: [baseValue])
+        let baseOutput = try formula.value(at: [baseValue])
 
         // Calculate sensitivity metrics
         // `results` is built from the trial loop; an empty run would have trapped here.
@@ -1415,7 +1437,13 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
                 ),
                 "calculation": MCPSchemaProperty(
                     type: "string",
-                    description: "Formula using {0}, {1}, {2}, etc. to reference variables in order. Example: \"{0} - {1} - {2}\" for Revenue - Cost1 - Cost2"
+                    description: """
+                    Formula using {0}, {1}, {2}, etc. to reference variables in order. Example: "{0} - {1} - {2}" for Revenue - Cost1 - Cost2
+                    A variable whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - cost1 - cost2".
+
+                    \(CallerFormula.syntaxSummary)
+                    """
                 )
             ],
             required: ["variables", "calculation"]
@@ -1474,8 +1502,12 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
         }
 
         // Calculate base case
+        // Check the formula before testing any variable; a point where it has no value fails
+        // the analysis.
+        let formula = try CallerFormula(
+            calculation, argument: "calculation", names: variables.map(\.name))
         let baseInputs = variables.map { $0.baseValue }
-        let baseOutput = evaluateCalculation(calculation, with: baseInputs)
+        let baseOutput = try formula.value(at: baseInputs)
 
         // Test each variable
         struct Impact {
@@ -1491,12 +1523,12 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
             // Test low value
             var lowInputs = baseInputs
             lowInputs[index] = variable.lowValue
-            let lowOutput = evaluateCalculation(calculation, with: lowInputs)
+            let lowOutput = try formula.value(at: lowInputs)
 
             // Test high value
             var highInputs = baseInputs
             highInputs[index] = variable.highValue
-            let highOutput = evaluateCalculation(calculation, with: highInputs)
+            let highOutput = try formula.value(at: highInputs)
 
             let range = abs(highOutput - lowOutput)
             impacts.append(Impact(name: variable.name, lowOutput: lowOutput, highOutput: highOutput, range: range))
@@ -1542,19 +1574,6 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
 }
 
 // MARK: - Helper Functions
-
-/// Evaluate a simple calculation string with input values
-private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -> Double {
-    var formula = calculation
-
-    // Replace input placeholders {0}, {1}, etc.
-    for (index, value) in inputs.enumerated() {
-        formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
-    }
-
-    // Use cross-platform expression evaluator
-    return ExpressionEvaluator.evaluate(formula)
-}
 
 // MARK: - 8. Scenario Analysis
 
@@ -1639,6 +1658,11 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
                     • "{0} - {1}" - Revenue minus Costs
                     • "{0} * (1 - {1})" - Revenue × (1 - Cost Ratio)
                     • "({0} - {1}) / {0}" - Profit Margin
+                    An input whose name (from inputNames) is an identifier (letters, digits and
+                    underscores, not starting with a digit) can also be written by name:
+                    "Revenue - Costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "scenarios": MCPSchemaProperty(
@@ -1681,8 +1705,17 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
         let calculation = try args.getString("calculation")
         let iterations = args.getIntOptional("iterations") ?? 1000
 
-        guard let scenariosArray = args["scenarios"]?.value as? [[String: AnyCodable]] else {
+        // Arguments arrive as an array of `AnyCodable`, each wrapping an object; casting the
+        // array straight to `[[String: AnyCodable]]` never matched, so every call was refused.
+        guard let scenarioValues = args["scenarios"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("scenarios must be an array of objects")
+        }
+        var scenariosArray: [[String: AnyCodable]] = []
+        for scenarioValue in scenarioValues {
+            guard let scenarioDict = scenarioValue.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("scenarios must be an array of objects")
+            }
+            scenariosArray.append(scenarioDict)
         }
 
         guard !scenariosArray.isEmpty else {
@@ -1723,9 +1756,11 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
             scenarioConfigs.append(ScenarioConfig(name: name, values: values))
         }
 
-        // Create scenario analysis
+        // Check the formula before any scenario runs. The model callback cannot throw, so a
+        // failure is recorded and the analysis fails with it.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: inputNames)
         let model: @Sendable ([Double]) -> Double = { inputs in
-            evaluateCalculation(calculation, with: inputs)
+            formula.recordedValue(at: inputs)
         }
 
         var analysis = ScenarioAnalysis(
@@ -1745,7 +1780,14 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
         }
 
         // Run analysis
-        let results = try analysis.run()
+        let results: [String: SimulationResults]
+        do {
+            results = try analysis.run()
+        } catch {
+            try formula.throwIfFailed()
+            throw error
+        }
+        try formula.throwIfFailed()
         let comparison = ScenarioComparison(results: results)
 
         // Generate output

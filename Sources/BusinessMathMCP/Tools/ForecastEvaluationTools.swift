@@ -146,7 +146,10 @@ public struct BacktestForecastTool: MCPToolHandler, Sendable {
                     "Unknown forecaster '\(forecasterName)'. Use 'naive', 'seasonal_naive', or 'drift'.")
             }
         } catch let error as BacktestError {
-            throw ToolError.invalidArguments("Backtest failed: \(error)")
+            throw ToolError.invalidArguments("Backtest failed: \(error.callerMessage)")
+        } catch let error as ForecastError {
+            // The forecaster's own refusal, e.g. a training window shorter than the season.
+            throw ToolError.invalidArguments("Backtest failed: \(error.callerMessage)")
         }
 
         let maseText = report.mase.map { fmt($0) } ?? "n/a (degenerate/constant series)"
@@ -233,7 +236,7 @@ public struct AssessForecastabilityTool: MCPToolHandler, Sendable {
         do {
             report = try series.forecastability(seasonLength: seasonLength)
         } catch let error as ForecastError {
-            throw ToolError.invalidArguments("Forecastability assessment failed: \(error)")
+            throw ToolError.invalidArguments("Forecastability assessment failed: \(error.callerMessage)")
         }
 
         let output = """
@@ -321,10 +324,12 @@ public struct TestStationarityTool: MCPToolHandler, Sendable {
         do {
             adf = try series.augmentedDickeyFuller(lag: lag)
             kpss = try series.kpss(regression: regression, lag: lag)
-        } catch {
-            // Includes degenerate inputs (e.g. a perfectly linear series has constant
-            // first differences → the ADF regression has no variance to fit).
-            throw ToolError.invalidArguments("Stationarity test failed: \(error)")
+        } catch let error as ForecastError {
+            throw ToolError.invalidArguments("Stationarity test failed: \(error.callerMessage)")
+        } catch let error as RegressionError {
+            // Degenerate inputs: a perfectly linear series has constant first differences, so
+            // the ADF regression has no variance to fit.
+            throw ToolError.invalidArguments("Stationarity test failed: \(error.callerMessage)")
         }
 
         let agree = adf.isStationary == kpss.isStationary

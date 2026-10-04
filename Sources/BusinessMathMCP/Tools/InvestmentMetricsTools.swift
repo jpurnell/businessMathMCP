@@ -694,17 +694,13 @@ public struct MIRRTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Need at least 2 cash flows")
         }
 
-        // Calculate MIRR
-        let mirrValue: Double
-        do {
-            mirrValue = try mirr(
-                cashFlows: cashFlows,
-                financeRate: financeRate,
-                reinvestmentRate: reinvestmentRate
-            )
-        } catch {
-			throw ToolError.executionFailed("calculate_mirr", "MIRR calculation failed: \(error.localizedDescription)")
-        }
+        // Calculate MIRR. What `mirr` throws is BusinessMath's own account of what is wrong
+        // with the cash flows, and reaches the caller as written.
+        let mirrValue = try mirr(
+            cashFlows: cashFlows,
+            financeRate: financeRate,
+            reinvestmentRate: reinvestmentRate
+        )
 
         // Calculate IRR for comparison. IRR is supplementary here — MIRR is the answer the
         // caller asked for — so a failure must not fail the whole call. `Result` keeps the
@@ -780,8 +776,8 @@ public struct MIRRTool: MCPToolHandler, Sendable {
             // The old text asserted "unusual cash flows" without having checked; IRR also
             // fails on fewer than two flows and on non-convergence. Report what happened.
             let reason: String
-            if case .failure(let error) = irrOutcome {
-                reason = "\(error)"
+            if case .failure(let error as BusinessMathError) = irrOutcome {
+                reason = error.callerMessage
             } else {
                 reason = "no solution for these cash flows"
             }
