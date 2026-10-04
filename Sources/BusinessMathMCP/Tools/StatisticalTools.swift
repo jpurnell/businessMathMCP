@@ -1018,6 +1018,26 @@ public struct ConcordanceAnalysisTool: MCPToolHandler, Sendable {
     /// Creates the tool.
     public init() {}
 
+    /// States whether the agreement is statistically significant.
+    ///
+    /// - Parameter pValue: The p-value of the concordance test.
+    /// - Returns: The line reported to the caller, without indentation.
+    static func significanceLine(pValue: Double) -> String {
+        // Every comparison with a NaN is false, so one would read as "not significant".
+        guard pValue.isFinite else {
+            return "✗ Significance could not be determined (p-value is not a finite number)"
+        }
+        if pValue < 0.001 {
+            return "✓ Highly significant (p < 0.001)"
+        } else if pValue < 0.01 {
+            return "✓ Very significant (p < 0.01)"
+        } else if pValue < 0.05 {
+            return "✓ Significant (p < 0.05)"
+        } else {
+            return "✗ Not significant at α = 0.05 (p = \(formatNumber(pValue, decimals: 4)))"
+        }
+    }
+
     /// Runs a concordance analysis over whichever input shape the caller supplied.
     ///
     /// - Parameter arguments: Either `rankings`, or `rank_sums` with `judges` and `items`.
@@ -1086,15 +1106,7 @@ public struct ConcordanceAnalysisTool: MCPToolHandler, Sendable {
                             wVal >= 0.1 ? "Weak" : "No"
         output += "\n\n        Interpretation: \(interpretation) agreement (W = \(formatNumber(wVal, decimals: 4)))"
 
-        if result.pValue < 0.001 {
-            output += "\n        ✓ Highly significant (p < 0.001)"
-        } else if result.pValue < 0.01 {
-            output += "\n        ✓ Very significant (p < 0.01)"
-        } else if result.pValue < 0.05 {
-            output += "\n        ✓ Significant (p < 0.05)"
-        } else {
-            output += "\n        ✗ Not significant at α = 0.05 (p = \(formatNumber(result.pValue, decimals: 4)))"
-        }
+        output += "\n        " + Self.significanceLine(pValue: result.pValue)
 
         if runPermutation, !hasMissing,
             let rankings = try args.getDoubleMatrixOptional("rankings") {

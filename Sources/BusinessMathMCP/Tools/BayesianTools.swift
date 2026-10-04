@@ -106,6 +106,30 @@ public struct BayesTheoremTool: MCPToolHandler, Sendable {
     /// Creates the `calculate_bayes_theorem` handler.
     public init() {}
 
+    /// Describes how far the posterior moved from the prior.
+    ///
+    /// - Parameter change: The posterior probability minus the prior.
+    /// - Returns: The size and direction of the move in words.
+    static func changeDescription(for change: Double) -> String {
+        // Every comparison with a NaN is false, so one would fall through to the last arm.
+        guard change.isFinite else {
+            return "Undefined - change is not a finite number"
+        }
+        if change > 0.20 {
+            return "Substantial increase"
+        } else if change > 0.05 {
+            return "Moderate increase"
+        } else if change > 0 {
+            return "Slight increase"
+        } else if change > -0.05 {
+            return "Slight decrease"
+        } else if change > -0.20 {
+            return "Moderate decrease"
+        } else {
+            return "Substantial decrease"
+        }
+    }
+
     /// Runs `calculate_bayes_theorem` against the caller's arguments.
     /// - Parameter arguments: Values keyed by the input schema's property names.
     /// - Returns: The tool's formatted result.
@@ -157,20 +181,7 @@ public struct BayesTheoremTool: MCPToolHandler, Sendable {
 
         // Interpretation
         let change = posterior - prior
-        let changeDescription: String
-        if change > 0.20 {
-            changeDescription = "Substantial increase"
-        } else if change > 0.05 {
-            changeDescription = "Moderate increase"
-        } else if change > 0 {
-            changeDescription = "Slight increase"
-        } else if change > -0.05 {
-            changeDescription = "Slight decrease"
-        } else if change > -0.20 {
-            changeDescription = "Moderate decrease"
-        } else {
-            changeDescription = "Substantial decrease"
-        }
+        let changeDescription = Self.changeDescription(for: change)
 
         let output = """
         Bayes' Theorem Analysis: \(eventName) Given \(testName)

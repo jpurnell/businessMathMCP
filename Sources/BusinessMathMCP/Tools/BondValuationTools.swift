@@ -506,6 +506,9 @@ public struct CreditSpreadAnalysisTool: MCPToolHandler, Sendable {
         }
 
         let zScore = try args.getDouble("zScore")
+        guard zScore.isFinite else {
+            throw ToolError.invalidArguments("zScore must be a finite number")
+        }
         let maturityYears = try args.getDouble("maturityYears")
         let seniorityString = (args.getStringOptional("seniority")) ?? "seniorUnsecured"
         let riskFreeRate = (args.getDoubleOptional("riskFreeRate")) ?? 0.03

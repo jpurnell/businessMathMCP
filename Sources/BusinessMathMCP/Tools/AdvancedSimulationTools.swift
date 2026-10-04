@@ -373,13 +373,24 @@ public struct RunCorrelatedMonteCarloTool: MCPToolHandler, Sendable {
         return .success(text: output)
     }
 
-    private func getCorrelationInsights(names: [String], correlations: [[Double]]) -> String {
+    /// Describes each pair's correlation in words, one line per pair.
+    ///
+    /// - Parameters:
+    ///   - names: The input names, in matrix order.
+    ///   - correlations: The square correlation matrix.
+    /// - Returns: One bullet per distinct pair, joined by newlines.
+    func getCorrelationInsights(names: [String], correlations: [[Double]]) -> String {
         var insights: [String] = []
 
         for i in 0..<names.count {
             for j in (i+1)..<names.count {
                 let corr = correlations[i][j]
                 let strength = abs(corr)
+                // A NaN is neither strong nor weak, and neither positive nor negative.
+                guard strength.isFinite else {
+                    insights.append("• \(names[i]) ↔ \(names[j]): \(corr.digits(3)) (not a finite number - strength and direction undefined)")
+                    continue
+                }
                 let direction = corr >= 0 ? "positive" : "negative"
 
                 let strengthDesc: String

@@ -208,7 +208,10 @@ public struct DebtServiceCoverageRatioTool: MCPToolHandler, Sendable {
         let assessment: String
         let creditRating: String
 
-        if dscr >= 2.0 {
+        if !dscr.isFinite {
+            assessment = "Undefined - DSCR is not a finite number"
+            creditRating = "Not assessed"
+        } else if dscr >= 2.0 {
             assessment = "Excellent - Very strong ability to service debt"
             creditRating = "Very Low Risk"
         } else if dscr >= 1.5 {
@@ -337,7 +340,11 @@ public struct AltmanZScoreTool: MCPToolHandler, Sendable {
         let risk: String
         let recommendation: String
 
-        if zScore > 2.99 {
+        if !zScore.isFinite {
+            prediction = "Undefined - Z-Score is not a finite number"
+            risk = "Not assessed"
+            recommendation = "Check the inputs - a component ratio is not a finite number"
+        } else if zScore > 2.99 {
             prediction = "Safe Zone - Low bankruptcy risk"
             risk = "Low"
             recommendation = "Company appears financially healthy"

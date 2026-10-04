@@ -163,7 +163,9 @@ public struct OptionGreeksTool: MCPToolHandler, Sendable {
         // Calculate moneyness
         let moneyness = spotPrice / strikePrice
         let moneynessDesc: String
-        if moneyness > 1.05 {
+        if !moneyness.isFinite {
+            moneynessDesc = "Undefined"
+        } else if moneyness > 1.05 {
             moneynessDesc = "In-the-money (ITM)"
         } else if moneyness > 0.95 {
             moneynessDesc = "At-the-money (ATM)"
