@@ -106,7 +106,9 @@ public struct AssetTurnoverTool: MCPToolHandler, Sendable {
         let ratio: Double = try assetTurnover(netSales: netSales, averageTotalAssets: averageTotalAssets)
 
         let interpretation: String
-        if ratio >= 2.0 {
+        if !ratio.isFinite {
+            interpretation = "Not available - asset turnover is not a finite number for these inputs"
+        } else if ratio >= 2.0 {
             interpretation = "Excellent - Company efficiently converts assets into sales"
         } else if ratio >= 1.0 {
             interpretation = "Good - Healthy asset utilization"
@@ -197,7 +199,9 @@ public struct CurrentRatioTool: MCPToolHandler, Sendable {
         let ratio: Double = try currentRatio(currentAssets: currentAssets, currentLiabilities: currentLiabilities)
 
         let interpretation: String
-        if ratio >= 2.0 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the current ratio is not a finite number for these inputs"
+        } else if ratio >= 2.0 {
             interpretation = "Very Strong - Excellent liquidity cushion"
         } else if ratio >= 1.5 {
             interpretation = "Strong - Comfortable liquidity position"
@@ -298,7 +302,9 @@ public struct QuickRatioTool: MCPToolHandler, Sendable {
         let liquidAssets = currentAssets - inventory
 
         let interpretation: String
-        if ratio >= 1.5 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the quick ratio is not a finite number for these inputs"
+        } else if ratio >= 1.5 {
             interpretation = "Very Strong - Excellent immediate liquidity"
         } else if ratio >= 1.0 {
             interpretation = "Strong - Can meet obligations without selling inventory"
@@ -396,7 +402,9 @@ public struct DebtToEquityTool: MCPToolHandler, Sendable {
         let ratio: Double = try debtToEquity(totalLiabilities: totalLiabilities, shareholderEquity: shareholderEquity)
 
         let interpretation: String
-        if ratio < 0.5 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the debt to equity ratio is not a finite number for these inputs"
+        } else if ratio < 0.5 {
             interpretation = "Conservative - Low leverage, strong equity base"
         } else if ratio < 1.0 {
             interpretation = "Balanced - Healthy mix of debt and equity"
@@ -494,7 +502,9 @@ public struct InterestCoverageTool: MCPToolHandler, Sendable {
         let ratio: Double = try interestCoverage(earningsBeforeInterestAndTax: ebit, interestExpense: interestExpense)
 
         let interpretation: String
-        if ratio >= 5.0 {
+        if !ratio.isFinite {
+            interpretation = "Not available - interest coverage is not a finite number for these inputs"
+        } else if ratio >= 5.0 {
             interpretation = "Very Strong - Excellent debt service capacity"
         } else if ratio >= 3.0 {
             interpretation = "Strong - Comfortable interest coverage"
@@ -591,7 +601,9 @@ public struct InventoryTurnoverTool: MCPToolHandler, Sendable {
         let daysInventory = ratio > 0 ? 365.0 / ratio : 0
 
         let interpretation: String
-        if ratio >= 10.0 {
+        if !ratio.isFinite {
+            interpretation = "Not available - inventory turnover is not a finite number for these inputs"
+        } else if ratio >= 10.0 {
             interpretation = "Fast-Moving - Very efficient inventory management"
         } else if ratio >= 5.0 {
             interpretation = "Good - Healthy turnover rate"
@@ -685,7 +697,9 @@ public struct ProfitMarginTool: MCPToolHandler, Sendable {
         let margin: Double = try profitMargin(netIncome: netIncome, revenue: revenue)
 
         let interpretation: String
-        if margin >= 0.20 {
+        if !margin.isFinite {
+            interpretation = "Not available - the profit margin is not a finite number for these inputs"
+        } else if margin >= 0.20 {
             interpretation = "Excellent - High profitability"
         } else if margin >= 0.10 {
             interpretation = "Strong - Healthy profit margins"
@@ -782,7 +796,9 @@ public struct ROETool: MCPToolHandler, Sendable {
         let roeValue: Double = try roe(netIncome: netIncome, shareholderEquity: shareholderEquity)
 
         let interpretation: String
-        if roeValue >= 0.20 {
+        if !roeValue.isFinite {
+            interpretation = "Not available - ROE is not a finite number for these inputs"
+        } else if roeValue >= 0.20 {
             interpretation = "Excellent - High returns, strong shareholder value creation"
         } else if roeValue >= 0.15 {
             interpretation = "Strong - Above-average performance"
@@ -882,7 +898,9 @@ public struct ROITool: MCPToolHandler, Sendable {
         let percentReturn = roiValue - 1.0
 
         let interpretation: String
-        if roiValue >= 2.0 {
+        if !roiValue.isFinite {
+            interpretation = "Not available - ROI is not a finite number for these inputs"
+        } else if roiValue >= 2.0 {
             interpretation = "Excellent - Investment more than doubled"
         } else if roiValue >= 1.5 {
             interpretation = "Strong - Very good returns achieved"

@@ -616,7 +616,9 @@ public struct BudgetVsActualTool: MCPToolHandler, Sendable {
 
         let interpretation: String
         let absVariancePercent = abs(variancePercent)
-        if absVariancePercent < 0.05 {
+        if !absVariancePercent.isFinite {
+            interpretation = "Not available - the variance percentage is not a finite number for these inputs"
+        } else if absVariancePercent < 0.05 {
             interpretation = "Minimal variance - on track with budget"
         } else if absVariancePercent < 0.10 {
             interpretation = "Minor variance - acceptable deviation"

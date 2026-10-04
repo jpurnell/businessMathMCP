@@ -90,7 +90,9 @@ public struct ROATool: MCPToolHandler, Sendable {
         let roaValue: Double = netIncome / totalAssets
 
         let interpretation: String
-        if roaValue >= 0.10 {
+        if !roaValue.isFinite {
+            interpretation = "Not available - ROA is not a finite number for these inputs"
+        } else if roaValue >= 0.10 {
             interpretation = "Excellent - Very efficient asset utilization"
         } else if roaValue >= 0.05 {
             interpretation = "Good - Solid asset efficiency"
@@ -398,7 +400,9 @@ public struct CashRatioTool: MCPToolHandler, Sendable {
         let ratio = cash / currentLiabilities
 
         let interpretation: String
-        if ratio >= 0.5 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the cash ratio is not a finite number for these inputs"
+        } else if ratio >= 0.5 {
             interpretation = "Very Strong - Excellent immediate liquidity"
         } else if ratio >= 0.3 {
             interpretation = "Strong - Healthy cash reserves"
@@ -501,7 +505,9 @@ public struct DebtRatioTool: MCPToolHandler, Sendable {
         let equityRatio = 1.0 - ratio
 
         let interpretation: String
-        if ratio < 0.3 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the debt ratio is not a finite number for these inputs"
+        } else if ratio < 0.3 {
             interpretation = "Conservative - Low leverage, strong equity base"
         } else if ratio < 0.5 {
             interpretation = "Moderate - Balanced capital structure"
