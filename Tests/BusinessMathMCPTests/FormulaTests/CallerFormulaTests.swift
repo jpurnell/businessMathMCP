@@ -14,31 +14,31 @@ struct CallerFormulaTests {
     @Test("^ is power and / is floating-point")
     func operators() throws {
         let power = try CallerFormula("{0} ^ 2", argument: "formula", inputCount: 1)
-        #expect(try power.value(at: [3]) == 9)
+        #expect(try power.value(at: [3]).isEqual(to: 9))
 
         let division = try CallerFormula("{0} / 4", argument: "formula", inputCount: 1)
-        #expect(try division.value(at: [10]) == 2.5)
+        #expect(try division.value(at: [10]).isEqual(to: 2.5))
     }
 
     @Test("A negative value keeps the formula's meaning")
     func negativeValueIsNotPasted() throws {
         // Pasted as text, "-3.0 ^ 2" is -(3 ^ 2) = -9. Passed as a value, (-3) ^ 2 = 9.
         let formula = try CallerFormula("{0} ^ 2", argument: "formula", inputCount: 1)
-        #expect(try formula.value(at: [-3]) == 9)
+        #expect(try formula.value(at: [-3]).isEqual(to: 9))
     }
 
     @Test("x is a variable, and exp and max are still functions")
     func xBesideFunctionsThatContainX() throws {
         let formula = try CallerFormula("exp(x) + max(x, 1)", argument: "formula", names: ["x"])
-        #expect(try formula.value(at: [0]) == 2)
-        #expect(try formula.value(at: [3]) == Foundation.exp(3.0) + 3)
+        #expect(try formula.value(at: [0]).isEqual(to: 2))
+        #expect(try formula.value(at: [3]).isEqual(to: Foundation.exp(3.0) + 3))
     }
 
     @Test("An input is reachable by name and by position at once")
     func nameAndPosition() throws {
         let formula = try CallerFormula(
             "revenue - {1} + costs * 0", argument: "model", names: ["revenue", "costs"])
-        #expect(try formula.value(at: [100, 40]) == 60)
+        #expect(try formula.value(at: [100, 40]).isEqual(to: 60))
     }
 
     @Test("A name that is a substring of another is its own variable")
@@ -46,7 +46,7 @@ struct CallerFormulaTests {
         // Replaced as text, "rate" inside "rate_cap" was rewritten too.
         let formula = try CallerFormula(
             "rate_cap - rate", argument: "model", names: ["rate", "rate_cap"])
-        #expect(try formula.value(at: [0.25, 1]) == 0.75)
+        #expect(try formula.value(at: [0.25, 1]).isEqual(to: 0.75))
     }
 
     @Test("A name that is not an identifier is not bound, and its input is still {n}")
@@ -54,20 +54,20 @@ struct CallerFormulaTests {
         let formula = try CallerFormula(
             "{0} * 2", argument: "calculation", names: ["Sales Volume"])
         #expect(formula.names == [nil])
-        #expect(try formula.value(at: [21]) == 42)
+        #expect(try formula.value(at: [21]).isEqual(to: 42))
     }
 
     @Test("Of two inputs with one name, the first has it")
     func duplicateNames() throws {
         let formula = try CallerFormula("a + {1}", argument: "calculation", names: ["a", "a"])
         #expect(formula.names == ["a", nil])
-        #expect(try formula.value(at: [1, 10]) == 11)
+        #expect(try formula.value(at: [1, 10]).isEqual(to: 11))
     }
 
     @Test("pi and e are constants")
     func constants() throws {
         let formula = try CallerFormula("pi + e", argument: "formula")
-        #expect(try formula.value(at: []) == Double.pi + Foundation.exp(1.0))
+        #expect(try formula.value(at: []).isEqual(to: Double.pi + Foundation.exp(1.0)))
     }
 
     // MARK: - Checked once, up front
@@ -104,7 +104,7 @@ struct CallerFormulaTests {
         // The check evaluates at {0} = 1.5; this formula divides by zero exactly there and
         // nowhere else, which says nothing about the values the caller will run it with.
         let formula = try CallerFormula("1 / ({0} - 1.5)", argument: "formula", inputCount: 1)
-        #expect(try formula.value(at: [2]) == 2)
+        #expect(try formula.value(at: [2]).isEqual(to: 2))
     }
 
     // MARK: - A failure at a value
@@ -142,7 +142,7 @@ struct CallerFormulaTests {
     func recordedValueKeepsFirstFailure() throws {
         let formula = try CallerFormula("1 / x", argument: "formula", names: ["x"])
 
-        #expect(formula.recordedValue(at: [4]) == 0.25)
+        #expect(formula.recordedValue(at: [4]).isEqual(to: 0.25))
         #expect(throws: Never.self) { try formula.throwIfFailed() }
 
         #expect(formula.recordedValue(at: [0]).isNaN)

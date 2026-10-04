@@ -286,7 +286,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
                 constraints: constraints
             )
         } catch let error as OptimizationError {
-            return .error(message: """
+            throw ToolFailure("""
                 Optimization Failed
 
                 Could not find optimal portfolio allocation.

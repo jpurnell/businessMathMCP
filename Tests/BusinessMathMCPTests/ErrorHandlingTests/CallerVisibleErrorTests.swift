@@ -40,6 +40,12 @@ struct CallerVisibleErrorTests {
             == "Conversion failed: no periods")
     }
 
+    @Test("ToolFailure is returned exactly as the handler wrote it")
+    func toolFailure() {
+        #expect(ToolFailure("Failed to calculate XNPV: There must be one date for each cash flow.").callerMessage
+            == "Failed to calculate XNPV: There must be one date for each cash flow.")
+    }
+
     @Test("ResourceError repeats the URI that was asked for")
     func resourceError() {
         #expect(ResourceError.notFound("docs://nothing").callerMessage

@@ -22,6 +22,27 @@ import SwiftMCPServer
 
 // MARK: - This package's own errors
 
+/// A tool's own account, written for the caller, of why it produced no result.
+///
+/// Some tools answer a failure with more than the failure: what was being attempted, the
+/// likely reasons, what to try next. A handler says that by throwing this, with the whole
+/// message, from the `catch` that names the error type it expected. The error is not swallowed
+/// — it is replaced by a fuller one — and anything the `catch` did not name still propagates to
+/// the server's own disclosure.
+///
+/// Build the message only from text that was written for the caller: literals, the caller's own
+/// arguments, and another error's `callerMessage`. Never interpolate an arbitrary error.
+public struct ToolFailure: CallerVisibleError, Equatable, Sendable {
+    /// The message returned to the caller.
+    public let callerMessage: String
+
+    /// Creates a failure with the message to return.
+    /// - Parameter message: What the caller will read, exactly as written.
+    public init(_ message: String) {
+        self.callerMessage = message
+    }
+}
+
 extension MarshallingError: CallerVisibleError {
     /// What was wrong with the time series the caller sent.
     public var callerMessage: String { errorDescription ?? "The time series is not valid." }

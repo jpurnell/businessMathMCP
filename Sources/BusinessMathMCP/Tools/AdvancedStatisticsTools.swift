@@ -1116,7 +1116,7 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
         } catch let error as BusinessMathError {
             // If the formula is what failed, that is the answer, not "did not converge".
             try formula.throwIfFailed()
-            return .error(message: """
+            throw ToolFailure("""
                 Goal Seek Failed
 
                 Could not find a solution within \(maxIterations) iterations.

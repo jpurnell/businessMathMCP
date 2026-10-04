@@ -255,7 +255,7 @@ public struct IRRTool: MCPToolHandler, Sendable {
         } catch let error as BusinessMathError {
             // `irr` throws only this, and its text is about the cash flows. Anything else is
             // not the caller's to read and is left to the server's disclosure.
-            return .error(message: "Failed to calculate IRR: \(error.callerMessage). The cash flows may not have a valid IRR.")
+            throw ToolFailure("Failed to calculate IRR: \(error.callerMessage). The cash flows may not have a valid IRR.")
         }
     }
 }
@@ -631,7 +631,7 @@ public struct XNPVTool: MCPToolHandler, Sendable {
 
             return .success(text: result)
         } catch let error as XNPVError {
-            return .error(message: "Failed to calculate XNPV: \(error.callerMessage)")
+            throw ToolFailure("Failed to calculate XNPV: \(error.callerMessage)")
         }
     }
 }
@@ -765,7 +765,7 @@ public struct XIRRTool: MCPToolHandler, Sendable {
 
             return .success(text: result)
         } catch let error as XNPVError {
-            return .error(message: "Failed to calculate XIRR: \(error.callerMessage) The cash flows may not have a valid XIRR.")
+            throw ToolFailure("Failed to calculate XIRR: \(error.callerMessage) The cash flows may not have a valid XIRR.")
         }
     }
 }

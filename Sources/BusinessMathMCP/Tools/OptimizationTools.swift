@@ -145,7 +145,7 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
             // The solver stops on the first value it cannot use; if the formula is what
             // failed, that is the answer, not "did not converge".
             try expression.throwIfFailed()
-            return .error(message: """
+            throw ToolFailure("""
                 Newton-Raphson Failed
 
                 Could not find solution within \(maxIterations) iterations.
@@ -365,7 +365,7 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
         } catch let error as OptimizationError {
             // If the formula is what failed, that is the answer, not "did not converge".
             try expression.throwIfFailed()
-            return .error(message: """
+            throw ToolFailure("""
                 Gradient Descent Failed
 
                 Optimization did not converge within \(maxIterations) iterations.

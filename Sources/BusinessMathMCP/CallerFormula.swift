@@ -148,10 +148,13 @@ struct CallerFormula: Sendable {
     /// - Returns: The value, or `.nan` if the formula has none there. The first failure is kept
     ///   for ``throwIfFailed()``.
     func recordedValue(at inputs: [Double]) -> Double {
-        do {
-            return try value(at: inputs)
-        } catch {
-            recorder.record(error)
+        // The failure is kept as a value, to be thrown by `throwIfFailed()` once the caller is
+        // somewhere that can throw.
+        switch Result(catching: { () throws(FormulaFailure) -> Double in try value(at: inputs) }) {
+        case .success(let value):
+            return value
+        case .failure(let failure):
+            recorder.record(failure)
             return .nan
         }
     }

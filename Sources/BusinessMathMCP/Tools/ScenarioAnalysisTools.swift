@@ -289,7 +289,7 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
         } catch let error as any CallerVisibleError {
             // If the model is what failed, that is the answer.
             try formula.throwIfFailed()
-            return .error(message: """
+            throw ToolFailure("""
                 Scenario Analysis Failed
 
                 Could not complete scenario analysis.
