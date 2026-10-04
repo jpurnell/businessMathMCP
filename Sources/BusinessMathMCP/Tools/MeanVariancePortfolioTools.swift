@@ -285,8 +285,8 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
                 from: VectorN(Array(repeating: equalStartingWeight, count: n)),
                 constraints: constraints
             )
-        } catch {
-            return .error(message: """
+        } catch let error as OptimizationError {
+            throw ToolFailure("""
                 Optimization Failed
 
                 Could not find optimal portfolio allocation.
@@ -301,7 +301,7 @@ public struct MeanVariancePortfolioTool: MCPToolHandler, Sendable {
                 • Relax concentration limit
                 • Verify expected returns are reasonable
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
                 """)
         }
 

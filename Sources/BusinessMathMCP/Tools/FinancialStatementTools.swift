@@ -1054,12 +1054,20 @@ public struct ValidateFinancialStatementsTool: MCPToolHandler, Sendable {
                let netIncome = is_data["net_income"]?.value as? Double {
 
                 let netMargin = netIncome / revenue
-				checks.append("✅ Net margin: \(netMargin.percent(1))")
 
-                if netMargin < -0.50 {
-					warnings.append("⚠️ Very negative net margin (\(netMargin.percent(1)))")
-                } else if netMargin > 0.50 {
-					warnings.append("⚠️ Unusually high net margin (\(netMargin.percent(1)))")
+                // Zero revenue (0/0, or anything over zero) and an overflowing quotient
+                // are not margins. They are reported as such rather than as a passed
+                // check that the two range comparisons below then say nothing about.
+                if !netMargin.isFinite {
+                    warnings.append("⚠️ Net margin is not a finite number for these inputs (net income ÷ total revenue)")
+                } else {
+                    checks.append("✅ Net margin: \(netMargin.percent(1))")
+
+                    if netMargin < -0.50 {
+                        warnings.append("⚠️ Very negative net margin (\(netMargin.percent(1)))")
+                    } else if netMargin > 0.50 {
+                        warnings.append("⚠️ Unusually high net margin (\(netMargin.percent(1)))")
+                    }
                 }
             }
         }

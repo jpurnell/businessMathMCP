@@ -40,14 +40,14 @@ Sources/BusinessMathMCPServer/
 └── main.swift             # builder invocation only
 ```
 
-57 source files, 26 test files (291 cases).
+60 source files, 34 test files (470 cases in 50 suites) as of 2026-10-04.
 
 ### Dependencies
 
 | Package | Role |
 |---|---|
 | `BusinessMath` | the computation being served |
-| [`SwiftMCPServer`](../../../Tools/SwiftMCPServer/project/master_plan.md) | transport, auth, session management |
+| [`SwiftMCPServer`](../../../Tools/SwiftMCPServer/project/master_plan.md) 5.x | transport, auth, session management, the formula evaluator, and the rule for what an error may tell a caller |
 | `swift-sdk` (fork, 0.11.x) | MCP protocol — 2025-11-25 spec |
 | `swift-numerics` | shared numeric support |
 | `swift-docc-plugin` | documentation |
@@ -56,6 +56,13 @@ The server is assembled declaratively: `main.swift` is a single
 `MCPServer.builder()` chain supplying a name, instructions, `allToolHandlers()`,
 a `ResourceProvider` and a `PromptProvider`. No transport, framing, or
 authentication code lives here.
+
+Two files sit between the tools and SwiftMCPServer 5.x (added 2026-10-04):
+
+| File | What it is |
+|---|---|
+| `CallerFormula.swift` | A formula from a tool argument: checked once, evaluated with values passed as values, and able to fail a run from inside a callback that cannot throw. Every formula tool goes through it |
+| `CallerVisibleErrors.swift` | The `CallerVisibleError` conformances — which error types may say their piece to a caller, and the sentence for each case BusinessMath left without one |
 
 > **Correction (2026-08-05).** This section previously stated that `Package.swift`
 > "declares no external package dependencies" and raised adopting `SwiftMCPServer`
@@ -74,6 +81,18 @@ authentication code lives here.
 - [x] Quality gate at **0 errors / 0 warnings**, no overrides (2026-09-01) — from
       111 / 1,206, with 291 tests green.
 - [x] Documentation coverage 5% → 89% — ~800 declarations documented
+- [x] **SwiftMCPServer 5.0.0** (2026-10-04, server version 3.0.0): loopback bind by default
+      with `--host 0.0.0.0` in `scripts/deploy.sh`; formulas through the bounded parser
+      (`^` is power, `/` is floating-point — results change); eighteen BusinessMath error
+      types conformed to `CallerVisibleError`; no handler interpolates an arbitrary error.
+      470 tests green. **Not deployed, not tagged.** Any launch configuration outside this
+      repository (the systemd unit on the dev server, whatever starts production if it is not
+      `deploy.sh`) still needs `--host 0.0.0.0` before it runs a 5.0.0 build.
+- [x] Quality gate back to **0 errors / 0 warnings**, no overrides (2026-10-04). The gate
+      had gained `fallback`, `temporal-determinism` and a stricter `logging` rule since
+      2026-09-01, and `main` stood at 19 errors / 64 warnings: nineteen `Int(Double)` traps
+      on caller-supplied numbers, forty-six classification chains that sorted a NaN into a
+      category, nine `Calendar.current` sites, eight `catch` blocks.
 - [ ] Open items after the releases — see
       [CURRENT_OpenAfterTheReleases.md](checklists/CURRENT_OpenAfterTheReleases.md).
       The one that matters: **this package is public and depends on the private
@@ -100,6 +119,13 @@ authentication code lives here.
    without ever running its tool. That pattern — a `catch` that accepts any outcome —
    is what to grep for next; the `test-quality` checker now catches assertion-free tests
    but not tests that assert nothing meaningful.
+   *2026-10-04: two more, found the same way.* `run_scenario_analysis` refused every call
+   that arrived as JSON (a cast that never matched), and no test had called it. And
+   `SchemaSmokeTests` — which accepts any outcome by design — had been pricing a
+   100,000-year bond, and took 903.5 seconds on `main` to do it; it passed, so nothing said
+   so. The bond tools now refuse a maturity beyond 100 years and the whole suite takes ten
+   seconds. Why two bond tools became that slow was not investigated. What the smoke suite still
+   cannot tell anyone is whether a tool's answer is right.
 3. **Scope.** Still open, and still the right question: which of the 187+ tools are
    actually called, and whether the long tail earns its maintenance.
 
@@ -112,7 +138,12 @@ ambiguous will be called wrongly with confident-looking results.
 
 ## Roadmap
 
-**[NEEDS INPUT]** — beyond the priorities above, no committed roadmap. One candidate
+**[NEEDS INPUT]** — beyond the priorities above, no committed roadmap. Candidates recorded
+2026-10-04, all found while tracing which errors reach a caller and none fixed there:
+`optimize_portfolio` indexes `returnsData[0]` when `returns` and `assets` are both
+empty; `test_stationarity` with `lag: 0` may reach a `1...0` range in BusinessMath's ADF;
+and the fourteen error types given sentences in `CallerVisibleErrors.swift` would be
+better given an `errorDescription` in BusinessMath itself. One candidate
 recorded 2026-09-01: reconcile the `PeriodJSON` quarterly contract. Schema descriptions
 and tool examples document a `quarter` key, but `toPeriod` reads `month` and derives the
 quarter from it. Callers following the documentation are silently wrong; the tests now
@@ -120,6 +151,10 @@ encode the decoder's actual behaviour rather than the documented one.
 
 ---
 
-**Last Updated:** 2026-09-01 — reconciled Current Status against the quality-gate
-sweep: recorded the 0/2 state and doc coverage, added the dependency-pinning checklist,
-corrected the "no known defect" claim, and rewrote Priorities around what the sweep found.
+**Last Updated:** 2026-10-04 — reconciled against the SwiftMCPServer 5.0.0 migration:
+file and test counts, the dependency table, the two new files between the tools and the
+framework, a Current Status entry that says what is and is not deployed, two more
+"unexercised tool" findings under Priorities, and three roadmap candidates. Previously
+2026-09-01 — reconciled Current Status against the quality-gate sweep: recorded the 0/2 state
+and doc coverage, added the dependency-pinning checklist, corrected the "no known defect"
+claim, and rewrote Priorities around what the sweep found.

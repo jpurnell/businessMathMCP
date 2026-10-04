@@ -970,14 +970,6 @@ public struct WeightedAverageTool: MCPToolHandler, Sendable {
 
 // MARK: - Tool 12: Goal Seek
 
-/// Evaluate a simple calculation string with an input value
-private func evaluateCalculation(_ calculation: String, with input: Double) -> Double {
-    let formula = calculation.replacingOccurrences(of: "{0}", with: "\(input)")
-
-    // Use cross-platform expression evaluator
-    return ExpressionEvaluator.evaluate(formula)
-}
-
 /// Find the input value that produces a target output using root-finding.
 ///
 /// Exposed to clients as the `goal_seek` tool.
@@ -1041,11 +1033,13 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
                 "calculation": MCPSchemaProperty(
                     type: "string",
                     description: """
-                    Formula using {0} for the variable to find.
+                    Formula using {0} or x for the variable to find.
                     Examples:
                     • "{0} * 1.15 - 600000" - revenue with 15% growth minus costs
                     • "({0} - 50) * 10000" - (price - cost) × quantity
-                    • "{0} * {0} + 2 * {0}" - polynomial expressions
+                    • "x ^ 2 + 2 * x" - polynomial expressions
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "target": MCPSchemaProperty(
@@ -1092,11 +1086,21 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
         let maxIterations = args.getIntOptional("maxIterations") ?? 1000
         let description = args.getStringOptional("description")
 
+        // The solver iterates over `0..<maxIterations`, which traps if the bound is negative.
+        guard maxIterations > 0 else {
+            throw ToolError.invalidArguments("maxIterations must be greater than zero")
+        }
+
+        // Check the formula before the solver sees it, then at the caller's own starting
+        // point: a formula with no value there cannot be solved from there.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: ["x"])
+        _ = try formula.value(at: [initialGuess])
+
         // Define the function: f(x) = calculation(x) - target
-        // We want to find x where f(x) = 0
+        // We want to find x where f(x) = 0. The solver's callback cannot throw, so a failure
+        // is recorded and reported once the solver stops.
         let function: @Sendable (Double) -> Double = { input in
-            let result = evaluateCalculation(calculation, with: input)
-            return result - target
+            formula.recordedValue(at: [input]) - target
         }
 
         // Use goalSeek to find the solution
@@ -1109,8 +1113,10 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
                 tolerance: tolerance,
                 maxIterations: maxIterations
             )
-        } catch {
-            return .error(message: """
+        } catch let error as BusinessMathError {
+            // If the formula is what failed, that is the answer, not "did not converge".
+            try formula.throwIfFailed()
+            throw ToolFailure("""
                 Goal Seek Failed
 
                 Could not find a solution within \(maxIterations) iterations.
@@ -1126,12 +1132,16 @@ public struct GoalSeekTool: MCPToolHandler, Sendable {
                 • Check if target is achievable
                 • Simplify the calculation formula
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
                 """)
+        } catch {
+            try formula.throwIfFailed()
+            throw error
         }
+        try formula.throwIfFailed()
 
         // Verify the solution
-        let actualOutput = evaluateCalculation(calculation, with: solution)
+        let actualOutput = try formula.value(at: [solution])
         let error = abs(actualOutput - target)
         let errorPercent = target != 0 ? (error / abs(target)) * 100 : 0
 

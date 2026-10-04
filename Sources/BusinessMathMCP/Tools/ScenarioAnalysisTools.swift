@@ -37,24 +37,24 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
         **Example: Three-scenario business model**
         ```json
         {
-          "inputNames": ["Sales Volume", "Unit Price", "Cost Margin"],
+          "inputNames": ["volume", "price", "margin"],
           "model": "volume * price * (1 - margin)",
           "iterations": 5000,
           "scenarios": [
             {
               "name": "Base Case",
               "inputs": {
-                "Sales Volume": {"distribution": {"type": "normal", "mean": 50000, "stdDev": 2500}},
-                "Unit Price": {"distribution": {"type": "normal", "mean": 25.0, "stdDev": 1.0}},
-                "Cost Margin": {"value": 0.45}
+                "volume": {"distribution": {"type": "normal", "mean": 50000, "stdDev": 2500}},
+                "price": {"distribution": {"type": "normal", "mean": 25.0, "stdDev": 1.0}},
+                "margin": {"value": 0.45}
               }
             },
             {
               "name": "Recession",
               "inputs": {
-                "Sales Volume": {"distribution": {"type": "normal", "mean": 35000, "stdDev": 5000}},
-                "Unit Price": {"distribution": {"type": "normal", "mean": 22.0, "stdDev": 2.0}},
-                "Cost Margin": {"distribution": {"type": "normal", "mean": 0.50, "stdDev": 0.03}}
+                "volume": {"distribution": {"type": "normal", "mean": 35000, "stdDev": 5000}},
+                "price": {"distribution": {"type": "normal", "mean": 22.0, "stdDev": 2.0}},
+                "margin": {"distribution": {"type": "normal", "mean": 0.50, "stdDev": 0.03}}
               }
             }
           ],
@@ -77,7 +77,8 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
                     type: "array",
                     description: """
                     Names of all input variables (order matters for model evaluation).
-                    Example: ["Revenue", "Costs", "Growth Rate"]
+                    The model refers to inputs by these names. Each name must be an identifier: a letter or underscore, then letters, digits and underscores. No spaces, and no name twice.
+                    Example: ["revenue", "costs", "growth_rate"]
                     """,
                     items: MCPSchemaItems(type: "string")
                 ),
@@ -85,14 +86,13 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
                     type: "string",
                     description: """
                     Model expression using input variables.
-                    Can reference inputs by name or by index (inputs[0], inputs[1], etc.).
+                    Can reference inputs by name, or by position as {0}, {1}, … (inputs[0], inputs[1], … is accepted as another spelling of the same thing).
                     Examples:
                     - "revenue - costs"
                     - "volume * price * (1 - margin)"
-                    - "inputs[0] * (1 + inputs[1]) - inputs[2]"
+                    - "{0} * (1 + {1}) - {2}"
 
-                    Supported operators: +, -, *, /, (, )
-                    Supported functions: sqrt, pow, exp, log
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "iterations": MCPSchemaProperty(
@@ -189,8 +189,26 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
             }
         }
 
-        // Create model function from expression
-        let model = try createModelFromExpression(modelExpression, inputNames: inputNames)
+        // The model refers to inputs by name, so every name has to be one a formula can
+        // contain, and has to mean one input.
+        for (index, name) in inputNames.enumerated() {
+            guard CallerFormula.isIdentifier(name) else {
+                throw ToolError.invalidArguments(
+                    "inputNames[\(index)] '\(name)' is not a valid variable name. A name must start with a letter or underscore and contain only letters, digits and underscores (for example 'sales_volume').")
+            }
+        }
+        guard Set(inputNames).count == inputNames.count else {
+            throw ToolError.invalidArguments("inputNames must not repeat a name")
+        }
+
+        // Check the model before any scenario runs. The model callback cannot throw, so a
+        // failure is recorded and the analysis fails with it.
+        let formula = try CallerFormula(
+            CallerFormula.replacingIndexedInputs(in: modelExpression),
+            argument: "model", names: inputNames)
+        let model: @Sendable ([Double]) -> Double = { inputs in
+            formula.recordedValue(at: inputs)
+        }
 
         // Create scenario analysis
         var analysis = ScenarioAnalysis(
@@ -268,20 +286,25 @@ public struct ScenarioAnalysisTool: MCPToolHandler, Sendable {
         let results: [String: SimulationResults]
         do {
             results = try analysis.run()
-        } catch {
-            return .error(message: """
+        } catch let error as any CallerVisibleError {
+            // If the model is what failed, that is the answer.
+            try formula.throwIfFailed()
+            throw ToolFailure("""
                 Scenario Analysis Failed
 
                 Could not complete scenario analysis.
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
 
                 Common issues:
                 • Scenario missing configuration for one or more inputs
-                • Invalid model expression
                 • Distribution parameters out of valid range
                 """)
+        } catch {
+            try formula.throwIfFailed()
+            throw error
         }
+        try formula.throwIfFailed()
 
         // Generate output
         let comparison = ScenarioComparison(results: results)
@@ -478,51 +501,6 @@ private func extractDouble(_ value: AnyCodable?) -> Double? {
         return Double(i)
     }
     return nil
-}
-
-/// Create a model function from a simple expression
-/// Supports basic arithmetic and variable references
-private func createModelFromExpression(
-    _ expression: String,
-    inputNames: [String]
-) throws -> @Sendable ([Double]) -> Double {
-    // Simple expression evaluator
-    // For now, create a closure that evaluates the expression
-
-    // This is a simplified implementation
-    // A full implementation would use proper expression parsing
-
-    let trimmed = expression.trimmingCharacters(in: .whitespaces)
-
-    // Create the model function
-    return { inputs in
-        // Replace input names with actual values
-        var expr = trimmed
-        for (index, name) in inputNames.enumerated() {
-            let value = inputs[index]
-            expr = expr.replacingOccurrences(of: name, with: "\(value)")
-        }
-
-        // Also support inputs[i] notation
-        for (index, value) in inputs.enumerated() {
-            expr = expr.replacingOccurrences(of: "inputs[\(index)]", with: "\(value)")
-        }
-
-        // Evaluate the expression (simplified)
-        // In a real implementation, use NSExpression or a proper parser
-        let result = evaluateExpression(expr)
-        return result
-    }
-}
-
-/// Simple expression evaluator
-/// Uses cross-platform ExpressionEvaluator (NSExpression on macOS, basic parser on Linux)
-private func evaluateExpression(_ expr: String) -> Double {
-    // Remove whitespace
-    let cleaned = expr.replacingOccurrences(of: " ", with: "")
-
-    // Use cross-platform expression evaluator
-    return ExpressionEvaluator.evaluate(cleaned)
 }
 
 // MARK: - Tool Registration

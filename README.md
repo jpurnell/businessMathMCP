@@ -35,8 +35,9 @@ dependencies: [
 # 1. Generate an API key
 businessmath-mcp-server --generate-key --name "Claude Code"
 
-# 2. Start the server
-businessmath-mcp-server --http 8080
+# 2. Start the server. --host 0.0.0.0 lets other machines connect; without it the
+#    server listens on 127.0.0.1 only.
+businessmath-mcp-server --http 8080 --host 0.0.0.0
 
 # 3. Add to Claude Code (on client machine)
 claude mcp add --transport http businessmath http://<server-ip>:8080 \
@@ -53,9 +54,17 @@ See [ClaudeCodeSetupGuide.md](ClaudeCodeSetupGuide.md) for detailed instructions
 # Stdio transport (default)
 swift run businessmath-mcp-server
 
-# HTTP transport with API key authentication
+# HTTP transport with API key authentication, on this machine only (127.0.0.1)
 businessmath-mcp-server --http 8080
+
+# The same, reachable from other machines
+businessmath-mcp-server --http 8080 --host 0.0.0.0
 ```
+
+> **The server listens on `127.0.0.1` unless told otherwise** (SwiftMCPServer 5.0.0). Started
+> with `--http 8080` alone it is reachable only from the machine it runs on. To accept
+> connections from other machines — a remote client, a container's published port — add
+> `--host 0.0.0.0`. Behind a reverse proxy on the same machine, leave it on loopback.
 
 ### Key Management
 

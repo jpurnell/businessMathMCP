@@ -86,7 +86,9 @@ public struct DaysInventoryOutstandingTool: MCPToolHandler, Sendable {
         let dio = (avgInventory / cogs) * 365.0
 
         let interpretation: String
-        if dio < 30 {
+        if !dio.isFinite {
+            interpretation = "Not available - DIO is not a finite number for these inputs"
+        } else if dio < 30 {
             interpretation = "Very Fast - Excellent inventory turnover"
         } else if dio < 60 {
             interpretation = "Fast - Good inventory management"
@@ -185,7 +187,9 @@ public struct DaysSalesOutstandingTool: MCPToolHandler, Sendable {
         let dso = (avgReceivables / sales) * 365.0
 
         let interpretation: String
-        if dso < 30 {
+        if !dso.isFinite {
+            interpretation = "Not available - DSO is not a finite number for these inputs"
+        } else if dso < 30 {
             interpretation = "Excellent - Very fast collections, strong credit management"
         } else if dso < 45 {
             interpretation = "Good - Healthy collection period, typical net 30 terms"
@@ -284,7 +288,9 @@ public struct DaysPayableOutstandingTool: MCPToolHandler, Sendable {
         let dpo = (avgPayables / cogs) * 365.0
 
         let interpretation: String
-        if dpo > 60 {
+        if !dpo.isFinite {
+            interpretation = "Not available - DPO is not a finite number for these inputs"
+        } else if dpo > 60 {
             interpretation = "Extended - Good cash preservation, but monitor supplier relationships"
         } else if dpo > 45 {
             interpretation = "Moderate - Standard payment terms, balanced approach"

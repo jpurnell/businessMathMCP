@@ -128,6 +128,9 @@ public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
         let numberOfParticles = args.getIntOptional("numberOfParticles") ?? min(40, max(20, dimensions * 10))
         let maxIterations = args.getIntOptional("maxIterations") ?? 100
         let inertiaWeight = args.getDoubleOptional("inertiaWeight") ?? 0.7
+        guard inertiaWeight.isFinite else {
+            throw ToolError.invalidArguments("inertiaWeight must be a finite number")
+        }
         let cognitiveWeight = args.getDoubleOptional("cognitiveWeight") ?? 1.5
         let socialWeight = args.getDoubleOptional("socialWeight") ?? 1.5
         let topology = args.getStringOptional("topology") ?? "global"
@@ -391,6 +394,9 @@ public struct ParticleSwarmOptimizeTool: MCPToolHandler, Sendable {
     // MARK: - Helper Functions
 
     private func explainInertia(_ w: Double) -> String {
+        // Every comparison with a NaN is false, so without this a weight that is not a
+        // number would be described as "Balanced".
+        guard w.isFinite else { return "← not a finite number" }
         if w > 0.8 {
             return "← High exploration (particles keep moving)"
         } else if w < 0.5 {
@@ -679,8 +685,16 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         let populationSize = args.getIntOptional("populationSize") ?? max(50, dimensions * 5)
         let generations = args.getIntOptional("generations") ?? 100
         let crossoverRate = args.getDoubleOptional("crossoverRate") ?? 0.8
+        guard crossoverRate.isFinite, crossoverRate >= 0, crossoverRate <= 1 else {
+            throw ToolError.invalidArguments("crossoverRate must be a probability from 0 to 1")
+        }
+        // Truncated, as the guide has always shown it. Bounded by the guard above.
+        let crossoverPercent = Int(crossoverRate * 100)
         let defaultMutationRate = dimensions > 0 ? 1.0 / Double(dimensions) : 0.01
         let mutationRate = args.getDoubleOptional("mutationRate") ?? defaultMutationRate
+        guard mutationRate.isFinite, mutationRate >= 0, mutationRate <= 1 else {
+            throw ToolError.invalidArguments("mutationRate must be a probability from 0 to 1")
+        }
         let elitismCount = args.getIntOptional("elitismCount") ?? 2
         let selectionMethod = args.getStringOptional("selectionMethod") ?? "tournament"
         let tournamentSize = args.getIntOptional("tournamentSize") ?? 3
@@ -700,7 +714,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
         - Generations: \(generations)
 
         **Evolutionary Parameters:**
-        - Crossover rate: \(crossoverRate.digits(2)) (\(Int(crossoverRate * 100))% of offspring via recombination)
+        - Crossover rate: \(crossoverRate.digits(2)) (\(crossoverPercent)% of offspring via recombination)
         - Mutation rate: \(mutationRate.digits(4)) (\((mutationRate * 100).digits(2))% chance per gene)
         - Elitism: Keep best \(elitismCount) individuals
         - Selection: \(selectionMethod)\(selectionMethod == "tournament" ? " (size \(tournamentSize))" : "")
@@ -717,7 +731,7 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
            Select parents based on fitness:
            \(getSelectionExplanation(method: selectionMethod, tournamentSize: tournamentSize))
 
-        3. CROSSOVER (\(Int(crossoverRate * 100))% probability)
+        3. CROSSOVER (\(crossoverPercent)% probability)
            Combine two parents to create offspring:
            \(getCrossoverExplanation(encoding: encoding))
 
@@ -1318,12 +1332,17 @@ public struct GeneticAlgorithmOptimizeTool: MCPToolHandler, Sendable {
             }
         }
 
+        // A count shown to the reader, never used as one: it stays a Double, rounded toward
+        // zero as `Int(_:)` rounded it, because rate × dimensions × 100 is past `Int.max`
+        // for a problem large enough and converting it stopped the process.
+        let mutationsPerGeneration = (mutationRate * Double(dimensions) * 100).rounded(.towardZero)
+
         guidance += """
 
 
         **Mutation Impact:**
         - Expected mutations per child: \((mutationRate * Double(dimensions)).digits(1))
-        - With population \(100), expect ~\(Int(mutationRate * Double(dimensions) * 100)) mutations per generation
+        - With population \(100), expect ~\(mutationsPerGeneration.digits(0)) mutations per generation
         """
 
         return guidance

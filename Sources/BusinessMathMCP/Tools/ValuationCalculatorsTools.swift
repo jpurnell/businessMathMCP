@@ -372,7 +372,9 @@ public struct PriceToBookTool: MCPToolHandler, Sendable {
         let pb = price / bvps
 
         let interpretation: String
-        if pb < 1.0 {
+        if !pb.isFinite {
+            interpretation = "Not available - the P/B ratio is not a finite number for these inputs"
+        } else if pb < 1.0 {
             interpretation = "Below Book - Trading at discount to net assets"
         } else if pb < 3.0 {
             interpretation = "Moderate - Reasonable premium to book value"
@@ -465,7 +467,9 @@ public struct PriceToSalesTool: MCPToolHandler, Sendable {
         let ps = marketCap / revenue
 
         let interpretation: String
-        if ps < 1.0 {
+        if !ps.isFinite {
+            interpretation = "Not available - the P/S ratio is not a finite number for these inputs"
+        } else if ps < 1.0 {
             interpretation = "Low - Potentially undervalued relative to sales"
         } else if ps < 2.0 {
             interpretation = "Moderate - Reasonable valuation"
@@ -837,7 +841,9 @@ public struct EVToSalesTool: MCPToolHandler, Sendable {
         let ratio = ev / revenue
 
         let interpretation: String
-        if ratio < 1.0 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the EV/Sales ratio is not a finite number for these inputs"
+        } else if ratio < 1.0 {
             interpretation = "Low - Potentially undervalued"
         } else if ratio < 2.0 {
             interpretation = "Moderate - Fair valuation"
@@ -1021,7 +1027,9 @@ public struct DebtToAssetsTool: MCPToolHandler, Sendable {
         let ratio = debt / assets
 
         let interpretation: String
-        if ratio < 0.30 {
+        if !ratio.isFinite {
+            interpretation = "Not available - the debt-to-assets ratio is not a finite number for these inputs"
+        } else if ratio < 0.30 {
             interpretation = "Conservative - Low financial risk"
         } else if ratio < 0.50 {
             interpretation = "Moderate - Balanced leverage"

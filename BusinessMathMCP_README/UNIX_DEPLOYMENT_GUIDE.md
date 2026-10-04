@@ -334,11 +334,12 @@ User=businessmath
 Group=businessmath
 WorkingDirectory=/var/lib/businessmath
 
-# Run in HTTP mode on port 8080
+# Run in HTTP mode on port 8080. The server binds 127.0.0.1 unless --host says otherwise
+# (SwiftMCPServer 5.0.0), which is right behind a reverse proxy on this machine.
 ExecStart=/usr/local/bin/businessmath-mcp-server --http 8080
 
-# Bind to specific interface (recommended)
-# ExecStart=/usr/local/bin/businessmath-mcp-server --http 8080 --host 127.0.0.1
+# To accept connections from other machines directly, bind every interface instead:
+# ExecStart=/usr/local/bin/businessmath-mcp-server --http 8080 --host 0.0.0.0
 
 Restart=on-failure
 RestartSec=5s

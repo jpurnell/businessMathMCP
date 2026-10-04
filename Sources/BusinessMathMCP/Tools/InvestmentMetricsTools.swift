@@ -145,7 +145,10 @@ public struct ProfitabilityIndexTool: MCPToolHandler, Sendable {
         let decision: String
         let interpretation: String
 
-        if pi > 1.20 {
+        if !pi.isFinite {
+            decision = "Undefined"
+            interpretation = "Profitability index is not a finite number - no decision can be drawn from it"
+        } else if pi > 1.20 {
             decision = "Strong Accept"
             interpretation = "Excellent investment - generates significant value per dollar invested"
         } else if pi > 1.0 {
@@ -694,17 +697,13 @@ public struct MIRRTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Need at least 2 cash flows")
         }
 
-        // Calculate MIRR
-        let mirrValue: Double
-        do {
-            mirrValue = try mirr(
-                cashFlows: cashFlows,
-                financeRate: financeRate,
-                reinvestmentRate: reinvestmentRate
-            )
-        } catch {
-			throw ToolError.executionFailed("calculate_mirr", "MIRR calculation failed: \(error.localizedDescription)")
-        }
+        // Calculate MIRR. What `mirr` throws is BusinessMath's own account of what is wrong
+        // with the cash flows, and reaches the caller as written.
+        let mirrValue = try mirr(
+            cashFlows: cashFlows,
+            financeRate: financeRate,
+            reinvestmentRate: reinvestmentRate
+        )
 
         // Calculate IRR for comparison. IRR is supplementary here — MIRR is the answer the
         // caller asked for — so a failure must not fail the whole call. `Result` keeps the
@@ -758,7 +757,9 @@ public struct MIRRTool: MCPToolHandler, Sendable {
         if let irr = irrValue {
             let difference = mirrValue - irr
             let explanation: String
-            if difference < -0.02 {
+            if !difference.isFinite {
+                explanation = "MIRR and IRR cannot be compared - the difference is not a finite number"
+            } else if difference < -0.02 {
                 explanation = "MIRR is significantly lower - IRR likely overstates realistic returns"
             } else if difference < 0 {
                 explanation = "MIRR is slightly lower - more conservative estimate"
@@ -780,8 +781,8 @@ public struct MIRRTool: MCPToolHandler, Sendable {
             // The old text asserted "unusual cash flows" without having checked; IRR also
             // fails on fewer than two flows and on non-convergence. Report what happened.
             let reason: String
-            if case .failure(let error) = irrOutcome {
-                reason = "\(error)"
+            if case .failure(let error as BusinessMathError) = irrOutcome {
+                reason = error.callerMessage
             } else {
                 reason = "no solution for these cash flows"
             }

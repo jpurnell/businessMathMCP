@@ -378,6 +378,11 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
         // Parse parameters
         let hazardRate = try args.getDouble("hazardRate")
         let timeHorizon = (args.getDoubleOptional("timeHorizon")) ?? 5.0
+        guard timeHorizon.isFinite, timeHorizon >= 0, timeHorizon <= 100 else {
+            throw ToolError.invalidArguments("timeHorizon must be a number of years from 0 to 100")
+        }
+        // The whole years the key metrics are labelled with. Bounded by the guard above.
+        let horizonYears = Int(timeHorizon)
         let spreadBps = args.getDoubleOptional("creditSpread")
         let recoveryRate = (args.getDoubleOptional("recoveryRate")) ?? 0.40
 
@@ -385,15 +390,16 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
         let model = ConstantHazardRate(hazardRate: hazardRate)
 
         // Calculate probabilities at various horizons
-        let horizons = [1.0, 3.0, 5.0, 7.0, 10.0]
+        let horizons = [1, 3, 5, 7, 10]
         var survivalTable = "| Horizon | Survival | Default | Density |\n"
         survivalTable += "|---------|----------|---------|----------|\n"
 
-        for t in horizons {
+        for years in horizons {
+            let t = Double(years)
             let survival = model.survivalProbability(time: t)
             let defaultProb = model.defaultProbability(time: t)
             let density = model.defaultDensity(time: t)
-            survivalTable += "| \(Int(t))Y | \(survival.percent()) | \(defaultProb.percent()) | \(formatNumber(density * 100, decimals: 3))% |\n"
+            survivalTable += "| \(years)Y | \(survival.percent()) | \(defaultProb.percent()) | \(formatNumber(density * 100, decimals: 3))% |\n"
         }
 
         // Calculate implied spread if requested
@@ -428,9 +434,9 @@ public struct HazardRateAnalysisTool: MCPToolHandler, Sendable {
         \(survivalTable)
 
         **Key Metrics:**
-        - \(Int(timeHorizon))Y Survival: \((model.survivalProbability(time: timeHorizon)).percent())
-        - \(Int(timeHorizon))Y Default: \((model.defaultProbability(time: timeHorizon)).percent())
-        - Expected Loss (\(Int(timeHorizon))Y): \((model.defaultProbability(time: timeHorizon) * (1 - recoveryRate)).percent())
+        - \(horizonYears)Y Survival: \((model.survivalProbability(time: timeHorizon)).percent())
+        - \(horizonYears)Y Default: \((model.defaultProbability(time: timeHorizon)).percent())
+        - Expected Loss (\(horizonYears)Y): \((model.defaultProbability(time: timeHorizon) * (1 - recoveryRate)).percent())
         \(spreadAnalysis)
 
         **Interpretation:**

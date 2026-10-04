@@ -144,6 +144,74 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
     /// Creates the `calculate_saas_metrics` handler.
     public init() {}
 
+    /// The benchmark lines for whichever of the four headline SaaS ratios could be computed.
+    ///
+    /// A ratio that is `nil` was not computable from the arguments and gets no line.
+    /// - Parameters:
+    ///   - netRevenueRetention: NRR as a fraction (1.0 is 100%).
+    ///   - ltvToCACRatio: Lifetime value divided by customer acquisition cost.
+    ///   - customerChurnRate: Customers lost as a fraction of the starting count.
+    ///   - magicNumber: Net new ARR divided by sales and marketing spend.
+    /// - Returns: One line per ratio present, in the order of the parameters.
+    static func benchmarks(
+        netRevenueRetention: Double?,
+        ltvToCACRatio: Double?,
+        customerChurnRate: Double?,
+        magicNumber: Double?
+    ) -> [String] {
+        var benchmarks: [String] = []
+
+        if let nrr = netRevenueRetention {
+            if !nrr.isFinite {
+                benchmarks.append("⚠️ NRR: not a finite number for these inputs")
+            } else if nrr > 1.0 {
+                benchmarks.append("✅ NRR > 100%: Excellent retention with expansion")
+            } else if nrr > 0.90 {
+                benchmarks.append("⚠️ NRR 90-100%: Good but limited expansion")
+            } else {
+                benchmarks.append("❌ NRR < 90%: Retention concerns")
+            }
+        }
+
+        if let ratio = ltvToCACRatio {
+            if !ratio.isFinite {
+                benchmarks.append("⚠️ LTV:CAC: not a finite number for these inputs")
+            } else if ratio > 3.0 {
+                benchmarks.append("✅ LTV:CAC > 3×: Healthy unit economics")
+            } else if ratio > 1.5 {
+                benchmarks.append("⚠️ LTV:CAC 1.5-3×: Marginal unit economics")
+            } else {
+                benchmarks.append("❌ LTV:CAC < 1.5×: Unit economics not sustainable")
+            }
+        }
+
+        if let churn = customerChurnRate {
+            if !churn.isFinite {
+                benchmarks.append("⚠️ Churn: not a finite number for these inputs")
+            } else if churn < 0.05 {
+                benchmarks.append("✅ Churn < 5%: Excellent retention")
+            } else if churn < 0.10 {
+                benchmarks.append("⚠️ Churn 5-10%: Acceptable but room to improve")
+            } else {
+                benchmarks.append("❌ Churn > 10%: High churn is a red flag")
+            }
+        }
+
+        if let magic = magicNumber {
+            if !magic.isFinite {
+                benchmarks.append("⚠️ Magic Number: not a finite number for these inputs")
+            } else if magic > 0.75 {
+                benchmarks.append("✅ Magic Number > 0.75: Strong sales efficiency")
+            } else if magic > 0.5 {
+                benchmarks.append("⚠️ Magic Number 0.5-0.75: Moderate efficiency")
+            } else {
+                benchmarks.append("❌ Magic Number < 0.5: Poor sales efficiency")
+            }
+        }
+
+        return benchmarks
+    }
+
     /// Runs `calculate_saas_metrics` against the caller's arguments.
     /// - Parameter arguments: Values keyed by the input schema's property names.
     /// - Returns: The tool's formatted result.
@@ -334,47 +402,12 @@ public struct CalculateSaaSMetricsTool: MCPToolHandler, Sendable {
 
         output += "\n\n\(String(repeating: "━", count: 60))\n\nBENCHMARKS & ANALYSIS"
 
-        var benchmarks: [String] = []
-
-        if let nrr = nrr {
-            if nrr > 1.0 {
-                benchmarks.append("✅ NRR > 100%: Excellent retention with expansion")
-            } else if nrr > 0.90 {
-                benchmarks.append("⚠️ NRR 90-100%: Good but limited expansion")
-            } else {
-                benchmarks.append("❌ NRR < 90%: Retention concerns")
-            }
-        }
-
-        if let ratio = ltvCacRatio {
-            if ratio > 3.0 {
-                benchmarks.append("✅ LTV:CAC > 3×: Healthy unit economics")
-            } else if ratio > 1.5 {
-                benchmarks.append("⚠️ LTV:CAC 1.5-3×: Marginal unit economics")
-            } else {
-                benchmarks.append("❌ LTV:CAC < 1.5×: Unit economics not sustainable")
-            }
-        }
-
-        if let churn = customerChurnRate {
-            if churn < 0.05 {
-                benchmarks.append("✅ Churn < 5%: Excellent retention")
-            } else if churn < 0.10 {
-                benchmarks.append("⚠️ Churn 5-10%: Acceptable but room to improve")
-            } else {
-                benchmarks.append("❌ Churn > 10%: High churn is a red flag")
-            }
-        }
-
-        if let magic = magicNumber {
-            if magic > 0.75 {
-                benchmarks.append("✅ Magic Number > 0.75: Strong sales efficiency")
-            } else if magic > 0.5 {
-                benchmarks.append("⚠️ Magic Number 0.5-0.75: Moderate efficiency")
-            } else {
-                benchmarks.append("❌ Magic Number < 0.5: Poor sales efficiency")
-            }
-        }
+        let benchmarks = Self.benchmarks(
+            netRevenueRetention: nrr,
+            ltvToCACRatio: ltvCacRatio,
+            customerChurnRate: customerChurnRate,
+            magicNumber: magicNumber
+        )
 
         for benchmark in benchmarks {
             output += "\n  \(benchmark)"
@@ -640,7 +673,9 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         var insights: [String] = []
 
         if let conversion = conversionRate {
-            if conversion > 0.03 {
+            if !conversion.isFinite {
+                insights.append("⚠️ Conversion rate: not a finite number for these inputs")
+            } else if conversion > 0.03 {
                 insights.append("✅ Conversion rate > 3%: Excellent performance")
             } else if conversion > 0.02 {
                 insights.append("✅ Conversion rate > 2%: Good performance")
@@ -658,7 +693,9 @@ public struct CalculateEcommerceMetricsTool: MCPToolHandler, Sendable {
         }
 
         if let margin = grossMargin {
-            if margin > 0.40 {
+            if !margin.isFinite {
+                insights.append("⚠️ Gross margin: not a finite number for these inputs")
+            } else if margin > 0.40 {
                 insights.append("✅ Gross margin > 40%: Strong profitability")
             } else if margin > 0.25 {
                 insights.append("⚠️ Gross margin 25-40%: Acceptable but competitive")

@@ -73,8 +73,7 @@ public struct CreateAmortizationScheduleTool: MCPToolHandler, Sendable {
 
         // Calculate dates
         let startDate = Date()
-        let calendar = Calendar.current
-        guard let maturityDate = calendar.date(byAdding: .year, value: years, to: startDate) else {
+        guard let maturityDate = dateByAdding(years: years, to: startDate) else {
             throw ToolError.executionFailed("create_amortization_schedule", "Could not calculate maturity date")
         }
 
@@ -209,7 +208,10 @@ public struct DebtServiceCoverageRatioTool: MCPToolHandler, Sendable {
         let assessment: String
         let creditRating: String
 
-        if dscr >= 2.0 {
+        if !dscr.isFinite {
+            assessment = "Undefined - DSCR is not a finite number"
+            creditRating = "Not assessed"
+        } else if dscr >= 2.0 {
             assessment = "Excellent - Very strong ability to service debt"
             creditRating = "Very Low Risk"
         } else if dscr >= 1.5 {
@@ -338,7 +340,11 @@ public struct AltmanZScoreTool: MCPToolHandler, Sendable {
         let risk: String
         let recommendation: String
 
-        if zScore > 2.99 {
+        if !zScore.isFinite {
+            prediction = "Undefined - Z-Score is not a finite number"
+            risk = "Not assessed"
+            recommendation = "Check the inputs - a component ratio is not a finite number"
+        } else if zScore > 2.99 {
             prediction = "Safe Zone - Low bankruptcy risk"
             risk = "Low"
             recommendation = "Company appears financially healthy"

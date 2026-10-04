@@ -3,26 +3,6 @@ import MCP
 import SwiftMCPServer
 import BusinessMath
 
-// MARK: - Helper Functions
-
-/// Evaluate a calculation string with a single input value
-private func evaluateExpression(_ expression: String, withVariable x: Double) -> Double {
-    let formula = expression.replacingOccurrences(of: "{0}", with: "\(x)")
-                            .replacingOccurrences(of: "x", with: "\(x)")
-
-    return ExpressionEvaluator.evaluate(formula)
-}
-
-/// Evaluate a calculation string with multiple input values
-private func evaluateMultivariateExpression(_ expression: String, withVariables values: [Double]) -> Double {
-    var formula = expression
-    for (index, value) in values.enumerated() {
-        formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
-    }
-
-    return ExpressionEvaluator.evaluate(formula)
-}
-
 // MARK: - Newton-Raphson Optimizer Tool
 
 /// Find the value where a function equals zero using Newton-Raphson method (root-finding). Perfect for break-even analysis, yield calculations, or any equation solving.
@@ -35,7 +15,7 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
         description: """
         Find the value where a function equals zero using Newton-Raphson method (root-finding). Perfect for break-even analysis, yield calculations, or any equation solving.
 
-        Use {0} or 'x' as the variable placeholder in your formula.
+        Use {0} or x for the variable in your formula. ^ is power: "x ^ 2 - 25".
 
         REQUIRED STRUCTURE:
         {
@@ -81,11 +61,14 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
                 "formula": MCPSchemaProperty(
                     type: "string",
                     description: """
-                    Formula using {0} or 'x' for the variable.
+                    Formula using {0} or x for the variable.
                     Examples:
-                    • "{0} * {0} - 16" - quadratic
+                    • "x ^ 2 - 16" - quadratic
                     • "{0} * 1000 - 50000" - linear
-                    • "1000 * (1 + {0}) * (1 + {0})" - compound growth
+                    • "1000 * (1 + x) ^ 2" - compound growth
+                    • "exp(x) - 2" - x is a variable; exp is still a function
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "initialGuess": MCPSchemaProperty(
@@ -132,10 +115,20 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
         let maxIterations = args.getIntOptional("maxIterations") ?? 1000
         let description = args.getStringOptional("description")
 
-        // Define the function: f(x) = formula(x) - target
+        // The solver iterates over `0..<maxIterations`, which traps if the bound is negative.
+        guard maxIterations > 0 else {
+            throw ToolError.invalidArguments("maxIterations must be greater than zero")
+        }
+
+        // Check the formula before the solver sees it, then at the caller's own starting
+        // point: a formula with no value there cannot be solved from there.
+        let expression = try CallerFormula(formula, argument: "formula", names: ["x"])
+        _ = try expression.value(at: [initialGuess])
+
+        // Define the function: f(x) = formula(x) - target. The solver's callback cannot throw,
+        // so a failure is recorded and reported once the solver stops.
         let function: @Sendable (Double) -> Double = { x in
-            let result = evaluateExpression(formula, withVariable: x)
-            return result - target
+            expression.recordedValue(at: [x]) - target
         }
 
         // Use Newton-Raphson via goalSeek
@@ -148,8 +141,11 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
                 tolerance: tolerance,
                 maxIterations: maxIterations
             )
-        } catch {
-            return .error(message: """
+        } catch let error as BusinessMathError {
+            // The solver stops on the first value it cannot use; if the formula is what
+            // failed, that is the answer, not "did not converge".
+            try expression.throwIfFailed()
+            throw ToolFailure("""
                 Newton-Raphson Failed
 
                 Could not find solution within \(maxIterations) iterations.
@@ -162,14 +158,17 @@ public struct NewtonRaphsonOptimizeTool: MCPToolHandler, Sendable {
                 Suggestions:
                 • Try a different initial guess
                 • Increase maxIterations
-                • Check formula syntax
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
                 """)
+        } catch {
+            try expression.throwIfFailed()
+            throw error
         }
+        try expression.throwIfFailed()
 
         // Verify solution
-        let actualValue = evaluateExpression(formula, withVariable: solution)
+        let actualValue = try expression.value(at: [solution])
         let error = abs(actualValue - target)
         let errorPercent = target != 0 ? (error / abs(target)) * 100 : 0
 
@@ -262,7 +261,10 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
                     Examples:
                     • "{0} * {0} + {1} * {1}" - sum of squares
                     • "{0} * {1} - {0} * {0}" - profit function
-                    • "({0} - 10) * ({0} - 10) + ({1} - 5) * ({1} - 5)" - quadratic
+                    • "({0} - 10) ^ 2 + ({1} - 5) ^ 2" - quadratic
+                    A placeholder beyond the number of initialValues is an error.
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "initialValues": MCPSchemaProperty(
@@ -334,10 +336,16 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Must provide at least one initial value")
         }
 
-        // Define objective function
+        // Check the formula before the optimizer sees it, then at the caller's own starting
+        // point: a formula with no value there cannot be optimized from there.
+        let expression = try CallerFormula(
+            formula, argument: "formula", inputCount: initialValues.count)
+        _ = try expression.value(at: initialValues)
+
+        // Define objective function. The optimizer's callback cannot throw, so a failure is
+        // recorded and reported once the optimizer stops.
         let objectiveFunction: @Sendable (VectorN<Double>) -> Double = { vector in
-            let values = vector.toArray()
-            let result = evaluateMultivariateExpression(formula, withVariables: values)
+            let result = expression.recordedValue(at: vector.toArray())
             return sense == "maximize" ? -result : result
         }
 
@@ -354,8 +362,10 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
                 function: objectiveFunction,
                 initialGuess: VectorN(initialValues)
             )
-        } catch {
-            return .error(message: """
+        } catch let error as OptimizationError {
+            // If the formula is what failed, that is the answer, not "did not converge".
+            try expression.throwIfFailed()
+            throw ToolFailure("""
                 Gradient Descent Failed
 
                 Optimization did not converge within \(maxIterations) iterations.
@@ -370,13 +380,17 @@ public struct GradientDescentOptimizeTool: MCPToolHandler, Sendable {
                 • Try different initialValues
                 • Increase maxIterations
 
-                Error: \(error.localizedDescription)
+                Error: \(error.callerMessage)
                 """)
+        } catch {
+            try expression.throwIfFailed()
+            throw error
         }
+        try expression.throwIfFailed()
 
         // Get final solution
         let optimalValues = result.solution.toArray()
-        let actualObjective = evaluateMultivariateExpression(formula, withVariables: optimalValues)
+        let actualObjective = try expression.value(at: optimalValues)
         _ = result.objectiveValue  // Discard optimizer's internal value
 
         var output = """

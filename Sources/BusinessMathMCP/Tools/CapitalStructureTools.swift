@@ -325,6 +325,11 @@ public struct CalculateCostOfEquityTool: MCPToolHandler, Sendable {
 
         let riskFreeRate = try args.getDouble("risk_free_rate")
         let beta = try args.getDouble("beta")
+        // The interpretation below sorts beta into bands by comparison, and a NaN fails
+        // every one of them: it was reported as "No systematic risk".
+        guard beta.isFinite else {
+            throw ToolError.invalidArguments("beta must be a finite number")
+        }
         let marketReturn = try args.getDouble("market_return")
         let deRatio = args.getDoubleOptional("debt_to_equity_ratio")
         let taxRate = args.getDoubleOptional("tax_rate")

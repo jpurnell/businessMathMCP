@@ -129,6 +129,26 @@ public func validateDistributionParameters(type: String, params: [String: Double
     }
 }
 
+/// A distribution parameter that BusinessMath takes as a whole number: a gamma shape, or
+/// degrees of freedom.
+///
+/// `validateDistributionParameters` refuses anything below 1 but lets a NaN through — every
+/// comparison with one is false — and puts no ceiling on it, and `Int(_:)` stops the process
+/// for both a NaN and a value past `Int.max`. The ceiling is also a bound on work: a gamma
+/// variate is drawn by summing `shape` exponentials.
+///
+/// - Parameters:
+///   - value: The caller's value.
+///   - name: The parameter as the caller knows it, for the message.
+/// - Returns: The value truncated to a whole number, as these parameters always were.
+/// - Throws: `ToolError.invalidArguments` unless the value is a number from 1 to 1,000,000.
+private func wholeDistributionParameter(_ value: Double, named name: String) throws -> Int {
+    guard value.isFinite, value >= 1, value <= 1_000_000 else {
+        throw ToolError.invalidArguments("\(name) must be a number from 1 to 1000000")
+    }
+    return Int(value)
+}
+
 /// Format a number with specified decimal places
 private func formatNumber(_ value: Double, decimals: Int = 2) -> String {
     return value.formatDecimal(decimals: decimals)
@@ -327,7 +347,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
             guard scale > 0 else {
                 throw ToolError.invalidArguments("Gamma scale must be greater than zero")
             }
-            let dist = DistributionGamma(r: Int(shape), λ: 1.0 / scale)
+            let wholeShape = try wholeDistributionParameter(shape, named: "Gamma shape")
+            let dist = DistributionGamma(r: wholeShape, λ: 1.0 / scale)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -348,7 +369,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("Chi-Squared distribution requires 'degreesOfFreedom'")
             }
             distInfo = "Chi-Squared(df=\(formatNumber(df, decimals: 0)))"
-            let dist = DistributionChiSquared(degreesOfFreedom: Int(df))
+            let wholeDf = try wholeDistributionParameter(df, named: "Chi-Squared degreesOfFreedom")
+            let dist = DistributionChiSquared(degreesOfFreedom: wholeDf)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -359,7 +381,9 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("F distribution requires 'df1' and 'df2'")
             }
             distInfo = "F(df1=\(formatNumber(df1, decimals: 0)), df2=\(formatNumber(df2, decimals: 0)))"
-            let dist = DistributionF(df1: Int(df1), df2: Int(df2))
+            let wholeDf1 = try wholeDistributionParameter(df1, named: "F distribution df1")
+            let wholeDf2 = try wholeDistributionParameter(df2, named: "F distribution df2")
+            let dist = DistributionF(df1: wholeDf1, df2: wholeDf2)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -369,7 +393,8 @@ public struct CreateDistributionTool: MCPToolHandler, Sendable {
                 throw ToolError.invalidArguments("T distribution requires 'degreesOfFreedom'")
             }
             distInfo = "T(df=\(formatNumber(df, decimals: 0)))"
-            let dist = DistributionT(degreesOfFreedom: Int(df))
+            let wholeDf = try wholeDistributionParameter(df, named: "T distribution degreesOfFreedom")
+            let dist = DistributionT(degreesOfFreedom: wholeDf)
             for _ in 0..<sampleSize {
                 samples.append(dist.next())
             }
@@ -565,6 +590,10 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                     • Profit: "{0} - {1}" (Revenue - Costs)
                     • Margin: "({0} - {1}) / {0}" ((Revenue - Costs) / Revenue)
                     • Growth: "{0} * (1 + {1})" (Base * (1 + Rate))
+                    An input whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "iterations": MCPSchemaProperty(
@@ -683,7 +712,8 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                 guard scale > 0 else {
                     throw ToolError.invalidArguments("Gamma scale must be greater than zero")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionGamma(r: Int(shape), λ: 1.0 / scale))
+                simInput = SimulationInput(name: name, distribution: DistributionGamma(
+                    r: try wholeDistributionParameter(shape, named: "Gamma shape"), λ: 1.0 / scale))
 
             case "weibull":
                 guard let shape = params["shape"], let scale = params["scale"] else {
@@ -695,19 +725,23 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
                 guard let df = params["degreesOfFreedom"] else {
                     throw ToolError.invalidArguments("Chi-Squared distribution requires 'degreesOfFreedom'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionChiSquared(degreesOfFreedom: Int(df)))
+                simInput = SimulationInput(name: name, distribution: DistributionChiSquared(
+                    degreesOfFreedom: try wholeDistributionParameter(df, named: "Chi-Squared degreesOfFreedom")))
 
             case "f":
                 guard let df1 = params["df1"], let df2 = params["df2"] else {
                     throw ToolError.invalidArguments("F distribution requires 'df1' and 'df2'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionF(df1: Int(df1), df2: Int(df2)))
+                simInput = SimulationInput(name: name, distribution: DistributionF(
+                    df1: try wholeDistributionParameter(df1, named: "F distribution df1"),
+                    df2: try wholeDistributionParameter(df2, named: "F distribution df2")))
 
             case "t":
                 guard let df = params["degreesOfFreedom"] else {
                     throw ToolError.invalidArguments("T distribution requires 'degreesOfFreedom'")
                 }
-                simInput = SimulationInput(name: name, distribution: DistributionT(degreesOfFreedom: Int(df)))
+                simInput = SimulationInput(name: name, distribution: DistributionT(
+                    degreesOfFreedom: try wholeDistributionParameter(df, named: "T distribution degreesOfFreedom")))
 
             case "pareto":
                 guard let scale = params["scale"], let shape = params["shape"] else {
@@ -739,17 +773,28 @@ public struct RunMonteCarloTool: MCPToolHandler, Sendable {
             simulationInputs.append(simInput)
         }
 
-        // Create and run simulation
+        // Check the formula before any iteration runs.
+        let formula = try CallerFormula(
+            calculation, argument: "calculation", names: simulationInputs.map(\.name))
+
+        // Create and run simulation. The model callback cannot throw, so a failure is recorded
+        // and the run fails with it: one iteration without a value is not a zero.
         var simulation = MonteCarloSimulation(iterations: iterations) { inputs in
-            // Evaluate calculation
-            return evaluateCalculation(calculation, with: inputs)
+            formula.recordedValue(at: inputs)
         }
 
         for input in simulationInputs {
             simulation.addInput(input)
         }
 
-        let results = try await simulation.run()
+        let results: SimulationResults
+        do {
+            results = try await simulation.run()
+        } catch {
+            try formula.throwIfFailed()
+            throw error
+        }
+        try formula.throwIfFailed()
 
         // Format output
         let inputNames = simulationInputs.map { $0.name }.joined(separator: ", ")
@@ -828,6 +873,9 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
         )
     )
 
+    private static let valuesSpreadMessage =
+        "values must be finite numbers whose spread (max - min) is also a finite number"
+
     /// Creates the `analyze_simulation_results` handler.
     public init() {}
 
@@ -847,6 +895,14 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
             throw ToolError.invalidArguments("Values array cannot be empty")
         }
 
+        // The histogram's bins are (max − min) / 20 wide. Values that are each finite can
+        // still lie further apart than a Double can express, and then the width is infinite,
+        // the first bin's lower bound is NaN, and building that range stops the process.
+        guard let lowestValue = values.min(), let highestValue = values.max(),
+              (highestValue - lowestValue).isFinite else {
+            throw ToolError.invalidArguments(Self.valuesSpreadMessage)
+        }
+
         let results = SimulationResults(values: values)
 
         // Generate histogram
@@ -855,6 +911,11 @@ public struct AnalyzeSimulationResultsTool: MCPToolHandler, Sendable {
 		
 		// Determine decimal places based on value magnitude
 		let maxValue = histogram.map { $0.range.upperBound }.max() ?? 1.0
+		// A NaN is neither above 1000 nor above 10, so it would be given two decimal places
+		// as though it were a small number.
+		guard maxValue.isFinite else {
+			throw ToolError.invalidArguments(Self.valuesSpreadMessage)
+		}
 		let decimalPlaces: Int
 		if maxValue > 1000 {
 			decimalPlaces = 0
@@ -988,8 +1049,15 @@ public struct CalculateValueAtRiskTool: MCPToolHandler, Sendable {
         // For 95% confidence, we look at the 5th percentile
         let percentileLevel = 1.0 - confidenceLevel
         let sortedValues = values.sorted()
-        let index = Int(percentileLevel * Double(values.count))
-        let varValue = sortedValues[min(index, sortedValues.count - 1)]
+        // The position is clamped to the last element while it is still a Double; the
+        // confidence guard above keeps it at or above zero.
+        let lastPosition = Double(sortedValues.count - 1)
+        let position = min((percentileLevel * Double(values.count)).rounded(.down), lastPosition)
+        guard position.isFinite, position >= 0, position <= lastPosition else {
+            throw ToolError.invalidArguments("Confidence level must be between 0 and 1")
+        }
+        let index = Int(position)
+        let varValue = sortedValues[index]
 
         // Calculate conditional VaR (CVaR / Expected Shortfall)
         let worseValues = sortedValues.prefix(index + 1)
@@ -1230,7 +1298,11 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
                 ),
                 "calculation": MCPSchemaProperty(
                     type: "string",
-                    description: "Formula using {0} to reference the variable. Example: \"{0} * 1.2 - 50000\""
+                    description: """
+                    Formula using {0} or x to reference the variable. Example: "{0} * 1.2 - 50000"
+
+                    \(CallerFormula.syntaxSummary)
+                    """
                 ),
                 "steps": MCPSchemaProperty(
                     type: "number",
@@ -1297,14 +1369,17 @@ public struct SensitivityAnalysisTool: MCPToolHandler, Sendable {
         let stepSize = (maxValue - minValue) / stepDivisor
         var results: [(input: Double, output: Double)] = []
 
+        // Check the formula before sweeping it; a point where it has no value fails the sweep.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: ["x"])
+
         for i in 0..<steps {
             let inputValue = minValue + Double(i) * stepSize
-            let outputValue = evaluateCalculation(calculation, with: [inputValue])
+            let outputValue = try formula.value(at: [inputValue])
             results.append((input: inputValue, output: outputValue))
         }
 
         // Calculate base output
-        let baseOutput = evaluateCalculation(calculation, with: [baseValue])
+        let baseOutput = try formula.value(at: [baseValue])
 
         // Calculate sensitivity metrics
         // `results` is built from the trial loop; an empty run would have trapped here.
@@ -1415,7 +1490,13 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
                 ),
                 "calculation": MCPSchemaProperty(
                     type: "string",
-                    description: "Formula using {0}, {1}, {2}, etc. to reference variables in order. Example: \"{0} - {1} - {2}\" for Revenue - Cost1 - Cost2"
+                    description: """
+                    Formula using {0}, {1}, {2}, etc. to reference variables in order. Example: "{0} - {1} - {2}" for Revenue - Cost1 - Cost2
+                    A variable whose name is an identifier (letters, digits and underscores, not
+                    starting with a digit) can also be written by name: "revenue - cost1 - cost2".
+
+                    \(CallerFormula.syntaxSummary)
+                    """
                 )
             ],
             required: ["variables", "calculation"]
@@ -1474,8 +1555,12 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
         }
 
         // Calculate base case
+        // Check the formula before testing any variable; a point where it has no value fails
+        // the analysis.
+        let formula = try CallerFormula(
+            calculation, argument: "calculation", names: variables.map(\.name))
         let baseInputs = variables.map { $0.baseValue }
-        let baseOutput = evaluateCalculation(calculation, with: baseInputs)
+        let baseOutput = try formula.value(at: baseInputs)
 
         // Test each variable
         struct Impact {
@@ -1491,14 +1576,20 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
             // Test low value
             var lowInputs = baseInputs
             lowInputs[index] = variable.lowValue
-            let lowOutput = evaluateCalculation(calculation, with: lowInputs)
+            let lowOutput = try formula.value(at: lowInputs)
 
             // Test high value
             var highInputs = baseInputs
             highInputs[index] = variable.highValue
-            let highOutput = evaluateCalculation(calculation, with: highInputs)
+            let highOutput = try formula.value(at: highInputs)
 
             let range = abs(highOutput - lowOutput)
+            // Two outputs that are each finite can still differ by more than a Double holds.
+            guard range.isFinite else {
+                throw ToolError.invalidArguments(
+                    "calculation gives outputs for '\(variable.name)' whose difference "
+                    + "(high - low) is not a finite number")
+            }
             impacts.append(Impact(name: variable.name, lowOutput: lowOutput, highOutput: highOutput, range: range))
         }
 
@@ -1517,7 +1608,15 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
         let maxRange = impacts.first?.range ?? 1.0
 
         for (rank, impact) in impacts.enumerated() {
-            let barLength = Int((impact.range / maxRange) * 30)
+            // When no variable moves the output at all, the widest range is zero and there
+            // is no share to draw: 0 / 0 is NaN, and converting that stopped the process.
+            // No impact is drawn as no bar.
+            let share = maxRange > 0 ? impact.range / maxRange : 0
+            guard share.isFinite, share >= 0, share <= 1 else {
+                throw ToolError.invalidArguments(
+                    "calculation gives an impact for '\(impact.name)' that cannot be ranked")
+            }
+            let barLength = Int(share * 30)
             let bar = String(repeating: "█", count: barLength)
             output += """
 
@@ -1542,19 +1641,6 @@ public struct TornadoAnalysisTool: MCPToolHandler, Sendable {
 }
 
 // MARK: - Helper Functions
-
-/// Evaluate a simple calculation string with input values
-private func evaluateCalculation(_ calculation: String, with inputs: [Double]) -> Double {
-    var formula = calculation
-
-    // Replace input placeholders {0}, {1}, etc.
-    for (index, value) in inputs.enumerated() {
-        formula = formula.replacingOccurrences(of: "{\(index)}", with: "\(value)")
-    }
-
-    // Use cross-platform expression evaluator
-    return ExpressionEvaluator.evaluate(formula)
-}
 
 // MARK: - 8. Scenario Analysis
 
@@ -1639,6 +1725,11 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
                     • "{0} - {1}" - Revenue minus Costs
                     • "{0} * (1 - {1})" - Revenue × (1 - Cost Ratio)
                     • "({0} - {1}) / {0}" - Profit Margin
+                    An input whose name (from inputNames) is an identifier (letters, digits and
+                    underscores, not starting with a digit) can also be written by name:
+                    "Revenue - Costs".
+
+                    \(CallerFormula.syntaxSummary)
                     """
                 ),
                 "scenarios": MCPSchemaProperty(
@@ -1681,8 +1772,17 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
         let calculation = try args.getString("calculation")
         let iterations = args.getIntOptional("iterations") ?? 1000
 
-        guard let scenariosArray = args["scenarios"]?.value as? [[String: AnyCodable]] else {
+        // Arguments arrive as an array of `AnyCodable`, each wrapping an object; casting the
+        // array straight to `[[String: AnyCodable]]` never matched, so every call was refused.
+        guard let scenarioValues = args["scenarios"]?.value as? [AnyCodable] else {
             throw ToolError.invalidArguments("scenarios must be an array of objects")
+        }
+        var scenariosArray: [[String: AnyCodable]] = []
+        for scenarioValue in scenarioValues {
+            guard let scenarioDict = scenarioValue.value as? [String: AnyCodable] else {
+                throw ToolError.invalidArguments("scenarios must be an array of objects")
+            }
+            scenariosArray.append(scenarioDict)
         }
 
         guard !scenariosArray.isEmpty else {
@@ -1723,9 +1823,11 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
             scenarioConfigs.append(ScenarioConfig(name: name, values: values))
         }
 
-        // Create scenario analysis
+        // Check the formula before any scenario runs. The model callback cannot throw, so a
+        // failure is recorded and the analysis fails with it.
+        let formula = try CallerFormula(calculation, argument: "calculation", names: inputNames)
         let model: @Sendable ([Double]) -> Double = { inputs in
-            evaluateCalculation(calculation, with: inputs)
+            formula.recordedValue(at: inputs)
         }
 
         var analysis = ScenarioAnalysis(
@@ -1745,7 +1847,14 @@ public struct RunScenarioAnalysisTool: MCPToolHandler, Sendable {
         }
 
         // Run analysis
-        let results = try analysis.run()
+        let results: [String: SimulationResults]
+        do {
+            results = try analysis.run()
+        } catch {
+            try formula.throwIfFailed()
+            throw error
+        }
+        try formula.throwIfFailed()
         let comparison = ScenarioComparison(results: results)
 
         // Generate output

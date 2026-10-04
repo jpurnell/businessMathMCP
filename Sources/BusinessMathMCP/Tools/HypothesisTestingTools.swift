@@ -538,6 +538,16 @@ public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
         let unadjusted = (zSquared * pq) / marginSquared
         let requiredSize: Double = unadjusted / (1 + (zSquared * pq) / (marginSquared * populationSize))
 
+        // Both are counts of responses, so they are Ints — but a margin of error small
+        // enough against a population large enough asks for more responses than an Int can
+        // hold, and a confidence close enough to 1 has no finite z-score. Neither is a
+        // sample anybody can collect, so both are refused.
+        guard let requiredResponses = Int(exactly: requiredSize.rounded(.up)),
+              let bufferedResponses = Int(exactly: (requiredSize * 1.15).rounded(.up)) else {
+            throw ToolError.invalidArguments(
+                "confidence, marginOfError and populationSize ask for a sample too large to count")
+        }
+
         let responseRate = requiredSize / populationSize
         let isLargePopulation = populationSize > 100000
 
@@ -551,17 +561,17 @@ public struct CalculateSampleSizeTool: MCPToolHandler, Sendable {
         - Population Size: \(populationSize.formatDecimal(decimals: 0))
 
         **Results:**
-        - **Required Sample Size: \(Int(requiredSize.rounded(.up)))**
+        - **Required Sample Size: \(requiredResponses)**
         - Response Rate Needed: \((responseRate * 100).formatDecimal(decimals: 2))%
 
         **Interpretation:**
-        You need to collect \(Int(requiredSize.rounded(.up))) responses to achieve \((confidence * 100).formatDecimal(decimals: 0))% confidence with ±\((marginOfError * 100).formatDecimal(decimals: 1))% margin of error.
+        You need to collect \(requiredResponses) responses to achieve \((confidence * 100).formatDecimal(decimals: 0))% confidence with ±\((marginOfError * 100).formatDecimal(decimals: 1))% margin of error.
 
         **Practical Guidance:**
         \(isLargePopulation ? "• Large population - sample size primarily depends on confidence and margin of error" : "• Smaller population - you may need to sample a significant portion")
         • If actual proportion differs significantly from \((proportion * 100).formatDecimal(decimals: 0))%, recalculate with updated estimate
         • Consider adding 10-20% buffer for non-responses or invalid data
-        • Recommended target: \(Int((requiredSize * 1.15).rounded(.up))) (with 15% buffer)
+        • Recommended target: \(bufferedResponses) (with 15% buffer)
         """
 
         return MCPToolCallResult.success(text: result)
