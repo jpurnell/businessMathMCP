@@ -37,7 +37,7 @@ struct NonFiniteClassificationTests {
 
     /// The lines of `text` that begin with `prefix`, with indentation removed.
     private func lines(of text: String, startingWith prefix: String) -> [String] {
-        text.split(separator: "\n")
+        text.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { $0.hasPrefix(prefix) }
     }
