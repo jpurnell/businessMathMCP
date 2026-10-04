@@ -444,8 +444,17 @@ The default transport mode uses standard input/output. This is the recommended m
 An experimental HTTP transport mode is also available for web-based integrations:
 
 ```bash
+# This machine only (127.0.0.1)
 .build/release/businessmath-mcp-server --http 8080
+
+# Reachable from other machines
+.build/release/businessmath-mcp-server --http 8080 --host 0.0.0.0
 ```
+
+> **The server listens on `127.0.0.1` unless told otherwise** (SwiftMCPServer 5.0.0). Started
+> with `--http 8080` alone it is reachable only from the machine it runs on. To accept
+> connections from other machines — a remote client, a container's published port — add
+> `--host 0.0.0.0`. Behind a reverse proxy on the same machine, leave it on loopback.
 
 **⚠️ Important Limitations:**
 - HTTP mode is experimental and not officially supported by Anthropic
@@ -478,17 +487,26 @@ The BusinessMath server implements all core MCP capabilities:
 
 ### Formula Evaluation
 
-Several optimization and analysis tools support dynamic formula evaluation, allowing AI assistants to specify arbitrary mathematical expressions:
+Several tools take a formula as text: `goal_seek`, `newton_raphson_optimize`,
+`gradient_descent_optimize`, `run_monte_carlo`, `sensitivity_analysis`, `tornado_analysis`,
+`run_scenario_analysis` and `analyze_scenarios`.
 
-**Supported Tools:**
-- **GoalSeekTool** - Find input value that produces target output
-- **NewtonRaphsonOptimizeTool** - Root-finding with formula evaluation
-- **GradientDescentOptimizeTool** - Multivariate optimization with formulas
+**Formula syntax:**
+- Numbers, `+ - * /`, `^` for power, and parentheses
+- `^` is right-associative and binds tighter than a leading minus: `2 ^ 3 ^ 2` is 512, `-2 ^ 2` is −4
+- `/` is floating-point: `10 / 4` is 2.5
+- Functions: `abs` `ceiling` `cos` `exp` `floor` `ln` `log` `log10` `sin` `sqrt` `tan` `trunc`
+  (one argument), `pow` (two), `min` `max` (one or more). `log` is base 10; `ln` is natural
+- Constants: `pi`, `e`
+- Inputs by position: `{0}`, `{1}`, `{2}`, …
+- Inputs by name: `x` in the single-variable tools; an input's own name in the others, when
+  the name is an identifier (a letter or underscore, then letters, digits and underscores)
+- Dividing by zero, or a result that is not a finite number, is an error — never a zero
 
-**Formula Syntax:**
-- Use `{0}`, `{1}`, `{2}`, etc. as variable placeholders
-- Standard mathematical operators: `+`, `-`, `*`, `/`, `^` (power)
-- Functions: `sqrt()`, `abs()`, `log()`, `exp()`, `sin()`, `cos()`, `tan()`
+> **Results changed in 3.0.0.** `^` used to be bitwise XOR (`2 ^ 3` was 1; it is now 8) and
+> `/` used to divide integer literals as integers (`10 / 4` was 2; it is now 2.5). `**`,
+> `sum({…})`, `average({…})`, `median({…})`, `random()` and hex literals no longer parse.
+> See the CHANGELOG.
 
 **Examples:**
 ```json
@@ -501,14 +519,14 @@ Several optimization and analysis tools support dynamic formula evaluation, allo
 
 // Newton-Raphson: Find square root
 {
-  "formula": "{0} * {0} - 25",
+  "formula": "x ^ 2 - 25",
   "target": 0,
   "initialGuess": 3
 }
 
 // Gradient Descent: Optimize revenue
 {
-  "formula": "{0} * {1} - {0} * {0}",
+  "formula": "{0} * {1} - {0} ^ 2",
   "initialValues": [100, 500],
   "sense": "maximize"
 }
@@ -516,12 +534,22 @@ Several optimization and analysis tools support dynamic formula evaluation, allo
 
 ### Error Handling
 
-The server provides detailed error messages for:
-- Invalid input parameters
-- Calculation errors (e.g., division by zero)
+A failed call returns `isError: true` and one of two kinds of message.
+
+A **sentence about the request** — returned as written:
+- Invalid or missing parameters, naming the parameter (`Invalid arguments: data[1].value must be a number`)
+- A formula that cannot be evaluated, saying what is wrong and where
+- Calculation errors (e.g., division by zero in a ratio)
 - Convergence failures (e.g., IRR not converging)
-- Type mismatches
-- Missing required parameters
+- Data the calculation cannot use (too few points, a matrix that is not square)
+
+A **reference** — for a fault inside the server rather than in the request:
+
+```
+The server could not complete the request. Reference: err-9f2c41e7a0b3d856
+```
+
+The detail is in the server's log under that id; nothing about it is sent to the caller.
 
 ### Performance
 

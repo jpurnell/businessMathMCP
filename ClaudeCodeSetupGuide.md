@@ -23,8 +23,13 @@ Save this key securely - it cannot be retrieved later.
 ### 2. Start the Server
 
 ```bash
-businessmath-mcp-server --http 8080
+businessmath-mcp-server --http 8080 --host 0.0.0.0
 ```
+
+> **The server listens on `127.0.0.1` unless told otherwise** (SwiftMCPServer 5.0.0). Started
+> with `--http 8080` alone it is reachable only from the machine it runs on. To accept
+> connections from other machines — a remote client, a container's published port — add
+> `--host 0.0.0.0`. Behind a reverse proxy on the same machine, leave it on loopback.
 
 Output:
 ```
@@ -71,7 +76,7 @@ Keys are stored in `~/.businessmath-mcp/api-keys.json` with restricted permissio
 
 ```bash
 # Start in background
-nohup businessmath-mcp-server --http 8080 > /var/log/mcp-server.log 2>&1 &
+nohup businessmath-mcp-server --http 8080 --host 0.0.0.0 > /var/log/mcp-server.log 2>&1 &
 
 # Or use systemd (Linux)
 # See DEPLOY_INSTRUCTIONS.md for systemd service configuration
@@ -82,6 +87,7 @@ nohup businessmath-mcp-server --http 8080 > /var/log/mcp-server.log 2>&1 &
 | Option | Description |
 |--------|-------------|
 | `--http <port>` | Run HTTP server on specified port |
+| `--host <address>` | Address to listen on. Default `127.0.0.1` (this machine only); `0.0.0.0` accepts connections from other machines |
 | `--generate-key` | Generate a new API key |
 | `--name <name>` | Name for the generated key |
 | `--list-keys` | List all API keys |

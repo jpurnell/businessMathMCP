@@ -115,13 +115,21 @@ BusinessMathMCP organizes tools into logical categories:
 
 ## Running in HTTP Mode
 
-For production deployments, run BusinessMathMCP as an HTTP server:
+To serve MCP over HTTP, generate an API key and start the server with `--http`:
 
 ```bash
-./BusinessMathMCPServer --mode http --port 8080 --api-key YOUR_SECRET_KEY
+businessmath-mcp-server --generate-key --name "My client"
+businessmath-mcp-server --http 8080
 ```
 
-Connect MCP clients to `http://localhost:8080/mcp/v1` with the API key header:
+Started this way the server listens on `127.0.0.1` — this machine only. To accept
+connections from other machines, or to publish the port from a container, say so:
+
+```bash
+businessmath-mcp-server --http 8080 --host 0.0.0.0
+```
+
+Connect MCP clients to `http://localhost:8080/mcp` with the API key header:
 
 ```
 Authorization: Bearer YOUR_SECRET_KEY
@@ -146,11 +154,19 @@ Check that parameter names match exactly. Common issues:
 
 ### HTTP Mode Connection Issues
 
-Ensure the port is not in use and firewall allows connections:
+If a client on another machine cannot connect, check that the server was started with
+`--host 0.0.0.0`; without it the server listens on `127.0.0.1` only. Then ensure the port is
+not in use and the firewall allows connections:
 
 ```bash
 lsof -i :8080
 ```
+
+### An Error That Is Only a Reference
+
+`The server could not complete the request. Reference: err-…` means the failure was inside
+the server rather than in the request. The detail is in the server's log under that id. See
+<doc:FormulasAndErrors>.
 
 ## Next Steps
 

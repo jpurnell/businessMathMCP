@@ -41,7 +41,7 @@ The BusinessMath MCP Server now supports full bidirectional MCP communication ov
 ### Basic Usage (No Auth)
 
 ```bash
-# Start server
+# Start server (listens on 127.0.0.1; add --host 0.0.0.0 to accept other machines)
 ./businessmath-mcp-server --http 8080
 
 # Test health endpoint
@@ -231,7 +231,8 @@ export MCP_AUTH_REQUIRED=false
 ```bash
 export MCP_API_KEYS="$(openssl rand -base64 32)"
 export MCP_AUTH_REQUIRED=true
-./businessmath-mcp-server --http 8080
+# --host 0.0.0.0 accepts connections from other machines; omit it behind a local reverse proxy
+./businessmath-mcp-server --http 8080 --host 0.0.0.0
 ```
 
 **Docker:**

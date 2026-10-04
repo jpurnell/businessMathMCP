@@ -33,9 +33,15 @@ export MCP_API_KEYS="prod-key-1,prod-key-2,backup-key-3"
 # Ensure authentication is required (default: true)
 export MCP_AUTH_REQUIRED=true
 
-# Start server
+# Start server. It listens on 127.0.0.1 only; add --host 0.0.0.0 if clients connect
+# from other machines rather than through a reverse proxy on this one.
 ./businessmath-mcp-server --http 8080
 ```
+
+> **The server listens on `127.0.0.1` unless told otherwise** (SwiftMCPServer 5.0.0). Started
+> with `--http 8080` alone it is reachable only from the machine it runs on. To accept
+> connections from other machines — a remote client, a container's published port — add
+> `--host 0.0.0.0`. Behind a reverse proxy on the same machine, leave it on loopback.
 
 **Best Practices:**
 
@@ -178,7 +184,9 @@ version: '3.8'
 services:
   mcp-server:
     build: .
-    command: ["./businessmath-mcp-server", "--http", "8080"]
+    # --host 0.0.0.0: the container's loopback is not the host's, so the default
+    # 127.0.0.1 bind would leave the published port unreachable.
+    command: ["./businessmath-mcp-server", "--http", "8080", "--host", "0.0.0.0"]
     environment:
       - MCP_API_KEYS=${MCP_API_KEYS}
       - MCP_AUTH_REQUIRED=true
@@ -263,6 +271,8 @@ User=mcp
 WorkingDirectory=/opt/businessmath-mcp
 Environment="MCP_API_KEYS=your-key-here"
 Environment="MCP_AUTH_REQUIRED=true"
+# Listens on 127.0.0.1, for the reverse proxy above. If clients connect to this port
+# directly from other machines, add: --host 0.0.0.0
 ExecStart=/opt/businessmath-mcp/businessmath-mcp-server --http 8080
 Restart=always
 RestartSec=10
@@ -307,7 +317,8 @@ COPY --from=0 /app/.build/release/businessmath-mcp-server .
 
 EXPOSE 8080
 
-CMD ["./businessmath-mcp-server", "--http", "8080"]
+# --host 0.0.0.0: inside a container the default 127.0.0.1 bind is unreachable from outside it.
+CMD ["./businessmath-mcp-server", "--http", "8080", "--host", "0.0.0.0"]
 ```
 
 **Build and run:**

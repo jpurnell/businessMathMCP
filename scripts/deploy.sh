@@ -11,6 +11,9 @@ REMOTE_BINARY="$REMOTE_PROJECT/.build/release/businessmath-mcp-server"
 TLS_CERT="/Users/jpurnell/.businessmath-mcp/certs/fullchain.pem"
 TLS_KEY="/Users/jpurnell/.businessmath-mcp/certs/privkey.pem"
 SERVER_PORT=8080
+# SwiftMCPServer 5.0.0 binds 127.0.0.1 unless told otherwise. This server is reached from
+# other machines and terminates TLS itself, so it has to ask for every interface.
+SERVER_HOST="0.0.0.0"
 
 BUSINESSMATH_REPO="${BUSINESSMATH_REPO:-$(cd "$(dirname "$0")/../.." && pwd)/BusinessMath}"
 
@@ -144,7 +147,7 @@ fi
 
 echo "[restart] Starting new server..."
 if [ "$DRY_RUN" = false ]; then
-    ssh "$REMOTE_HOST" "cd $REMOTE_PROJECT && nohup $REMOTE_BINARY --http $SERVER_PORT --tls-cert $TLS_CERT --tls-key $TLS_KEY > /tmp/businessmath-mcp.log 2>&1 &"
+    ssh "$REMOTE_HOST" "cd $REMOTE_PROJECT && nohup $REMOTE_BINARY --http $SERVER_PORT --host $SERVER_HOST --tls-cert $TLS_CERT --tls-key $TLS_KEY > /tmp/businessmath-mcp.log 2>&1 &"
     sleep 3
     NEW_PID=$(ssh "$REMOTE_HOST" "pgrep -f businessmath-mcp-server" 2>/dev/null || echo "")
     if [ -n "$NEW_PID" ]; then
@@ -154,7 +157,7 @@ if [ "$DRY_RUN" = false ]; then
         exit 1
     fi
 else
-    echo "  → nohup $REMOTE_BINARY --http $SERVER_PORT --tls-cert ... &"
+    echo "  → nohup $REMOTE_BINARY --http $SERVER_PORT --host $SERVER_HOST --tls-cert ... &"
 fi
 echo
 

@@ -4,7 +4,7 @@ import SwiftMCPServer
 
 try await MCPServer.builder()
     .serverName("BusinessMath MCP Server")
-    .serverVersion("2.0.0")
+    .serverVersion("3.0.0")
     .serverInstructions("""
         Comprehensive business mathematics, financial modeling, Monte Carlo simulation, and advanced analytics server.
 

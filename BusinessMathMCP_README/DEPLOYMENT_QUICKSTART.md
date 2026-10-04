@@ -27,6 +27,14 @@ sudo systemctl status businessmath-mcp
 sudo journalctl -u businessmath-mcp -f        # tail logs
 ```
 
+## Bind address
+
+As of SwiftMCPServer 5.0.0 the server listens on `127.0.0.1` unless started with
+`--host <address>`. The checks under **Verify** reach it from another machine, so the unit's
+`ExecStart` must end `--http 8080 --host 0.0.0.0`. The unit file lives on the server, not in
+this repository: it has to be edited there (`sudo systemctl edit --full businessmath-mcp`)
+before the first restart on a 5.0.0 build, or the service will start and answer nobody.
+
 ## Verify
 
 ```bash

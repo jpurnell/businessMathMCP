@@ -36,11 +36,16 @@ Add BusinessMathMCP to your Claude Desktop configuration:
 }
 ```
 
-Or run in HTTP mode for production:
+Or run in HTTP mode:
 
 ```bash
-./BusinessMathMCP --mode http --port 8080 --api-key YOUR_KEY
+businessmath-mcp-server --generate-key --name "My client"
+businessmath-mcp-server --http 8080                   # this machine only (127.0.0.1)
+businessmath-mcp-server --http 8080 --host 0.0.0.0    # reachable from other machines
 ```
+
+The server listens on `127.0.0.1` unless `--host` says otherwise, and refuses every request
+until an API key exists.
 
 ## Topics
 
@@ -51,6 +56,10 @@ Or run in HTTP mode for production:
 - <doc:MonteCarloSimulationTutorial>
 - <doc:PortfolioOptimizationTutorial>
 - <doc:FinancialStatementsTutorial>
+
+### Reference
+
+- <doc:FormulasAndErrors>
 
 ### Time Value of Money
 
