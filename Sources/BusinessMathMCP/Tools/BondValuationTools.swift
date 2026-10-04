@@ -27,6 +27,34 @@ public func getBondValuationTools() -> [any MCPToolHandler] {
     ]
 }
 
+// MARK: - Maturity bounds
+
+/// The longest maturity or call date a bond tool accepts, in years.
+///
+/// A bond is one cash flow per coupon period, and a yield is found by pricing the bond once per
+/// solver iteration, so the work a call asks for grows with the maturity the caller names. A
+/// century covers every bond that is issued; beyond it the tools refuse rather than compute.
+let maximumBondYears = 100
+
+/// A number of years as the whole years a bond's dates are built from.
+///
+/// - Parameters:
+///   - years: The value the caller sent.
+///   - argument: The argument it arrived in, for the error message.
+/// - Returns: `years` truncated to whole years.
+/// - Throws: `ToolError.invalidArguments` unless `years` is finite and from 0 to
+///   ``maximumBondYears``. Checking first is also what makes the conversion safe: `Int(_:)`
+///   traps on a value it cannot represent.
+func bondYears(_ years: Double, argument: String) throws -> Int {
+    guard years.isFinite, years >= 0, years <= Double(maximumBondYears),
+        let whole = Int(exactly: years.rounded(.towardZero))
+    else {
+        throw ToolError.invalidArguments(
+            "\(argument) must be a number of years from 0 to \(maximumBondYears)")
+    }
+    return whole
+}
+
 // MARK: - Bond Price Tool
 
 /// Calculate bond price given yield to maturity.
@@ -67,7 +95,7 @@ public struct BondPriceTool: MCPToolHandler, Sendable {
                 ),
                 "yearsToMaturity": MCPSchemaProperty(
                     type: "number",
-                    description: "Years until bond matures"
+                    description: "Years until bond matures (0 to 100)"
                 ),
                 "yieldToMaturity": MCPSchemaProperty(
                     type: "number",
@@ -104,7 +132,7 @@ public struct BondPriceTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -195,7 +223,7 @@ public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
                 ),
                 "yearsToMaturity": MCPSchemaProperty(
                     type: "number",
-                    description: "Years until bond matures"
+                    description: "Years until bond matures (0 to 100)"
                 ),
                 "marketPrice": MCPSchemaProperty(
                     type: "number",
@@ -232,7 +260,7 @@ public struct BondYieldToMaturityTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -319,7 +347,7 @@ public struct BondDurationTool: MCPToolHandler, Sendable {
                 ),
                 "yearsToMaturity": MCPSchemaProperty(
                     type: "number",
-                    description: "Years to maturity"
+                    description: "Years to maturity (0 to 100)"
                 ),
                 "yieldToMaturity": MCPSchemaProperty(
                     type: "number",
@@ -356,7 +384,7 @@ public struct BondDurationTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
 
@@ -578,11 +606,11 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
                 ),
                 "yearsToMaturity": MCPSchemaProperty(
                     type: "number",
-                    description: "Years to maturity"
+                    description: "Years to maturity (0 to 100)"
                 ),
                 "callYears": MCPSchemaProperty(
                     type: "number",
-                    description: "Years until bond becomes callable"
+                    description: "Years until bond becomes callable (0 to 100)"
                 ),
                 "callPrice": MCPSchemaProperty(
                     type: "number",
@@ -629,10 +657,10 @@ public struct CallableBondPriceTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
-        guard let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today) else {
+        guard let callDate = calendar.date(byAdding: .year, value: try bondYears(callYears, argument: "callYears"), to: today) else {
             throw ToolError.invalidArguments("callYears does not produce a representable call date")
         }
 
@@ -756,11 +784,11 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
                 ),
                 "yearsToMaturity": MCPSchemaProperty(
                     type: "number",
-                    description: "Years to maturity"
+                    description: "Years to maturity (0 to 100)"
                 ),
                 "callYears": MCPSchemaProperty(
                     type: "number",
-                    description: "Years until callable"
+                    description: "Years until callable (0 to 100)"
                 ),
                 "callPrice": MCPSchemaProperty(
                     type: "number",
@@ -807,10 +835,10 @@ public struct OptionAdjustedSpreadTool: MCPToolHandler, Sendable {
 
         let calendar = Calendar.current
         let today = Date()
-        guard let maturity = calendar.date(byAdding: .year, value: Int(yearsToMaturity), to: today) else {
+        guard let maturity = calendar.date(byAdding: .year, value: try bondYears(yearsToMaturity, argument: "yearsToMaturity"), to: today) else {
             throw ToolError.invalidArguments("yearsToMaturity does not produce a representable maturity date")
         }
-        guard let callDate = calendar.date(byAdding: .year, value: Int(callYears), to: today) else {
+        guard let callDate = calendar.date(byAdding: .year, value: try bondYears(callYears, argument: "callYears"), to: today) else {
             throw ToolError.invalidArguments("callYears does not produce a representable call date")
         }
 
