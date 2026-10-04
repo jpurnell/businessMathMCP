@@ -222,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/swift-oauth.git",
       "state" : {
-        "revision" : "d4960874a1de30e333c8b64e3f323a1159859e1c",
-        "version" : "1.0.0-beta.5"
+        "revision" : "4e6e03bc4710c49d789c44cf6dae58fe8b9ab0f0",
+        "version" : "1.0.0-beta.6"
       }
     },
     {
@@ -276,8 +276,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/SwiftMCPServer.git",
       "state" : {
-        "revision" : "1270bd2e08421b446cac118cbfd5dc144c9e9a98",
-        "version" : "5.0.0"
+        "revision" : "769afe201b810b24bdae2d3e34aacb1116a474a0",
+        "version" : "5.0.1"
       }
     }
   ],
