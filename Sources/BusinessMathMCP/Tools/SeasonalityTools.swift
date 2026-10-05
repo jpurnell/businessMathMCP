@@ -358,11 +358,12 @@ public struct ApplySeasonalTool: MCPToolHandler, Sendable {
             seasonalizedValues.append(trendValue * index)
         }
 
-        // Calculate summary statistics
-        guard let trendAvg = trendValues.meanValue else {
+        // Calculate summary statistics. One seasonalized value is produced per trend value,
+        // so the two averages exist or fail together.
+        guard let trendAvg = trendValues.meanValue,
+              let seasonalAvg = seasonalizedValues.meanValue else {
             throw ToolError.invalidArguments("No trend values to average")
         }
-        let seasonalAvg = seasonalizedValues.reduce(0.0, +) / Double(seasonalizedValues.count)
         let periodicity = seasonalIndices.count
 
         // Show first complete cycle as example

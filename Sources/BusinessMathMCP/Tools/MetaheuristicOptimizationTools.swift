@@ -414,6 +414,11 @@ public struct SimulatedAnnealingOptimizeTool: MCPToolHandler, Sendable {
     // MARK: - Helper Functions
 
     private func estimateTemperatureSteps(initial: Double, final: Double, rate: Double, schedule: String) throws -> Int {
+        // `execute` refuses a non-positive initialTemperature before calling this. The check
+        // is repeated here, with the same message, so the divisions below hold on their own.
+        guard initial > 0 else {
+            throw ToolError.invalidArguments("initialTemperature must be a number greater than 0")
+        }
         let estimate: Double
         switch schedule {
         case "exponential", "geometric":

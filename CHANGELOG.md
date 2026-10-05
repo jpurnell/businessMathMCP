@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two divisions state their own zero guard**, for the widened quality-gate rule
+  `fp-division-unguarded`. Neither could divide by zero, and no result or error message
+  changes.
+  - `simulated_annealing_optimize`: the step estimate divides by `initialTemperature`.
+    `execute` already refuses a value that is not greater than 0; `estimateTemperatureSteps`
+    now makes the same check, with the same message, before it divides.
+  - `apply_seasonal_pattern`: the seasonalized average is taken with `meanValue`, in the
+    guard that already refuses an empty `trendValues`, instead of a separate division by
+    the count.
+
 ## [3.0.0] - 2026-10-04
 
 **A breaking release: formulas give different answers, a server started as before is no longer
