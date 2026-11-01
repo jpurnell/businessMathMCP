@@ -1,5 +1,5 @@
 {
-  "originHash" : "583253aaf89280036fe48e7d560a59f2a2346a4fe3789e80c292e27206ae5bc5",
+  "originHash" : "c148941cba36d7609999459274267950c78e2e83af1ae3f418cbc2b0a451d41f",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -146,6 +146,15 @@
       }
     },
     {
+      "identity" : "swift-identity",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpurnell/swift-identity.git",
+      "state" : {
+        "revision" : "7b6424fd6ddd99c112a9efeab16de6e33f9a2e1a",
+        "version" : "0.7.1"
+      }
+    },
+    {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
@@ -222,8 +231,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/swift-oauth.git",
       "state" : {
-        "revision" : "c1d38575cd4df88683860d0617cb677028be6812",
-        "version" : "1.0.0-beta.7"
+        "revision" : "ebf3e445be877d2616d52a42482e5761cfae73d1",
+        "version" : "1.0.0-beta.10"
       }
     },
     {
@@ -272,12 +281,21 @@
       }
     },
     {
+      "identity" : "swiftdiagnosticskit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpurnell/SwiftDiagnosticsKit.git",
+      "state" : {
+        "revision" : "7b4afed940b5c558c37383eab538834550fc52ae",
+        "version" : "2.1.0"
+      }
+    },
+    {
       "identity" : "swiftmcpserver",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/SwiftMCPServer.git",
       "state" : {
-        "revision" : "4360527a394850f11f0963b20b61b8ff3bec9bbb",
-        "version" : "5.0.2"
+        "revision" : "c5d3698437064d67465bbb16860b394984a0f779",
+        "version" : "5.3.1"
       }
     }
   ],
