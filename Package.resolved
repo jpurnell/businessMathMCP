@@ -1,5 +1,5 @@
 {
-  "originHash" : "c148941cba36d7609999459274267950c78e2e83af1ae3f418cbc2b0a451d41f",
+  "originHash" : "610079a335d5a545e6ba908bc267963c117621722099136cebf0dec3a033bda7",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -294,8 +294,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpurnell/SwiftMCPServer.git",
       "state" : {
-        "revision" : "c5d3698437064d67465bbb16860b394984a0f779",
-        "version" : "5.3.1"
+        "revision" : "1e55338729c0f13db952f05aad28b40f71d7346b",
+        "version" : "5.4.0"
       }
     }
   ],
