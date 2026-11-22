@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **`scripts/deploy.sh`.** It had not matched production for a long time: it deployed to port 8080 with certificates under
+  `~/.businessmath-mcp/`, while the running service is a launchd job (`com.roseclub.businessmath-mcp`, port 9080, state in
+  `~/.businessmath-mcp-server/`). Following it would have started a second, differently configured server. Earlier entries
+  below that mention it describe what it did when they were written.
+
 ### Changed
 
 - **SwiftMCPServer 5.0.1 → 5.0.2** (`from: "5.0.2"`), which moves its exact swift-oauth pin
