@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **swift-nio 2.102.0 -> 2.105.0, swift-nio-ssl 2.37.4 -> 2.37.6, swift-nio-http2 1.46.0 (already latest),
+  swift-nio-extras 1.35.1 -> 1.35.2, async-http-client 1.36.1 -> 1.37.0** (Package.resolved only; transitive
+  through SwiftMCPServer, no Package.swift change). Addresses GHSA-xfxg-9975-pc2j (swift-nio-ssl, critical,
+  vulnerable 2.18.0 to 2.37.1; already past the patch) and GHSA-qcc5-f287-vgmq (swift-nio, high, <= 2.100.0;
+  patched in 2.101.0, already past it), and brings everything to the latest releases as of 2026-11-22.
+  **Rebuild and redeploy needed** for a running server to pick this up.
+
 ### Removed
 
 - **`scripts/deploy.sh`.** It had not matched production for a long time: it deployed to port 8080 with certificates under

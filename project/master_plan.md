@@ -151,7 +151,7 @@ encode the decoder's actual behaviour rather than the documented one.
 
 ---
 
-**Last Updated:** 2026-10-04 — reconciled against the SwiftMCPServer 5.0.0 migration:
+**Last Updated:** 2026-11-22 — swift-nio 2.105.0, swift-nio-ssl 2.37.6 (Package.resolved; see CHANGELOG Security; nothing else reconciled). Previously 2026-10-04 — reconciled against the SwiftMCPServer 5.0.0 migration:
 file and test counts, the dependency table, the two new files between the tools and the
 framework, a Current Status entry that says what is and is not deployed, two more
 "unexercised tool" findings under Priorities, and three roadmap candidates. Previously
